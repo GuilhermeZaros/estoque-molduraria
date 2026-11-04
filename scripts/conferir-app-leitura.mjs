@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
 
 const URL_API = process.env.APPS_SCRIPT_URL;
