@@ -10,7 +10,7 @@ const PECAS = {
     'calcularOrcamento'],
   'AppNucleo.gs': ['LADOS_CORREDOR', '_casinhasDoDeposito', '_normalizarCasinha', '_casinhaValida',
     '_nomeCasinha', '_corEstoque', '_metros', '_abaterFaltas', '_validarNovaMoldura', '_medidaExterna',
-    '_totaisOrcamentoApp', '_planejarBaixaMoldura', '_quadrosDoPedido', '_bordaDoQuadro', '_consumoPorMoldura',
+    '_servicosDoQuadro', '_totaisOrcamentoApp', '_ehObjeto', '_planejarBaixaMoldura', '_quadrosDoPedido', '_bordaDoQuadro', '_consumoPorMoldura',
     '_numeroCurto', '_resumoQuadros']
 };
 

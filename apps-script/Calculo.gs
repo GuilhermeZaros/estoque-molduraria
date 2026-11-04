@@ -58,9 +58,8 @@ function _distribuirValor(valoresCalculados, valorTotalCalculado, valorCobrado) 
   return out;
 }
 
-// Taxa fixa pra pintar a chapa quando o quadro leva um OBJETO em relevo/volumoso
-// preso nela (camiseta, uniforme, medalha). Independe de tamanho e cor.
-var TAXA_PINTURA_CHAPA = 25;
+// Taxa fixa da pintura da chapa, marcada no orçamento. Independe de tamanho e cor.
+var TAXA_PINTURA_CHAPA = 30;
 
 // itens: array de { categoria:'moldura'|'vidro'|'chapa'|'espelho', nome, preco }
 // opcoes (opcional): { objetoAlto:true } soma a pintura da chapa; { vidroDuplo:true } conta o
@@ -150,6 +149,8 @@ function _montarValoresQuadro(partes, valorTotalCalc, taxa, override) {
   var somaCalc = partes.reduce(function (s, v) { return s + Number(v); }, 0);
   // Só engata a distribuição quando há override ou taxa; senão mantém os valores calculados.
   var cobradoArg = (temOverride || taxa > 0) ? alvoItens : 0;
-  var valores = _distribuirValor(partes, somaCalc, cobradoArg);
+  var valores = somaCalc > 0
+    ? _distribuirValor(partes, somaCalc, cobradoArg)
+    : partes.map(function (v, i) { return i === partes.length - 1 ? alvoItens : 0; });
   return { valores: valores, pintura: taxa, total: Number(totalCobrado.toFixed(2)) };
 }

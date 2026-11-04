@@ -59,6 +59,14 @@ test('descrição dos quadros junta medida, moldura e materiais', () => {
   expect(texto).toMatch(/Vidro simples \(2 vidros\)$/);
 });
 
+test('descrição dos quadros leva os serviços e ignora paspatur do objeto', () => {
+  const texto = descricaoDosQuadros({ molduras: [], materiais: [] }, [
+    { tipo: 'objeto', largura: '52', altura: '72', quantidade: 1, paspatur: '5', servicos: [] },
+    { tipo: 'reforma', largura: '', altura: '', quantidade: 1, servicos: [{ descricao: 'Limpar vidros', valor: '30' }, { descricao: ' ', valor: '5' }] }
+  ]);
+  expect(texto).toBe('Objeto 52 x 72; Reforma, Limpar vidros');
+});
+
 test('resumo da oficina conta produção, acabamento, prontos e atrasadas', () => {
   const lista = [
     { status: 'em_producao', prazo: '20/11/2026' },

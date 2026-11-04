@@ -142,8 +142,19 @@ function _molduraOuErro(codigo) {
   return p;
 }
 
+function _temMaterial(q) {
+  return ['moldura', 'vidro', 'chapa', 'espelho'].some(function (c) {
+    return String(q[c] == null ? '' : q[c]).trim() !== '';
+  });
+}
+
 function _calcularOrcamentoApp(q) {
   var borda = _bordaDoQuadro(q);
+  var servicos = _servicosDoQuadro(q.servicos);
+  if (_tipoDoQuadro(q) === 'reforma' && !_temMaterial(q) && !borda.paspatur) {
+    var semMaterial = calcularOrcamento(0, 0, [], { objetoAlto: _ehDisponivel(q.objeto_alto) });
+    return _totaisOrcamentoApp(semMaterial, q.quantidade, servicos);
+  }
   var ext = _medidaExterna(q.largura_cm, q.altura_cm, borda.cm);
   var orc = orcamentoPorCodigos({
     moldura: q.moldura, vidro: q.vidro, chapa: q.chapa, espelho: q.espelho,
@@ -152,7 +163,7 @@ function _calcularOrcamentoApp(q) {
     vidroDuplo: _ehDisponivel(q.vidro_duplo),
     paspatur: borda.paspatur
   });
-  return _totaisOrcamentoApp(orc, q.quantidade);
+  return _totaisOrcamentoApp(orc, q.quantidade, servicos);
 }
 
 function _calcularPedidoApp(d) {
@@ -180,24 +191,26 @@ function _calcularPedidoApp(d) {
 
 function _tipoDoQuadro(q) {
   var t = String(q.tipo || '');
-  return t === 'reforma' || t === 'camiseta' ? t : 'quadro';
+  return t === 'reforma' || t === 'objeto' || t === 'camiseta' ? t : 'quadro';
 }
 
 function _linhaDoQuadro(id, ref, q, c, n) {
-  var camiseta = _tipoDoQuadro(q) === 'camiseta';
+  var tipo = _tipoDoQuadro(q);
+  var objeto = _ehObjeto(q);
   var borda = _bordaDoQuadro(q);
   var duplo = _ehDisponivel(q.vidro_duplo);
   return {
-    Orcamento: id, Ref_app: ref, N: n, Tipo: _tipoDoQuadro(q),
-    Tamanho: camiseta ? String(q.tamanho || '') : '',
-    Largura_cm: Number(q.largura_cm), Altura_cm: Number(q.altura_cm),
-    Margem_cm: camiseta ? borda.cm : 0,
+    Orcamento: id, Ref_app: ref, N: n, Tipo: tipo,
+    Tamanho: tipo === 'camiseta' ? String(q.tamanho || '') : '',
+    Largura_cm: Number(q.largura_cm) || 0, Altura_cm: Number(q.altura_cm) || 0,
+    Margem_cm: objeto ? borda.cm : 0,
     Quantidade: c.quantidade,
-    Paspatur_cm: camiseta ? 0 : borda.cm,
+    Paspatur_cm: objeto ? 0 : borda.cm,
     Moldura: String(q.moldura || ''), Vidro: String(q.vidro || ''),
     Chapa: duplo ? '' : String(q.chapa || ''), Espelho: String(q.espelho || ''),
     Vidro_duplo: duplo, Objeto_alto: _ehDisponivel(q.objeto_alto),
-    Valor_calculado: c.valor_total, Consumo_m: c.consumo_moldura_m
+    Valor_calculado: c.valor_total, Consumo_m: c.consumo_moldura_m,
+    Servicos: c.servicos.length ? JSON.stringify(c.servicos) : ''
   };
 }
 
@@ -285,6 +298,7 @@ function _rotuloHistorico(q, i) {
   var tipo = _tipoDoQuadro(q);
   var txt = 'quadro ' + (i + 1);
   if (tipo === 'reforma') txt += ' (reforma)';
+  if (tipo === 'objeto') txt += ' (objeto)';
   if (tipo === 'camiseta') txt += ' (camiseta' + (q.tamanho ? ' ' + q.tamanho : '') + ')';
   return txt;
 }
@@ -317,10 +331,26 @@ function _registrarVendaApp(o, d, molduras, quando) {
       }
       linhas.push(l);
     });
+    c.servicos.forEach(function (sv) {
+      partes.push(sv.valor);
+      linhas.push({ servico: sv, obs: obs });
+    });
   });
-  var montado = _montarValoresQuadro(partes, p.valor_total, Number(taxa.toFixed(2)), o.valor_final);
+  taxa = Number(taxa.toFixed(2));
+  if (!linhas.length && Number(o.valor_final) - taxa > 0.005) {
+    partes.push(0);
+    linhas.push({ servico: { descricao: 'Reforma', valor: 0 }, obs: 'Orçamento ' + o.id + ' (app)' });
+  }
+  var montado = _montarValoresQuadro(partes, p.valor_total, taxa, o.valor_final);
   var cliente = String(d.cliente || '');
   linhas.forEach(function (l, i) {
+    if (l.servico) {
+      registrarHistorico({
+        tipo: 'venda', categoria: 'servico', produto: l.servico.descricao || 'Serviço', quantidade: '', unidade: '',
+        valor: montado.valores[i], cliente: cliente, observacoes: l.obs + '; serviço', codigo: '', data_hora: quando
+      });
+      return;
+    }
     registrarHistorico({
       tipo: 'venda', categoria: l.it.categoria, produto: l.it.item,
       quantidade: l.moldura ? l.baixa : Number((l.it.quantidade * l.qtd).toFixed(3)),

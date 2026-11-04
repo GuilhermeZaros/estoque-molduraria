@@ -12,9 +12,9 @@ test('link com o texto codificado; sem número abre pra escolher o contato', () 
 });
 
 const q = (mudar) => ({
-  tipo: 'quadro', tamanho: '', largura: 40, altura: 50, borda: 0, margem: 0, externa: { largura: 40, altura: 50 },
+  tipo: 'quadro', largura: 40, altura: 50, borda: 0, margem: 0, externa: { largura: 40, altura: 50 },
   quantidade: 1, moldura: '', vidro: '', vidro_duplo: false, fundo: '', espelho: '', valor_total: 0, valor_unitario: 0,
-  ...mudar
+  servicos: [], ...mudar
 });
 
 test('um quadro: texto sem travessão, com paspatur, itens, quantidade e total', () => {
@@ -45,15 +45,18 @@ test('um quadro sem nome, com 2 vidros', () => {
   expect(texto).toBe('Olá! Segue o orçamento da Vera Molduras:\nQuadro de 30 x 30 cm\nVidro: Vidro simples (2 vidros)\nTotal: R$ 97,00');
 });
 
-test('vários quadros: lista numerada com o valor de cada, reforma e camiseta', () => {
+test('vários quadros: lista numerada com o valor de cada, reforma com serviço e objeto', () => {
   const texto = textoOrcamento({
-    cliente: 'Ana', ajustado: false, total: 869.2,
+    cliente: 'Ana', ajustado: false, total: 899.2,
     quadros: [
       q({ largura: 20, altura: 30, moldura: 'Clássica preta', vidro: 'Vidro simples', fundo: 'Eucatex', valor_total: 118, valor_unitario: 118 }),
       q({ largura: 50, altura: 40, quantidade: 2, moldura: 'Clássica preta', valor_total: 412, valor_unitario: 206 }),
-      q({ tipo: 'reforma', largura: 40, altura: 60, vidro: 'Vidro simples', valor_total: 43.2, valor_unitario: 43.2 }),
       q({
-        tipo: 'camiseta', tamanho: 'M', largura: 52, altura: 72, margem: 4, externa: { largura: 60, altura: 80 },
+        tipo: 'reforma', largura: 40, altura: 60, vidro: 'Vidro simples', valor_total: 73.2, valor_unitario: 43.2,
+        servicos: [{ descricao: 'Limpar vidros', valor: 30 }]
+      }),
+      q({
+        tipo: 'objeto', largura: 52, altura: 72, margem: 4, externa: { largura: 60, altura: 80 },
         moldura: 'Caixa preta', vidro: 'Vidro simples', fundo: 'Eucatex', valor_total: 296, valor_unitario: 296
       })
     ]
@@ -73,28 +76,48 @@ test('vários quadros: lista numerada com o valor de cada, reforma e camiseta', 
     '',
     '3) Reforma do seu quadro de 40 x 60 cm',
     'Vidro novo: Vidro simples',
-    'Valor: R$ 43,20',
+    'Limpar vidros: R$ 30,00',
+    'Valor: R$ 73,20',
     '',
-    '4) Camiseta tamanho M (o quadro fica 60 x 80 cm)',
+    '4) Objeto de 52 x 72 cm (o quadro fica 60 x 80 cm)',
     'Moldura: Caixa preta',
     'Vidro: Vidro simples',
     'Fundo: Eucatex',
     'Valor: R$ 296,00',
     '',
-    'Total: R$ 869,20'
+    'Total: R$ 899,20'
   ].join('\n'));
   expect(texto).not.toMatch(/[—–]/);
 });
 
-test('valor ajustado tira o valor de cada quadro e fica só o total; camiseta sem tamanho mostra a medida', () => {
+test('valor ajustado tira o valor de cada quadro e dos serviços e fica só o total', () => {
   const texto = textoOrcamento({
     cliente: 'Ana', ajustado: true, total: 300,
     quadros: [
-      q({ moldura: 'Clássica preta', valor_total: 200 }),
-      q({ tipo: 'camiseta', largura: 60, altura: 90, margem: 4, externa: { largura: 68, altura: 98 }, quantidade: 2, moldura: 'Caixa', valor_total: 150 })
+      q({ moldura: 'Clássica preta', valor_total: 200, servicos: [{ descricao: 'Instalação', valor: 20 }] }),
+      q({ tipo: 'objeto', largura: 60, altura: 90, margem: 4, externa: { largura: 68, altura: 98 }, quantidade: 2, moldura: 'Caixa', valor_total: 150 })
     ]
   });
   expect(texto).not.toMatch(/Valor:/);
-  expect(texto).toMatch(/2\) 2 camisetas de 60 x 90 cm \(o quadro fica 68 x 98 cm\)/);
+  expect(texto).not.toMatch(/R\$ 20/);
+  expect(texto).toMatch(/\nInstalação\n/);
+  expect(texto).toMatch(/2\) 2 objetos de 60 x 90 cm \(o quadro fica 68 x 98 cm\)/);
   expect(texto.endsWith('\n\nTotal: R$ 300,00')).toBe(true);
+});
+
+test('reforma sem medida e serviço sem descrição', () => {
+  const texto = textoOrcamento({
+    cliente: 'Rui', ajustado: false, total: 45,
+    quadros: [q({
+      tipo: 'reforma', largura: 0, altura: 0, externa: { largura: 0, altura: 0 }, valor_total: 45,
+      servicos: [{ descricao: 'Limpar vidros', valor: 30 }, { descricao: '', valor: 15 }]
+    })]
+  });
+  expect(texto).toBe([
+    'Olá, Rui! Segue o orçamento da Vera Molduras:',
+    'Reforma do seu quadro',
+    'Limpar vidros: R$ 30,00',
+    'Serviço: R$ 15,00',
+    'Total: R$ 45,00'
+  ].join('\n'));
 });

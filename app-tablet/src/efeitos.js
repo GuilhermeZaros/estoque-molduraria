@@ -1,4 +1,7 @@
-import { abaterFaltas, normalizarCasinha, planejarBaixaMoldura, validarNovaMoldura, quadrosDoPedido, consumoPorMoldura, resumoQuadros } from './gerado/nucleo';
+import {
+  abaterFaltas, normalizarCasinha, planejarBaixaMoldura, validarNovaMoldura, quadrosDoPedido, consumoPorMoldura, resumoQuadros,
+  servicosDoQuadro
+} from './gerado/nucleo';
 
 function trocarMoldura(pacote, codigo, mudar) {
   return {
@@ -55,8 +58,7 @@ function cadastro(pacote, d, r, extra) {
 
 function quadroSalvo(q) {
   return {
-    tipo: q.tipo === 'reforma' || q.tipo === 'camiseta' ? q.tipo : 'quadro',
-    tamanho: q.tamanho || '',
+    tipo: q.tipo === 'reforma' || q.tipo === 'objeto' ? q.tipo : 'quadro',
     largura_cm: Number(q.largura_cm) || 0,
     altura_cm: Number(q.altura_cm) || 0,
     margem_cm: Number(q.margem_cm) || 0,
@@ -69,7 +71,8 @@ function quadroSalvo(q) {
     vidro_duplo: !!q.vidro_duplo,
     objeto_alto: !!q.objeto_alto,
     valor_calculado: Number(q.valor_calculado) || 0,
-    consumo_m: Number(q.consumo_m) || 0
+    consumo_m: Number(q.consumo_m) || 0,
+    servicos: servicosDoQuadro(q.servicos)
   };
 }
 

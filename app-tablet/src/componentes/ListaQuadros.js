@@ -12,7 +12,9 @@ function materiais(pacote, q, r) {
   if (q.vidro) partes.push(nomeMaterial(pacote, q.vidro) + (q.vidro_duplo ? ' (2 vidros)' : ''));
   if (q.chapa && !q.vidro_duplo) partes.push(nomeMaterial(pacote, q.chapa));
   if (q.espelho) partes.push(nomeMaterial(pacote, q.espelho));
-  return (q.tipo === 'reforma' && partes.length ? 'troca: ' : '') + partes.join(' · ');
+  const troca = (q.tipo === 'reforma' && partes.length ? 'troca: ' : '') + partes.join(' · ');
+  const servicos = (r.calc.servicos || []).map((s) => s.descricao || 'serviço');
+  return [troca, ...servicos].filter(Boolean).join(' · ');
 }
 
 function CartaoQuadro({ q, n, r, aviso, escolhido, pacote, onPress }) {
@@ -54,7 +56,7 @@ export function ListaQuadros({ quadros, rr, avisos, sel, pacote, aoEscolher, aoA
       <View style={s.adicionar}>
         <Botao icone="plus" titulo="Quadro" rotulo="Adicionar quadro" variante="contorno" onPress={() => aoAdicionar('quadro')} estilo={s.mais} />
         <Botao icone="plus" titulo="Reforma" rotulo="Adicionar reforma" variante="contorno" onPress={() => aoAdicionar('reforma')} estilo={s.mais} />
-        <Botao icone="plus" titulo="Camiseta" rotulo="Adicionar camiseta" variante="contorno" onPress={() => aoAdicionar('camiseta')} estilo={s.mais} />
+        <Botao icone="plus" titulo="Objeto" rotulo="Adicionar objeto" variante="contorno" onPress={() => aoAdicionar('objeto')} estilo={s.mais} />
       </View>
     </View>
   );

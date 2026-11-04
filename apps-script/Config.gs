@@ -100,7 +100,7 @@ var CABECALHOS_APP = {
                  'Status', 'Data_fechamento', 'Fechado_por', 'Falta_m', 'Obs', 'Quadros'],
   Orcamento_quadros: ['Orcamento', 'Ref_app', 'N', 'Tipo', 'Tamanho', 'Largura_cm', 'Altura_cm', 'Margem_cm',
                  'Quantidade', 'Paspatur_cm', 'Moldura', 'Vidro', 'Chapa', 'Espelho', 'Vidro_duplo',
-                 'Objeto_alto', 'Valor_calculado', 'Consumo_m'],
+                 'Objeto_alto', 'Valor_calculado', 'Consumo_m', 'Servicos'],
   Compras:      ['ID', 'Data', 'Moldura', 'Nome', 'Marca', 'Metros_faltando',
                  'Orcamento_id', 'Cliente', 'Status', 'Data_atendida'],
   AppOperacoes: ['Id_op', 'Data', 'Acao', 'Resultado']

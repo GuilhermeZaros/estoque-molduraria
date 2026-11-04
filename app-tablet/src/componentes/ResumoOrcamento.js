@@ -36,13 +36,19 @@ function Erro({ texto }) {
 export function DetalheQuadro({ r, vidroDuplo }) {
   if (!r || !r.ok) return <Erro texto={r ? r.erro : 'Carregando...'} />;
   const q = r.calc.quantidade;
+  const servicos = r.calc.servicos || [];
+  const vazio = !r.calc.itens.length && !r.calc.pintura_chapa && !servicos.length;
   return (
     <View style={s.caixa}>
+      {vazio ? <Text style={s.cada}>Nada marcado ainda.</Text> : null}
       <View style={s.linhas}>
         {r.calc.itens.map((it, i) => (
           <Linha key={it.categoria + i} rotulo={NOMES[it.categoria] || it.categoria} item={nomeDoItem(it, r, vidroDuplo)} valor={it.valor * q} />
         ))}
         {r.calc.pintura_chapa ? <Linha rotulo="Pintura da chapa" valor={r.calc.pintura_chapa * q} /> : null}
+        {servicos.map((sv, i) => (
+          <Linha key={'servico' + i} rotulo="Serviço" item={sv.descricao || 'Sem descrição'} valor={sv.valor} />
+        ))}
       </View>
       {q > 1 ? <Text style={s.cada}>{q} iguais de {formatarReais(r.calc.valor_unitario)} cada</Text> : null}
       <View style={s.total}>

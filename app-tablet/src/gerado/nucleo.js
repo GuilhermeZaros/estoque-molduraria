@@ -20,7 +20,7 @@ function consumoMolduraM(larguraCm, alturaCm, perfilCm) {
   return Number((perim + cantos + triangulos + serra).toFixed(3));
 }
 
-var TAXA_PINTURA_CHAPA = 25;
+var TAXA_PINTURA_CHAPA = 30;
 
 function calcularOrcamento(larguraCm, alturaCm, itens, opcoes) {
   opcoes = opcoes || {};
@@ -185,17 +185,35 @@ function _medidaExterna(larguraCm, alturaCm, bordaCm) {
   return { largura: Number(larguraCm) + 2 * b, altura: Number(alturaCm) + 2 * b };
 }
 
-function _totaisOrcamentoApp(orc, quantidade) {
+function _servicosDoQuadro(lista) {
+  return (Array.isArray(lista) ? lista : []).map(function (s) {
+    var valor = Number(s && s.valor);
+    return {
+      descricao: String((s && s.descricao) || '').trim(),
+      valor: valor > 0 ? Number(valor.toFixed(2)) : 0
+    };
+  }).filter(function (s) { return s.descricao || s.valor > 0; });
+}
+
+function _totaisOrcamentoApp(orc, quantidade, servicos) {
   var q = Math.max(1, Math.round(Number(quantidade) || 1));
   var moldura = (orc.itens || []).filter(function (it) { return it.categoria === 'moldura'; })[0];
+  var lista = _servicosDoQuadro(servicos);
+  var somaServicos = lista.reduce(function (s, x) { return s + x.valor; }, 0);
   return {
     quantidade: q,
     valor_unitario: orc.valor_total,
-    valor_total: Number((orc.valor_total * q).toFixed(2)),
+    valor_total: Number((orc.valor_total * q + somaServicos).toFixed(2)),
     consumo_moldura_m: moldura ? Number((moldura.consumo * q).toFixed(3)) : 0,
     itens: orc.itens,
-    pintura_chapa: Number(orc.pintura_chapa) || 0
+    pintura_chapa: Number(orc.pintura_chapa) || 0,
+    servicos: lista
   };
+}
+
+function _ehObjeto(q) {
+  var t = String((q && q.tipo) || '');
+  return t === 'objeto' || t === 'camiseta';
 }
 
 function _planejarBaixaMoldura(estoqueM, consumoM) {
@@ -216,7 +234,7 @@ function _quadrosDoPedido(d) {
 }
 
 function _bordaDoQuadro(q) {
-  if (String(q.tipo || '') === 'camiseta') return { cm: Math.max(0, Number(q.margem_cm) || 0), paspatur: false };
+  if (_ehObjeto(q)) return { cm: Math.max(0, Number(q.margem_cm) || 0), paspatur: false };
   var p = Math.max(0, Number(q.paspatur_cm) || 0);
   return { cm: p, paspatur: p > 0 };
 }
@@ -241,10 +259,14 @@ function _resumoQuadros(quadros) {
   return (quadros || []).map(function (q) {
     var tipo = String(q.tipo || 'quadro');
     var qtd = Math.max(1, Math.round(Number(q.quantidade) || 1));
-    var medida = _numeroCurto(q.largura_cm) + ' x ' + _numeroCurto(q.altura_cm);
+    var medida = Number(q.largura_cm) > 0 && Number(q.altura_cm) > 0
+      ? _numeroCurto(q.largura_cm) + ' x ' + _numeroCurto(q.altura_cm) : '';
     var txt = medida;
     if (tipo === 'camiseta') txt = 'camiseta ' + (q.tamanho ? q.tamanho : medida);
-    if (tipo === 'reforma') txt = 'reforma ' + medida;
+    if (tipo === 'objeto') txt = 'objeto' + (medida ? ' ' + medida : '');
+    if (tipo === 'reforma') txt = 'reforma' + (medida ? ' ' + medida : '');
+    var nomes = _servicosDoQuadro(q.servicos).map(function (s) { return s.descricao; }).filter(function (d) { return d; });
+    if (nomes.length) txt += ' (' + nomes.join(', ') + ')';
     return (qtd > 1 ? qtd + 'x ' : '') + txt;
   }).join('; ');
 }
@@ -267,7 +289,9 @@ export {
   _abaterFaltas as abaterFaltas,
   _validarNovaMoldura as validarNovaMoldura,
   _medidaExterna as medidaExterna,
+  _servicosDoQuadro as servicosDoQuadro,
   _totaisOrcamentoApp as totaisOrcamentoApp,
+  _ehObjeto as ehObjeto,
   _planejarBaixaMoldura as planejarBaixaMoldura,
   _quadrosDoPedido as quadrosDoPedido,
   _bordaDoQuadro as bordaDoQuadro,

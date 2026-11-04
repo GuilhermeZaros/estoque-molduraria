@@ -100,7 +100,36 @@ test('_totaisOrcamentoApp: quantidade inválida vira 1; sem moldura o consumo é
   const t = js(ctx._totaisOrcamentoApp(orc, '0'));
   assert.equal(t.quantidade, 1);
   assert.equal(t.consumo_moldura_m, 0);
-  assert.equal(t.pintura_chapa, 25);
+  assert.equal(t.pintura_chapa, 30);
+  assert.deepEqual(t.servicos, []);
+});
+
+test('_servicosDoQuadro: limpa a descrição, arredonda o valor e tira linha vazia', () => {
+  assert.deepEqual(js(ctx._servicosDoQuadro([
+    { descricao: ' Limpar vidros ', valor: 30 },
+    { descricao: '', valor: 0 },
+    { descricao: 'Cortesia', valor: '' },
+    { descricao: '', valor: 12.345 },
+    { descricao: 'Errado', valor: -5 },
+    null
+  ])), [
+    { descricao: 'Limpar vidros', valor: 30 },
+    { descricao: 'Cortesia', valor: 0 },
+    { descricao: '', valor: 12.35 },
+    { descricao: 'Errado', valor: 0 }
+  ]);
+  assert.deepEqual(js(ctx._servicosDoQuadro(undefined)), []);
+  assert.deepEqual(js(ctx._servicosDoQuadro('x')), []);
+});
+
+test('_totaisOrcamentoApp: serviço entra uma vez, não multiplica pela quantidade', () => {
+  const orc = ctx.calcularOrcamento(0, 0, [], { objetoAlto: true });
+  const t = js(ctx._totaisOrcamentoApp(orc, 2, [{ descricao: 'Limpar vidros', valor: 30 }, { descricao: '', valor: '' }]));
+  assert.equal(t.valor_unitario, 30);
+  assert.equal(t.valor_total, 90);
+  assert.equal(t.pintura_chapa, 30);
+  assert.deepEqual(t.servicos, [{ descricao: 'Limpar vidros', valor: 30 }]);
+  assert.deepEqual(t.itens, []);
 });
 
 test('_planejarBaixaMoldura: baixa até zerar e o resto vira falta', () => {
@@ -124,6 +153,10 @@ test('_bordaDoQuadro: paspatur cobra; margem da camiseta só aumenta a medida', 
   assert.deepEqual(js(ctx._bordaDoQuadro({ tipo: 'reforma', paspatur_cm: 3 })), { cm: 3, paspatur: true });
   assert.deepEqual(js(ctx._bordaDoQuadro({ tipo: 'camiseta', margem_cm: 4, paspatur_cm: 5 })), { cm: 4, paspatur: false });
   assert.deepEqual(js(ctx._bordaDoQuadro({ tipo: 'camiseta', margem_cm: -1 })), { cm: 0, paspatur: false });
+  assert.deepEqual(js(ctx._bordaDoQuadro({ tipo: 'objeto', margem_cm: 4, paspatur_cm: 5 })), { cm: 4, paspatur: false });
+  assert.equal(ctx._ehObjeto({ tipo: 'objeto' }), true);
+  assert.equal(ctx._ehObjeto({ tipo: 'camiseta' }), true);
+  assert.equal(ctx._ehObjeto({ tipo: 'reforma' }), false);
 });
 
 test('_consumoPorMoldura: soma por código na ordem em que aparece', () => {
@@ -145,6 +178,12 @@ test('_resumoQuadros: texto curto de cada quadro', () => {
     { tipo: 'camiseta', tamanho: '', largura_cm: 60, altura_cm: 90 },
     { largura_cm: 10, altura_cm: 15 }
   ]), '20 x 30; 2x 50,5 x 40; reforma 40 x 60; camiseta M; camiseta 60 x 90; 10 x 15');
+  assert.equal(ctx._resumoQuadros([
+    { tipo: 'objeto', largura_cm: 52, altura_cm: 72 },
+    { tipo: 'reforma', largura_cm: 0, altura_cm: 0, servicos: [{ descricao: 'Limpar vidros', valor: 30 }, { descricao: '', valor: 5 }] },
+    { tipo: 'reforma' },
+    { tipo: 'quadro', largura_cm: 20, altura_cm: 30, quantidade: 2, servicos: [{ descricao: 'Instalação', valor: 20 }] }
+  ]), 'objeto 52 x 72; reforma (Limpar vidros); reforma; 2x 20 x 30 (Instalação)');
 });
 
 test('_abaterFaltas: separa as encomendas mais antigas primeiro, sem pular fila', () => {

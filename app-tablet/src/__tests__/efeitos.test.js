@@ -102,9 +102,9 @@ test('fechar venda com resposta usa estoque, falta e compra da planilha', () => 
 });
 
 const quadroApi = (mudar) => ({
-  tipo: 'quadro', tamanho: '', largura_cm: 20, altura_cm: 30, margem_cm: 0, quantidade: 1, paspatur_cm: 0,
+  tipo: 'quadro', largura_cm: 20, altura_cm: 30, margem_cm: 0, quantidade: 1, paspatur_cm: 0,
   moldura: '101', vidro: '', chapa: '', espelho: '', vidro_duplo: false, objeto_alto: false,
-  valor_calculado: 30, consumo_m: 1.5, ...mudar
+  valor_calculado: 30, consumo_m: 1.5, servicos: [], ...mudar
 });
 const dadosVarios = {
   ref_app: 'ref-0000-0002', atendente: 'Gui', cliente: 'Ana', telefone: '', valor_final: 0, valor_calculado: 330,
@@ -112,7 +112,10 @@ const dadosVarios = {
   quadros: [
     quadroApi(),
     quadroApi({ quantidade: 2, valor_calculado: 60 }),
-    quadroApi({ tipo: 'camiseta', tamanho: 'M', largura_cm: 52, altura_cm: 72, margem_cm: 4, moldura: '202', consumo_m: 3, valor_calculado: 240 })
+    quadroApi({
+      tipo: 'objeto', largura_cm: 52, altura_cm: 72, margem_cm: 4, moldura: '202', consumo_m: 3, valor_calculado: 240,
+      servicos: [{ descricao: 'Instalação', valor: 20 }]
+    })
   ]
 };
 
@@ -120,8 +123,10 @@ test('salvar com vários quadros guarda os quadros, o resumo e o total de peças
   const p = aplicarOperacao(base, op('salvarOrcamento', dadosVarios));
   const o = p.orcamentos_abertos[0];
   expect(o.quadros).toHaveLength(3);
-  expect(o.quadros[2]).toMatchObject({ tipo: 'camiseta', tamanho: 'M', margem_cm: 4, moldura: '202' });
-  expect(o.resumo).toBe('20 x 30; 2x 20 x 30; camiseta M');
+  expect(o.quadros[2]).toMatchObject({ tipo: 'objeto', margem_cm: 4, moldura: '202' });
+  expect(o.quadros[2].servicos).toEqual([{ descricao: 'Instalação', valor: 20 }]);
+  expect(o.quadros[0].servicos).toEqual([]);
+  expect(o.resumo).toBe('20 x 30; 2x 20 x 30; objeto 52 x 72 (Instalação)');
   expect(o.quantidade).toBe(4);
   expect(o.valor_final).toBe(330);
 });

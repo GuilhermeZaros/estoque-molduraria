@@ -44,13 +44,19 @@ test('calcularOrcamento: ignora preco minimo — cobra sempre o proporcional', (
   assert.equal(orc.valor_total, 36);
 });
 
-test('calcularOrcamento: objeto alto soma a taxa fixa de pintura da chapa (R$25)', () => {
-  // moldura 2.6m * 95 = 247 ; objeto alto soma 25 -> 272
+test('calcularOrcamento: pintura da chapa soma a taxa fixa de R$30', () => {
   const orc = ctx.calcularOrcamento(80, 50, [
     { categoria: 'moldura', nome: 'Veneza Dourada', preco: 95, precoMinimo: 80 }
   ], { objetoAlto: true });
-  assert.equal(orc.valor_total, 272);
-  assert.equal(orc.pintura_chapa, 25);
+  assert.equal(orc.valor_total, 277);
+  assert.equal(orc.pintura_chapa, 30);
+});
+
+test('calcularOrcamento: sem medida e sem item só cobra a pintura', () => {
+  const orc = ctx.calcularOrcamento(0, 0, [], { objetoAlto: true });
+  assert.equal(orc.valor_total, 30);
+  assert.equal(orc.itens.length, 0);
+  assert.equal(ctx.calcularOrcamento(0, 0, []).valor_total, 0);
 });
 
 test('calcularOrcamento: sem objeto alto nao soma taxa nem expoe pintura_chapa', () => {
@@ -152,6 +158,16 @@ test('_montarValoresQuadro: override + taxa — itens somam (total − taxa) e p
   assert.equal(r.pintura, 25);
   assert.equal(r.total, 300);
   assert.equal(Number(r.valores.reduce((a, b) => a + b, 0).toFixed(2)), 275);
+});
+
+test('_montarValoresQuadro: partes zeradas com valor cobrado jogam tudo na última', () => {
+  const r = ctx._montarValoresQuadro([0, 0], 0, 0, 80);
+  assert.deepEqual(r.valores, [0, 80]);
+  assert.equal(r.total, 80);
+  const comTaxa = ctx._montarValoresQuadro([0], 30, 30, 100);
+  assert.deepEqual(comTaxa.valores, [70]);
+  assert.equal(comTaxa.pintura, 30);
+  assert.deepEqual(ctx._montarValoresQuadro([0], 0, 0, 0).valores, [0]);
 });
 
 test('calcularOrcamento: vidroDuplo conta vidro 2x e ignora chapa', () => {

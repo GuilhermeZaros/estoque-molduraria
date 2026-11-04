@@ -28,5 +28,10 @@ test('o núcleo gerado calcula o orçamento igual à planilha', async () => {
   assert.equal(tot.valor_total, 438);
   assert.equal(tot.consumo_moldura_m, 4.978);
   assert.deepEqual(n.planejarBaixaMoldura(3, 4.978), { baixa: 3, falta: 1.978, novo_estoque: 0 });
-  assert.equal(n.TAXA_PINTURA_CHAPA, 25);
+  assert.equal(n.TAXA_PINTURA_CHAPA, 30);
+  const servicos = n.servicosDoQuadro([{ descricao: ' Limpar vidros ', valor: 30 }, { descricao: '', valor: '' }]);
+  assert.deepEqual(servicos, [{ descricao: 'Limpar vidros', valor: 30 }]);
+  const comServico = n.totaisOrcamentoApp(orc, 2, servicos);
+  assert.equal(comServico.valor_total, 468);
+  assert.deepEqual(n.bordaDoQuadro({ tipo: 'objeto', margem_cm: 4 }), { cm: 4, paspatur: false });
 });

@@ -1,25 +1,17 @@
 import {
   calcularOrcamento, medidaExterna, totaisOrcamentoApp, planejarBaixaMoldura, nomeCasinha, VARA_PADRAO_M,
-  quadrosDoPedido, bordaDoQuadro, consumoPorMoldura
+  quadrosDoPedido, bordaDoQuadro, consumoPorMoldura, servicosDoQuadro
 } from './gerado/nucleo';
 import { formatarMetros } from './varas';
 import { formatarNumero, lerNumero, momentoDe } from './formato';
 import { semAcento } from './busca';
 
 export const BORDAS_PASPATUR = [3, 4, 5, 7];
-export const MARGEM_CAMISETA_CM = 4;
-export const TAMANHOS_CAMISETA = [
-  { tamanho: 'PP', largura: 48, altura: 66 },
-  { tamanho: 'P', largura: 50, altura: 70 },
-  { tamanho: 'M', largura: 52, altura: 72 },
-  { tamanho: 'G', largura: 54, altura: 74 },
-  { tamanho: 'GG', largura: 56, altura: 76 },
-  { tamanho: 'XGG', largura: 58, altura: 78 }
-];
+export const MARGEM_OBJETO_CM = 4;
 export const TIPOS_QUADRO = [
   { valor: 'quadro', titulo: 'Quadro' },
   { valor: 'reforma', titulo: 'Reforma' },
-  { valor: 'camiseta', titulo: 'Camiseta' }
+  { valor: 'objeto', titulo: 'Objeto' }
 ];
 const MATERIAIS = ['vidro', 'chapa', 'espelho'];
 
@@ -48,55 +40,45 @@ function maisBarato(pacote, categoria) {
   return String(lista.reduce((a, b) => (Number(b.preco) < Number(a.preco) ? b : a)).codigo);
 }
 
+export function servicoVazio() {
+  return { chave: novaChave(), descricao: '', valor: '' };
+}
+
 export function quadroVazio(tipo = 'quadro', pacote) {
   const q = {
     chave: novaChave(), tipo, largura: '', altura: '', margem: '', quantidade: 1, paspatur: '', borda_outra: false, moldura: '',
-    vidro: '', chapa: '', espelho: '', vidro_duplo: false, objeto_alto: false
+    vidro: '', chapa: '', espelho: '', vidro_duplo: false, objeto_alto: false, servicos: []
   };
-  if (tipo !== 'camiseta') return q;
+  if (tipo !== 'objeto') return q;
   return {
-    ...q, margem: String(MARGEM_CAMISETA_CM), objeto_alto: true,
+    ...q, margem: String(MARGEM_OBJETO_CM), objeto_alto: true,
     vidro: maisBarato(pacote, 'vidro'), chapa: maisBarato(pacote, 'chapa')
   };
 }
 
 export function duplicarQuadro(q) {
-  return { ...q, chave: novaChave() };
+  return { ...q, chave: novaChave(), servicos: (q.servicos || []).map((s) => ({ ...s, chave: novaChave() })) };
 }
 
 export function trocarTipo(q, tipo, pacote) {
   if (q.tipo === tipo) return q;
-  if (tipo === 'camiseta') {
+  if (tipo === 'objeto') {
     return {
-      ...q, tipo, paspatur: '', margem: String(MARGEM_CAMISETA_CM), objeto_alto: true, vidro_duplo: false,
-      vidro: q.vidro || maisBarato(pacote, 'vidro'), chapa: q.chapa || maisBarato(pacote, 'chapa')
+      ...q, tipo, paspatur: '', borda_outra: false, margem: String(MARGEM_OBJETO_CM), objeto_alto: true, vidro_duplo: false,
+      espelho: '', vidro: q.vidro || maisBarato(pacote, 'vidro'), chapa: q.chapa || maisBarato(pacote, 'chapa')
     };
   }
-  if (q.tipo === 'camiseta') return { ...q, tipo, margem: '', objeto_alto: false };
+  if (q.tipo === 'objeto') return { ...q, tipo, margem: '', objeto_alto: false };
   return { ...q, tipo };
 }
 
-export function escolherTamanho(q, tamanho) {
-  const t = TAMANHOS_CAMISETA.find((x) => x.tamanho === tamanho);
-  return t ? { ...q, largura: formatarNumero(t.largura), altura: formatarNumero(t.altura) } : q;
-}
-
-export function tamanhoDaCamiseta(largura, altura) {
-  const l = typeof largura === 'number' ? largura : lerNumero(largura);
-  const a = typeof altura === 'number' ? altura : lerNumero(altura);
-  const t = TAMANHOS_CAMISETA.find((x) => x.largura === l && x.altura === a);
-  return t ? t.tamanho : '';
-}
+const NOMES_TIPO = { quadro: 'Quadro', reforma: 'Reforma', objeto: 'Objeto' };
 
 export function rotuloQuadro(q) {
   const l = lerNumero(q.largura);
   const a = lerNumero(q.altura);
   const medida = l > 0 && a > 0 ? formatarNumero(l) + ' x ' + formatarNumero(a) : '';
-  if (q.tipo === 'camiseta') {
-    const t = medida ? tamanhoDaCamiseta(l, a) : '';
-    return 'Camiseta' + (t ? ' ' + t : medida ? ' ' + medida : '');
-  }
-  return (q.tipo === 'reforma' ? 'Reforma' : 'Quadro') + (medida ? ' ' + medida : '');
+  return (NOMES_TIPO[q.tipo] || 'Quadro') + (medida ? ' ' + medida : '');
 }
 
 export function orcamentoVazio(ref) {
@@ -105,14 +87,19 @@ export function orcamentoVazio(ref) {
 
 const numeroOuVazio = (n) => (Number(n) > 0 ? formatarNumero(n) : '');
 
+function tipoSalvo(t) {
+  if (t === 'camiseta') return 'objeto';
+  return t === 'reforma' || t === 'objeto' ? t : 'quadro';
+}
+
 function deQuadroSalvo(x) {
-  const tipo = x.tipo === 'reforma' || x.tipo === 'camiseta' ? x.tipo : 'quadro';
+  const tipo = tipoSalvo(x.tipo);
   return {
     chave: novaChave(),
     tipo,
     largura: numeroOuVazio(x.largura_cm),
     altura: numeroOuVazio(x.altura_cm),
-    margem: tipo === 'camiseta' ? formatarNumero(Number(x.margem_cm) || 0) : '',
+    margem: tipo === 'objeto' ? formatarNumero(Number(x.margem_cm) || 0) : '',
     quantidade: Math.max(1, Math.round(Number(x.quantidade) || 1)),
     paspatur: numeroOuVazio(x.paspatur_cm),
     borda_outra: Number(x.paspatur_cm) > 0 && !BORDAS_PASPATUR.includes(Number(x.paspatur_cm)),
@@ -121,7 +108,8 @@ function deQuadroSalvo(x) {
     chapa: String(x.chapa || ''),
     espelho: String(x.espelho || ''),
     vidro_duplo: !!x.vidro_duplo,
-    objeto_alto: !!x.objeto_alto
+    objeto_alto: !!x.objeto_alto,
+    servicos: servicosDoQuadro(x.servicos).map((s) => ({ ...servicoVazio(), descricao: s.descricao, valor: numeroOuVazio(s.valor) }))
   };
 }
 
@@ -151,18 +139,33 @@ export function filtrarAbertos(abertos, termo) {
 }
 
 function erroDeMedida(tipo) {
-  if (tipo === 'camiseta') return 'Escolha o tamanho ou informe a medida da camiseta.';
-  if (tipo === 'reforma') return 'Informe a largura e a altura.';
+  if (tipo === 'objeto') return 'Informe a medida do objeto.';
+  if (tipo === 'reforma') return 'Pra trocar material, informe a largura e a altura.';
   return 'Informe a largura e a altura da foto.';
+}
+
+function lerServicos(lista) {
+  const out = [];
+  for (const s of lista || []) {
+    const descricao = String(s.descricao || '').trim();
+    const valor = lerNumero(s.valor);
+    if (Number.isNaN(valor)) return { erro: 'O valor do serviço ' + (descricao ? descricao + ' ' : '') + 'não é um número.' };
+    out.push({ descricao, valor });
+  }
+  return { lista: servicosDoQuadro(out) };
 }
 
 export function calcularQuadro(pacote, q) {
   const largura = lerNumero(q.largura);
   const altura = lerNumero(q.altura);
-  if (!(largura > 0) || !(altura > 0)) return { ok: false, erro: erroDeMedida(q.tipo) };
-  const camiseta = q.tipo === 'camiseta';
+  const temMedida = largura > 0 && altura > 0;
+  const reforma = q.tipo === 'reforma';
+  if (!reforma && !temMedida) return { ok: false, erro: erroDeMedida(q.tipo) };
+  const objeto = q.tipo === 'objeto';
   const borda = bordaDoQuadro({ tipo: q.tipo, paspatur_cm: lerNumero(q.paspatur), margem_cm: lerNumero(q.margem) });
-  if (!(borda.cm >= 0)) return { ok: false, erro: camiseta ? 'A borda não é um número.' : 'A borda do paspatur não é um número.' };
+  if (!(borda.cm >= 0)) return { ok: false, erro: objeto ? 'A borda não é um número.' : 'A borda do paspatur não é um número.' };
+  const servicos = lerServicos(q.servicos);
+  if (servicos.erro) return { ok: false, erro: servicos.erro };
   const itens = [];
   let moldura = null;
   if (q.moldura) {
@@ -177,15 +180,9 @@ export function calcularQuadro(pacote, q) {
     if (!mat) return { ok: false, erro: 'O item ' + codigo + ' não está mais no catálogo.' };
     itens.push({ categoria, nome: mat.nome, preco: Number(mat.preco), perfilCm: 0 });
   }
-  if (!itens.length) {
-    return {
-      ok: false,
-      erro: q.tipo === 'reforma'
-        ? 'Marque o que vai trocar: moldura, vidro, fundo ou espelho.'
-        : 'Escolha pelo menos a moldura, o vidro, o fundo ou o espelho.'
-    };
-  }
-  const externa = medidaExterna(largura, altura, borda.cm);
+  if (!reforma && !itens.length) return { ok: false, erro: 'Escolha pelo menos a moldura, o vidro, o fundo ou o espelho.' };
+  if (reforma && !temMedida && (itens.length || borda.paspatur)) return { ok: false, erro: erroDeMedida(q.tipo) };
+  const externa = temMedida ? medidaExterna(largura, altura, borda.cm) : { largura: 0, altura: 0 };
   const orc = calcularOrcamento(externa.largura, externa.altura, itens, {
     objetoAlto: !!q.objeto_alto,
     vidroDuplo: !!q.vidro_duplo,
@@ -193,10 +190,10 @@ export function calcularQuadro(pacote, q) {
     paspaturPrecoM2: borda.paspatur ? Number(pacote.paspatur_m2) || 0 : 0
   });
   return {
-    ok: true, tipo: q.tipo, largura, altura, externa, moldura,
+    ok: true, tipo: q.tipo, largura: temMedida ? largura : 0, altura: temMedida ? altura : 0, externa, moldura,
     borda: borda.paspatur ? borda.cm : 0,
-    margem: camiseta ? borda.cm : 0,
-    calc: totaisOrcamentoApp(orc, q.quantidade)
+    margem: objeto ? borda.cm : 0,
+    calc: totaisOrcamentoApp(orc, q.quantidade, servicos.lista)
   };
 }
 
@@ -267,10 +264,8 @@ export function avisosDoPedido(pacote, f, rr) {
 }
 
 function quadroParaApi(q, r) {
-  const camiseta = q.tipo === 'camiseta';
   return {
     tipo: q.tipo,
-    tamanho: camiseta ? tamanhoDaCamiseta(r.largura, r.altura) : '',
     largura_cm: r.largura,
     altura_cm: r.altura,
     margem_cm: r.margem,
@@ -283,7 +278,8 @@ function quadroParaApi(q, r) {
     vidro_duplo: !!q.vidro_duplo,
     objeto_alto: !!q.objeto_alto,
     valor_calculado: r.calc.valor_total,
-    consumo_m: r.calc.consumo_moldura_m
+    consumo_m: r.calc.consumo_moldura_m,
+    servicos: r.calc.servicos
   };
 }
 
@@ -311,7 +307,6 @@ export function dadosDoTexto(pacote, f, rr) {
       const r = rr.quadros[i];
       return {
         tipo: q.tipo,
-        tamanho: q.tipo === 'camiseta' ? tamanhoDaCamiseta(r.largura, r.altura) : '',
         largura: r.largura,
         altura: r.altura,
         borda: r.borda,
@@ -324,7 +319,8 @@ export function dadosDoTexto(pacote, f, rr) {
         fundo: q.chapa && !q.vidro_duplo ? nomeMaterial(pacote, q.chapa) : '',
         espelho: q.espelho ? nomeMaterial(pacote, q.espelho) : '',
         valor_total: r.calc.valor_total,
-        valor_unitario: r.calc.valor_unitario
+        valor_unitario: r.calc.valor_unitario,
+        servicos: r.calc.servicos
       };
     })
   };

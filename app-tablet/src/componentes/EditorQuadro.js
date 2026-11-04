@@ -1,9 +1,6 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import {
-  BORDAS_PASPATUR, TAMANHOS_CAMISETA, TIPOS_QUADRO, moldurasDoOrcamento, materiaisDe, escolherTamanho,
-  tamanhoDaCamiseta
-} from '../orcamento';
+import { BORDAS_PASPATUR, TIPOS_QUADRO, moldurasDoOrcamento, materiaisDe, servicoVazio } from '../orcamento';
 import { formatarReais, formatarNumero } from '../formato';
 import { nomeCasinha, TAXA_PINTURA_CHAPA } from '../gerado/nucleo';
 import { Cartao } from './Cartao';
@@ -19,7 +16,6 @@ import { Botao } from './Botao';
 import { cores, tamanho } from '../tema';
 
 const BORDAS = [{ valor: '', titulo: 'Sem' }, ...BORDAS_PASPATUR.map((b) => ({ valor: String(b), titulo: b + ' cm' }))];
-const TAMANHOS = TAMANHOS_CAMISETA.map((t) => ({ valor: t.tamanho, titulo: t.tamanho }));
 
 function opcoes(lista, nenhum) {
   return [{ valor: '', titulo: nenhum }, ...lista.map((m) => ({ valor: String(m.codigo), titulo: m.nome }))];
@@ -29,9 +25,46 @@ function juntar(numeros) {
   return numeros.length > 1 ? numeros.slice(0, -1).join(', ') + ' e ' + numeros[numeros.length - 1] : String(numeros[0]);
 }
 
+function Servicos({ servicos, aoMudar }) {
+  const mudar = (chave, mudanca) => aoMudar(servicos.map((x) => (x.chave === chave ? { ...x, ...mudanca } : x)));
+  return (
+    <Cartao titulo="SERVIÇOS">
+      {servicos.map((sv, i) => (
+        <View key={sv.chave} style={s.servico}>
+          <View style={s.servicoTexto}>
+            <Campo
+              rotulo="O que é"
+              valor={sv.descricao}
+              aoMudar={(v) => mudar(sv.chave, { descricao: v })}
+              autoCapitalize="sentences"
+              placeholder="Ex.: limpar vidros"
+            />
+          </View>
+          <View style={s.servicoValor}>
+            <View style={s.metade}>
+              <Campo rotulo="Valor (R$)" valor={sv.valor} aoMudar={(v) => mudar(sv.chave, { valor: v })} teclado="decimal-pad" />
+            </View>
+            <Botao
+              icone="close"
+              titulo="Tirar"
+              rotulo={'Tirar o serviço ' + (sv.descricao.trim() || i + 1)}
+              variante="perigo"
+              onPress={() => aoMudar(servicos.filter((x) => x.chave !== sv.chave))}
+            />
+          </View>
+        </View>
+      ))}
+      {!servicos.length ? (
+        <Text style={s.nota}>Limpeza, conserto ou outro trabalho, com o valor que vocês combinarem.</Text>
+      ) : null}
+      <Botao icone="plus" titulo="Adicionar serviço" variante="contorno" onPress={() => aoMudar([...servicos, servicoVazio()])} />
+    </Cartao>
+  );
+}
+
 export function EditorQuadro({ q, n, total, pacote, r, aviso, aoMudar, aoTrocarTipo, aoDuplicar, aoTirar }) {
   const [trocando, setTrocando] = useState(false);
-  const camiseta = q.tipo === 'camiseta';
+  const objeto = q.tipo === 'objeto';
   const reforma = q.tipo === 'reforma';
   const moldura = q.moldura ? pacote.molduras.find((m) => m.codigo === q.moldura) : null;
   const molduras = moldurasDoOrcamento(pacote);
@@ -52,17 +85,11 @@ export function EditorQuadro({ q, n, total, pacote, r, aviso, aoMudar, aoTrocarT
 
       <Cartao titulo="O QUE É">
         <GrupoPilulas opcoes={TIPOS_QUADRO} valor={q.tipo} aoMudar={aoTrocarTipo} />
-        {reforma ? <Text style={s.nota}>O quadro é do cliente. Marque só o que vai trocar.</Text> : null}
+        {reforma ? <Text style={s.nota}>O quadro é do cliente. Nada é obrigatório: marque só o que for trocar ou fazer.</Text> : null}
       </Cartao>
 
-      {camiseta ? (
-        <Cartao titulo="TAMANHO DA CAMISETA">
-          <GrupoPilulas
-            opcoes={TAMANHOS}
-            valor={tamanhoDaCamiseta(q.largura, q.altura) || null}
-            aoMudar={(t) => aoMudar(escolherTamanho(q, t))}
-          />
-          <Text style={s.nota}>Ou meça a camiseta deitada:</Text>
+      {objeto ? (
+        <Cartao titulo="MEDIDA DO OBJETO">
           {medida}
           <Quantidade valor={q.quantidade} aoMudar={(v) => aoMudar({ quantidade: v })} />
           <Campo
@@ -70,7 +97,7 @@ export function EditorQuadro({ q, n, total, pacote, r, aviso, aoMudar, aoTrocarT
             valor={q.margem}
             aoMudar={(v) => aoMudar({ margem: v })}
             teclado="decimal-pad"
-            dica="Espaço de cada lado pra camiseta não ficar colada na moldura."
+            dica="Espaço de cada lado pro objeto não ficar colado na moldura."
           />
           {r && r.ok ? (
             <Text style={s.nota}>O quadro fica {formatarNumero(r.externa.largura)} x {formatarNumero(r.externa.altura)} cm.</Text>
@@ -80,6 +107,7 @@ export function EditorQuadro({ q, n, total, pacote, r, aviso, aoMudar, aoTrocarT
         <>
           <Cartao titulo={reforma ? 'MEDIDA' : 'MEDIDA DA FOTO'}>
             {medida}
+            {reforma ? <Text style={s.nota}>Só precisa se for trocar moldura, vidro, fundo, espelho ou paspatur.</Text> : null}
             <Quantidade valor={q.quantidade} aoMudar={(v) => aoMudar({ quantidade: v })} />
           </Cartao>
           <Cartao titulo={'PASPATUR' + novo}>
@@ -132,12 +160,12 @@ export function EditorQuadro({ q, n, total, pacote, r, aviso, aoMudar, aoTrocarT
           valor={q.vidro}
           aoMudar={(v) => aoMudar(v ? { vidro: v } : { vidro: '', vidro_duplo: false })}
         />
-        {q.vidro && !camiseta ? (
+        {q.vidro && !objeto ? (
           <Interruptor
             titulo="2 vidros (sem fundo)"
             dica="Pra quadro que mostra os dois lados"
             valor={q.vidro_duplo}
-            aoMudar={(v) => aoMudar({ vidro_duplo: v })}
+            aoMudar={(v) => aoMudar(v ? { vidro_duplo: true, objeto_alto: false } : { vidro_duplo: false })}
           />
         ) : null}
       </Cartao>
@@ -145,26 +173,23 @@ export function EditorQuadro({ q, n, total, pacote, r, aviso, aoMudar, aoTrocarT
       {!q.vidro_duplo ? (
         <Cartao titulo={'FUNDO' + novo}>
           <GrupoPilulas opcoes={opcoes(materiaisDe(pacote, 'chapa'), 'Sem fundo')} valor={q.chapa} aoMudar={(v) => aoMudar({ chapa: v })} />
-          {camiseta ? <Text style={s.nota}>A camiseta vai presa no fundo pintado.</Text> : null}
-        </Cartao>
-      ) : null}
-
-      {!camiseta ? (
-        <Cartao titulo={'ESPELHO' + novo}>
-          <GrupoPilulas opcoes={opcoes(materiaisDe(pacote, 'espelho'), 'Sem espelho')} valor={q.espelho} aoMudar={(v) => aoMudar({ espelho: v })} />
-        </Cartao>
-      ) : null}
-
-      {!camiseta ? (
-        <Cartao>
+          {objeto ? <Text style={s.nota}>O objeto vai preso no fundo pintado.</Text> : null}
           <Interruptor
-            titulo="Objeto em relevo"
-            dica={'Pinta a chapa: mais ' + formatarReais(TAXA_PINTURA_CHAPA) + ' por quadro'}
+            titulo="Pintura da chapa"
+            dica={'Mais ' + formatarReais(TAXA_PINTURA_CHAPA) + ' por quadro'}
             valor={q.objeto_alto}
             aoMudar={(v) => aoMudar({ objeto_alto: v })}
           />
         </Cartao>
       ) : null}
+
+      {!objeto ? (
+        <Cartao titulo={'ESPELHO' + novo}>
+          <GrupoPilulas opcoes={opcoes(materiaisDe(pacote, 'espelho'), 'Sem espelho')} valor={q.espelho} aoMudar={(v) => aoMudar({ espelho: v })} />
+        </Cartao>
+      ) : null}
+
+      <Servicos servicos={q.servicos || []} aoMudar={(lista) => aoMudar({ servicos: lista })} />
 
       <Cartao titulo="VALOR DESTE QUADRO">
         <DetalheQuadro r={r} vidroDuplo={q.vidro_duplo} />
@@ -185,6 +210,12 @@ const s = StyleSheet.create({
   dupla: { flexDirection: 'row', gap: 12 },
   metade: { flex: 1 },
   nota: { fontSize: tamanho.pequeno, color: cores.marinho, fontWeight: '600' },
+  servico: {
+    flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: 12, paddingBottom: 14,
+    borderBottomWidth: 1, borderBottomColor: cores.linha
+  },
+  servicoTexto: { flexGrow: 2, flexBasis: 240 },
+  servicoValor: { flexGrow: 1, flexBasis: 240, flexDirection: 'row', alignItems: 'flex-end', gap: 12 },
   acoes: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   acao: { flexGrow: 1, flexBasis: 220 }
 });

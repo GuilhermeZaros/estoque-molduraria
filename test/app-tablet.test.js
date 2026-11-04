@@ -48,7 +48,7 @@ test('appSync: pacote com molduras, materiais, casinhas contadas, abertos, compr
   assert.equal(s.molduras[0].estoque_m, 27);
   assert.deepEqual(s.materiais.map((m) => m.codigo), ['V1']);
   assert.equal(s.paspatur_m2, 330);
-  assert.equal(s.taxa_pintura_chapa, 25);
+  assert.equal(s.taxa_pintura_chapa, 30);
   assert.deepEqual(s.casinhas_contadas, ['CR1-E1']);
   assert.deepEqual(s.orcamentos_abertos.map((o) => o.id), ['ORC-0001']);
   assert.deepEqual(s.compras_pendentes.map((c) => c.id), ['CMP-0001']);
@@ -257,7 +257,7 @@ test('salvarOrcamento: vários quadros viram uma linha por quadro e o orçamento
   assert.equal(q[3].Margem_cm, 4);
   assert.equal(q[3].Largura_cm, 52);
   assert.equal(q[3].Objeto_alto, true);
-  assert.equal(camiseta.pintura_chapa, 25);
+  assert.equal(camiseta.pintura_chapa, 30);
 });
 
 test('salvarOrcamento: salvar de novo com menos quadros apaga só as linhas que sobraram', () => {
@@ -300,7 +300,7 @@ test('appSync: abertos levam os quadros; orçamento antigo vira 1 quadro', () =>
   assert.deepEqual(antigo.quadros, [{
     tipo: 'quadro', tamanho: '', largura_cm: 30, altura_cm: 40, margem_cm: 0, quantidade: 2, paspatur_cm: 5,
     moldura: 'M1', vidro: 'V1', chapa: '', espelho: '', vidro_duplo: false, objeto_alto: false,
-    valor_calculado: 300, consumo_m: 4
+    valor_calculado: 300, consumo_m: 4, servicos: []
   }]);
   const novo = abertos.find((o) => o.ref_app === 'ref-00000001');
   assert.equal(novo.id, 'ORC-0002');
@@ -337,7 +337,7 @@ test('fecharVenda: vários quadros somam a moldura repetida e cada falta vira um
   assert.match(vendas[4].Observacoes, /quadro 3 \(reforma\)/);
   assert.match(vendas[5].Observacoes, /quadro 4 \(camiseta M\)/);
   assert.equal(vendas[8].Produto, 'Pintura de chapa');
-  assert.equal(vendas[8].Valor, 25);
+  assert.equal(vendas[8].Valor, 30);
   const soma = vendas.reduce((s, h) => s + h.Valor, 0);
   assert.equal(Number(soma.toFixed(2)), r.resultado.valor_final);
 });
@@ -348,6 +348,75 @@ test('fecharVenda: valor ajustado é repartido entre todos os quadros', () => {
   const vendas = dados.Historico.filter((h) => h.Tipo_movimentacao === 'venda');
   assert.equal(Number(vendas.reduce((s, h) => s + h.Valor, 0).toFixed(2)), 800);
   assert.equal(dados.Orcamentos[0].Valor_final, 800);
+});
+
+const objetoComServico = () => ({
+  tipo: 'objeto', largura_cm: 52, altura_cm: 72, margem_cm: 4, quantidade: 1, vidro: 'V1', chapa: 'C1', objeto_alto: true,
+  servicos: [{ descricao: 'Instalação', valor: 20 }]
+});
+const reformaSoServico = () => ({ tipo: 'reforma', quantidade: 1, servicos: [{ descricao: 'Limpar vidros', valor: 30 }] });
+
+test('salvarOrcamento: objeto usa a borda, reforma sem medida vale só o serviço ou a pintura', () => {
+  const { ctx, dados } = montar(abasVarios());
+  const r = js(ctx.appExecutar({
+    id_op: 'op-00000040', acao: 'salvarOrcamento',
+    dados: pedidoVarios([objetoComServico(), reformaSoServico(), { tipo: 'reforma', quantidade: 2, objeto_alto: true }])
+  }));
+  assert.equal(r.resultado.valor_calculado, 274.4);
+  assert.equal(dados.Orcamentos[0].Quadros, 'objeto 52 x 72 (Instalação); reforma (Limpar vidros); 2x reforma');
+  const q = dados.Orcamento_quadros;
+  assert.deepEqual(q.map((x) => x.Tipo), ['objeto', 'reforma', 'reforma']);
+  assert.deepEqual(q.map((x) => x.Valor_calculado), [184.4, 30, 60]);
+  assert.equal(q[0].Margem_cm, 4);
+  assert.equal(q[0].Paspatur_cm, 0);
+  assert.equal(q[0].Tamanho, '');
+  assert.equal(q[1].Largura_cm, 0);
+  assert.equal(q[1].Servicos, '[{"descricao":"Limpar vidros","valor":30}]');
+  assert.equal(q[2].Servicos, '');
+  const aberto = js(ctx.appSync()).orcamentos_abertos[0];
+  assert.equal(aberto.quadros[0].tipo, 'objeto');
+  assert.equal(aberto.quadros[0].margem_cm, 4);
+  assert.deepEqual(aberto.quadros[1].servicos, [{ descricao: 'Limpar vidros', valor: 30 }]);
+  assert.deepEqual(aberto.quadros[2].servicos, []);
+});
+
+test('salvarOrcamento: reforma que troca material ainda precisa da medida', () => {
+  const { ctx } = montar(abasVarios());
+  assert.throws(
+    () => ctx.appExecutar({ id_op: 'op-00000041', acao: 'salvarOrcamento', dados: pedidoVarios([{ tipo: 'reforma', vidro: 'V1' }]) }),
+    /Informe largura e altura/
+  );
+});
+
+test('fecharVenda: cada serviço vira uma venda no histórico e entra no valor ajustado', () => {
+  const quadros = () => [
+    { tipo: 'quadro', largura_cm: 90, altura_cm: 60, quantidade: 1, moldura: 'M1', vidro: 'V1', servicos: [{ descricao: 'Instalação', valor: 20 }] },
+    reformaSoServico()
+  ];
+  const { ctx, dados } = montar(abasVarios());
+  const r = js(ctx.appExecutar({ id_op: 'op-00000042', acao: 'fecharVenda', dados: pedidoVarios(quadros()) }));
+  assert.equal(r.resultado.valor_final, 321.2);
+  const vendas = dados.Historico.filter((h) => h.Tipo_movimentacao === 'venda');
+  assert.deepEqual(vendas.map((h) => h.Categoria), ['moldura', 'vidro', 'servico', 'servico']);
+  assert.deepEqual(vendas.slice(2).map((h) => [h.Produto, h.Valor, h.Codigo]), [['Instalação', 20, ''], ['Limpar vidros', 30, '']]);
+  assert.match(vendas[3].Observacoes, /quadro 2 \(reforma\); serviço/);
+  const ajustado = montar(abasVarios());
+  ajustado.ctx.appExecutar({ id_op: 'op-00000043', acao: 'fecharVenda', dados: pedidoVarios(quadros(), { valor_final: 300 }) });
+  const v2 = ajustado.dados.Historico.filter((h) => h.Tipo_movimentacao === 'venda');
+  assert.equal(Number(v2.reduce((s, h) => s + h.Valor, 0).toFixed(2)), 300);
+  assert.ok(v2[2].Valor < 20);
+});
+
+test('fecharVenda: reforma sem nada marcado e com valor digitado grava uma venda de Reforma', () => {
+  const { ctx, dados } = montar(abasVarios());
+  ctx.appExecutar({ id_op: 'op-00000044', acao: 'fecharVenda', dados: pedidoVarios([{ tipo: 'reforma' }], { valor_final: 50 }) });
+  const vendas = dados.Historico.filter((h) => h.Tipo_movimentacao === 'venda');
+  assert.deepEqual(vendas.map((h) => [h.Categoria, h.Produto, h.Valor]), [['servico', 'Reforma', 50]]);
+  assert.equal(dados.Orcamentos[0].Status, 'fechado');
+  const pintura = montar(abasVarios());
+  pintura.ctx.appExecutar({ id_op: 'op-00000045', acao: 'fecharVenda', dados: pedidoVarios([{ tipo: 'reforma', objeto_alto: true }]) });
+  const v2 = pintura.dados.Historico.filter((h) => h.Tipo_movimentacao === 'venda');
+  assert.deepEqual(v2.map((h) => [h.Produto, h.Valor]), [['Pintura de chapa', 30]]);
 });
 
 test('descartarOrcamento: tira da lista de abertos sem mexer no estoque nem no histórico', () => {

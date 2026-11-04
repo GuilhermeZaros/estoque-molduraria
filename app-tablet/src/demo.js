@@ -12,8 +12,9 @@ const material = (codigo, nome, categoria, preco) => ({
 });
 
 const quadroDemo = (mudar) => ({
-  tipo: 'quadro', tamanho: '', largura_cm: 0, altura_cm: 0, margem_cm: 0, quantidade: 1, paspatur_cm: 0, moldura: '',
-  vidro: '', chapa: '', espelho: '', vidro_duplo: false, objeto_alto: false, valor_calculado: 0, consumo_m: 0, ...mudar
+  tipo: 'quadro', largura_cm: 0, altura_cm: 0, margem_cm: 0, quantidade: 1, paspatur_cm: 0, moldura: '',
+  vidro: '', chapa: '', espelho: '', vidro_duplo: false, objeto_alto: false, valor_calculado: 0, consumo_m: 0, servicos: [],
+  ...mudar
 });
 
 export const PACOTE_DEMO = {
@@ -37,7 +38,7 @@ export const PACOTE_DEMO = {
     material('ESP-001', 'Espelho 3 mm', 'espelho', 330)
   ],
   paspatur_m2: 330,
-  taxa_pintura_chapa: 25,
+  taxa_pintura_chapa: 30,
   casinhas_contadas: ['CR1-E1', 'CR1-E2', 'CR1-F3', 'CR1-D5', 'CR3-D1', 'PR1-2'],
   orcamentos_abertos: [{
     id: 'ORC-0002', ref_app: 'demo-orcamento-0002', data_criacao: '2026-11-02T15:20:00.000Z',
@@ -46,14 +47,17 @@ export const PACOTE_DEMO = {
     valor_calculado: 206.4, valor_final: 206.4, consumo_m: 2.362, status: 'aberto', obs: ''
   }, {
     id: 'ORC-0003', ref_app: 'demo-orcamento-0003', data_criacao: '2026-11-03T10:05:00.000Z',
-    cliente: 'João Pereira', telefone: '11977776666', quantidade: 4, valor_calculado: 440.2, valor_final: 440.2,
-    consumo_m: 5.804, status: 'aberto', obs: '', resumo: '2x 20 x 30; reforma 40 x 60; camiseta M',
+    cliente: 'João Pereira', telefone: '11977776666', quantidade: 4, valor_calculado: 475.2, valor_final: 475.2,
+    consumo_m: 5.804, status: 'aberto', obs: '', resumo: '2x 20 x 30; reforma 40 x 60 (Limpar vidros); objeto 52 x 72',
     quadros: [
       quadroDemo({ largura_cm: 20, altura_cm: 30, quantidade: 2, moldura: 'D-101', vidro: 'VID-001', chapa: 'CHA-001', valor_calculado: 88.4, consumo_m: 2.578 }),
-      quadroDemo({ tipo: 'reforma', largura_cm: 40, altura_cm: 60, vidro: 'VID-001', valor_calculado: 43.2 }),
       quadroDemo({
-        tipo: 'camiseta', tamanho: 'M', largura_cm: 52, altura_cm: 72, margem_cm: 4, moldura: 'D-106', vidro: 'VID-001',
-        chapa: 'CHA-001', objeto_alto: true, valor_calculado: 308.6, consumo_m: 3.226
+        tipo: 'reforma', largura_cm: 40, altura_cm: 60, vidro: 'VID-001', valor_calculado: 73.2,
+        servicos: [{ descricao: 'Limpar vidros', valor: 30 }]
+      }),
+      quadroDemo({
+        tipo: 'objeto', largura_cm: 52, altura_cm: 72, margem_cm: 4, moldura: 'D-106', vidro: 'VID-001',
+        chapa: 'CHA-001', objeto_alto: true, valor_calculado: 313.6, consumo_m: 3.226
       })
     ]
   }],
