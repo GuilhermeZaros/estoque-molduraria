@@ -2,30 +2,22 @@
 
 Controle de estoque, orçamento, oficina e financeiro de uma molduraria de verdade, a Vera Molduras e Decoração, em Paranavaí (PR).
 
-A ideia é simples: uma planilha do Google guarda tudo, o Google Apps Script cuida das contas e das regras, e a equipe usa uma interface web no computador e um app Android no tablet da loja. Do outro lado, a Julia, atendente virtual do WhatsApp, consulta essa mesma planilha pra responder os clientes.
+A ideia é simples: a equipe trabalha num app Android no tablet da loja, uma planilha do Google guarda tudo e o Google Apps Script faz o papel de servidor entre os dois. Do outro lado, a Julia, atendente virtual do WhatsApp, consulta esse mesmo servidor pra responder os clientes.
 
 ## Como funciona
 
 ```mermaid
 flowchart LR
-    P[(Planilha do Google)]
-    A[Apps Script<br/>regras e API]
-    W[Interface web<br/>da equipe]
     T[App do tablet<br/>Android]
     J[molduras-bot<br/>Julia no WhatsApp]
-    P <--> A
-    A <--> W
-    A <--> T
-    A <--> J
+    A[Apps Script<br/>servidor: regras e API]
+    P[(Planilha do Google)]
+    T <--> A
+    J <--> A
+    A <--> P
 ```
 
-**A planilha é o banco de dados.** Cada assunto tem a sua aba: molduras, vidros e chapas, vendas, orçamentos, ordens da oficina, entradas e saídas do caixa, usuários. Dá pra abrir e conferir tudo no próprio Google Sheets.
-
-**O Apps Script é o meio de campo.** Ninguém escreve direto na planilha: tudo passa por ele, que calcula, confere e grava. É ali que mora a conta do orçamento e a baixa do estoque, então o computador, o tablet e o WhatsApp sempre chegam no mesmo valor.
-
-**A interface web** roda dentro do próprio Apps Script e tem login com papéis (atendimento, oficina, dono). Nela a equipe registra vendas e entradas de mercadoria, consulta e cadastra produtos, simula se uma moldura dá pra um serviço, acompanha a oficina e vê o financeiro e os relatórios.
-
-**O app do tablet** (Expo e React Native) é o que a equipe usa no balcão e no depósito:
+**O app é onde a equipe trabalha.** Feito com Expo e React Native, ele roda no tablet do balcão e cobre o dia a dia da loja:
 
 - **Orçamento** com vários quadros por cliente, paspatur, vidro duplo e reforma. Avisa na hora quando a moldura não vai dar. Salvar o orçamento não mexe no estoque; só o "Fechou a venda" desconta, e o que faltar vai pra lista de compras.
 - **Depósito** com o mapa da loja: 5 corredores e 2 paredes, 87 casinhas. Tocando numa casinha você vê as molduras que estão nela e quantas varas tem. Buscando uma moldura, o app abre o corredor e a casinha dela pisca.
@@ -34,6 +26,10 @@ flowchart LR
 - **Financeiro** protegido por senha.
 
 O app funciona mesmo com a internet ruim: guarda o que foi feito numa fila e manda pra planilha quando a conexão volta.
+
+**O Apps Script é o servidor.** Nem o app nem a Julia escrevem direto na planilha: tudo passa por ele, que calcula, confere e grava. É ali que mora a conta do orçamento e a baixa do estoque, então o tablet e o WhatsApp sempre chegam no mesmo valor. A conta do orçamento é copiada do servidor pro app por um script (`scripts/gerar-nucleo-app.js`), pra o tablet calcular igual mesmo sem internet.
+
+**A planilha é o banco de dados.** Cada assunto tem a sua aba: molduras, vidros e chapas, vendas, orçamentos, ordens da oficina, entradas e saídas do caixa. Dá pra abrir e conferir tudo no próprio Google Sheets.
 
 ## Ligação com o molduras-bot
 
@@ -55,8 +51,8 @@ Os dois projetos só conversam pela URL do Web App. Um não importa código do o
 
 | Pasta | O que tem |
 |---|---|
-| `apps-script/` | Regras, API e a interface web (versionados com [clasp](https://github.com/google/clasp)) |
 | `app-tablet/` | O app Android do tablet (Expo SDK 58) |
+| `apps-script/` | O servidor: regras, API e acesso à planilha (versionado com [clasp](https://github.com/google/clasp)) |
 | `scripts/` | Utilitários: `gerar-nucleo-app.js` copia as contas do Apps Script pro app, pra o tablet calcular igual à planilha; `gerar-catalogo.js` e `gerar-fotos.js` montam o catálogo; `conferir-app-leitura.mjs` testa a API sem gravar nada |
 | `test/` | Testes do Apps Script rodando em Node |
 | `exemplos/` | Modelo do arquivo com os dados da loja |

@@ -134,8 +134,3 @@ function _lerProdutosComCusto() {
   });
   return out;
 }
-
-// Lê as abas e devolve o relatório. Chamada pela UI (google.script.run) e pela API.
-function relatorios(periodo) {
-  return _resumirRelatorios(lerAba(ABAS.HISTORICO), _lerProdutosComCusto(), periodo, new Date());
-}

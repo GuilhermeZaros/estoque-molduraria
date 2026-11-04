@@ -376,39 +376,6 @@ function _gravarVenda(args, origem) {
   return { id: id, valor: valor };
 }
 
-function lancarGasto(args) {
-  _validarGestao(args.token);
-  return comLock(function () {
-    garantirAbasFinanceiro();
-    var r = _gravarGasto(args, 'app');
-    return { ok: true, id: r.id, valor: r.valor, categoria: r.categoria, tipo: r.tipo };
-  });
-}
-
-function lancarVenda(args) {
-  _validarGestao(args.token);
-  return comLock(function () {
-    garantirAbasFinanceiro();
-    var r = _gravarVenda(args, 'app');
-    return { ok: true, id: r.id, valor: r.valor };
-  });
-}
-
-function financeiroConfig(token) {
-  _validarGestao(token);
-  return { categorias: CATEGORIAS_SAIDA, formas: FORMAS_PAGAMENTO };
-}
-
-function financeiroResumo(token, mes, categoria, tipo) {
-  _validarGestao(token);
-  garantirAbasFinanceiro();
-  return _resumirFinanceiro(
-    lerAba(ABAS_FIN.ENTRADAS),
-    lerAba(ABAS_FIN.SAIDAS),
-    { ano: ANO_HISTORICO, mes: mes || '', categoria: categoria || '', tipo: tipo || '' }
-  );
-}
-
 function _fluxoCaixa() {
   var r = _resumirFinanceiro(_abaFinOuVazia(ABAS_FIN.ENTRADAS), _abaFinOuVazia(ABAS_FIN.SAIDAS), { ano: ANO_HISTORICO });
   return r.acumulado.saldo;
@@ -426,12 +393,6 @@ function _saldosAtuais() {
   };
 }
 
-function lerSaldos(token) {
-  _validarGestao(token);
-  garantirAbasFinanceiro();
-  return _saldosAtuais();
-}
-
 function _gravarSaldos(args) {
   garantirColunas(ABAS_FIN.SALDOS, CABECALHOS_FIN.Saldos);
   var contaInformada = _parseValorBR(args.conta_empresa);
@@ -441,15 +402,6 @@ function _gravarSaldos(args) {
   if (atual) atualizarCampos(ABAS_FIN.SALDOS, atual._linha, campos);
   else anexarLinha(ABAS_FIN.SALDOS, campos);
   return { conta_empresa: _arred2(contaInformada), tesouro_direto: _arred2(tesouro), total: _arred2(contaInformada + tesouro) };
-}
-
-function salvarSaldos(args) {
-  _validarGestao(args.token);
-  return comLock(function () {
-    garantirAbasFinanceiro();
-    var r = _gravarSaldos(args);
-    return { ok: true, conta_empresa: r.conta_empresa, tesouro_direto: r.tesouro_direto, total: r.total };
-  });
 }
 
 function _hashPin(pin) {
@@ -504,4 +456,13 @@ function _escreverResumoMensal() {
   });
   if (linhas.length) aba.getRange(2, 1, linhas.length, cab.length).setValues(linhas);
   return 'Resumo mensal recalculado: ' + linhas.length + ' mês(es).';
+}
+
+function _dataLegivel(v) {
+  if (v && typeof v.getMonth === 'function') {
+    var p = function (n) { return (n < 10 ? '0' : '') + n; };
+    return p(v.getDate()) + '/' + p(v.getMonth() + 1) + '/' + v.getFullYear() +
+           ' ' + p(v.getHours()) + ':' + p(v.getMinutes());
+  }
+  return v == null ? '' : String(v);
 }

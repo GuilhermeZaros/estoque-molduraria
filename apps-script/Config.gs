@@ -72,16 +72,9 @@ var CABECALHOS_FIN = {
                  'Lancado_financeiro', 'Criado_por', 'Finalizado_por', 'Obs', 'Ref_app']
 };
 
-// Papéis de acesso (login). Acumuláveis (vírgula). 'oficina' só vê a fila de produção;
-// 'atendimento'/'dono' veem tudo. Vazio conta como 'atendimento' (retrocompat).
-var PAPEIS = ['atendimento', 'oficina', 'dono'];
-
 // Enum fixo de categorias de SAÍDA. O que vier fora cai em 'Outros' (com aviso no log).
 var CATEGORIAS_SAIDA = ['Salários', 'Impostos', 'Contas', 'Matéria-Prima',
   'Marketing', 'Financiamento', 'Frete', 'Outros'];
-
-// Tipos de SAÍDA: gasto da loja (padrão) ou pessoal do dono.
-var TIPOS_SAIDA = ['loja', 'pessoal'];
 
 // Saldos iniciais (semeados na 1ª criação da aba Saldos).
 var SALDO_INICIAL = { conta_empresa: 2950.12, tesouro_direto: 23115.33 };

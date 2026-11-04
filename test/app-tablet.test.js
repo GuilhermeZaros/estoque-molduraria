@@ -8,7 +8,7 @@ import { createHash } from 'node:crypto';
 import { planilhaFalsa } from './planilha-falsa.js';
 
 const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'apps-script');
-const ARQUIVOS = ['Config.gs', 'Calculo.gs', 'Auth.gs', 'Financeiro.gs', 'Relatorios.gs', 'Dashboard.gs', 'Oficina.gs', 'Catalogo.gs', 'Movimentacao.gs',
+const ARQUIVOS = ['Config.gs', 'Calculo.gs', 'Usuarios.gs', 'Financeiro.gs', 'Relatorios.gs', 'Oficina.gs', 'Catalogo.gs', 'Movimentacao.gs',
                   'AppNucleo.gs', 'AppTablet.gs'];
 const ABAS_DO_APP = { Historico: [], Orcamentos: [], Orcamento_quadros: [], Compras: [], AppOperacoes: [], Casinhas: [] };
 const js = (x) => JSON.parse(JSON.stringify(x));
@@ -564,18 +564,6 @@ test('marcarAcabamento não volta ordem que já ficou pronta ou foi entregue', (
   assert.deepEqual(r.resultado, { id: 'OS-001', status: 'pronto' });
   ctx.appExecutar({ id_op: 'op-00000113', acao: 'marcarAcabamento', dados: { id: 'OS-002' } });
   assert.deepEqual(dados.Oficina.map((o) => o.Status), ['pronto', 'entregue']);
-});
-
-test('tela web: Em produção lista também as ordens no acabamento', () => {
-  const { ctx, dados } = montar({
-    Oficina: [ordem(), ordem({ ID: 'OS-002', Status: 'acabamento', Ref_app: '' }), ordem({ ID: 'OS-003', Status: 'pronto', Ref_app: '' })]
-  });
-  ctx._validarSessao = () => 'ana@loja';
-  ctx._validarGestao = () => 'ana@loja';
-  assert.deepEqual(js(ctx.listarOrdens('t', 'em_producao,acabamento')).map((o) => o.id), ['OS-002', 'OS-001']);
-  assert.deepEqual(js(ctx.listarOrdens('t', 'pronto')).map((o) => o.id), ['OS-003']);
-  ctx.marcarAcabamento({ token: 't', id: 'OS-001' });
-  assert.equal(dados.Oficina[0].Status, 'acabamento');
 });
 
 test('marcarEntregue: lança o valor nas Entradas uma vez só', () => {

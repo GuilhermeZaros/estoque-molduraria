@@ -24,21 +24,3 @@ test('Oficina.gs _prazoStr: ISO do input date vira DD/MM/AAAA', () => {
   assert.equal(ctx._prazoStr('25/06/2026'), '25/06/2026');
   assert.equal(ctx._prazoStr(''), '');
 });
-
-test('Auth.gs papeisDe: separa por vírgula; vazio = atendimento (retrocompat)', () => {
-  const ctx = carregarGs('Auth.gs');
-  // .join: array vindo do vm quebra o deepEqual (cross-realm) — asserir só primitivos.
-  assert.equal(ctx.papeisDe('atendimento,oficina').join(','), 'atendimento,oficina');
-  assert.equal(ctx.papeisDe(' Oficina ').join(','), 'oficina');
-  assert.equal(ctx.papeisDe('').join(','), 'atendimento');
-  assert.equal(ctx.papeisDe(null).join(','), 'atendimento');
-});
-test('Auth.gs temGestao / ehSomenteOficina', () => {
-  const ctx = carregarGs('Auth.gs');
-  assert.equal(ctx.temGestao(['atendimento']), true);
-  assert.equal(ctx.temGestao(['dono']), true);
-  assert.equal(ctx.temGestao(['oficina']), false);
-  assert.equal(ctx.ehSomenteOficina(['oficina']), true);
-  assert.equal(ctx.ehSomenteOficina(['oficina', 'atendimento']), false);
-  assert.equal(ctx.ehSomenteOficina(['atendimento']), false);
-});

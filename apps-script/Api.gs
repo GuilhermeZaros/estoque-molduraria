@@ -1,26 +1,10 @@
-// Api.gs — porta HTTP. doGet com ?action= responde JSON (somente leitura).
-// Sem action, serve um placeholder (a interface chega na Fase 3).
-// doPost recebe as gravações do app do tablet (corpo JSON com APP_TOKEN).
-
 function doGet(e) {
-  var action = e && e.parameter ? e.parameter.action : null;
-  if (!action) {
-    // Interface humana: serve sempre. Quem tranca é a tela de login + a validação de
-    // sessão no servidor — não o e-mail Google. O bot nunca cai aqui (usa ?action=).
-    return HtmlService.createTemplateFromFile('Index').evaluate()
-      .setTitle('Vera Molduras — Estoque')
-      .addMetaTag('viewport', 'width=device-width, initial-scale=1');
-  }
+  var p = (e && e.parameter) || {};
   try {
-    return _json({ ok: true, dados: _rotear(action, e.parameter) });
+    return _json({ ok: true, dados: _rotear(p.action || '', p) });
   } catch (err) {
     return _json({ ok: false, erro: String(err && err.message ? err.message : err) });
   }
-}
-
-// Inclui o conteúdo de outro arquivo .html (Styles/JavaScript) dentro do template.
-function include(filename) {
-  return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
 function doPost(e) {
@@ -37,12 +21,6 @@ function _rotear(action, p) {
   switch (action) {
     case 'ping':
       return { pong: true, hora: new Date() };
-    case 'dashboardResumo':
-      return dashboardResumo();
-    case 'listarProdutos':
-      return listarProdutos();
-    case 'obterProduto':
-      return obterProduto(p.codigo);
     case 'buscarMolduras':
       return buscarMolduras({ estilo: p.estilo, cor: p.cor, acabamento: p.acabamento, limite: p.limite,
                               larguraMin: p.larguraMin, larguraMax: p.larguraMax });
@@ -56,14 +34,6 @@ function _rotear(action, p) {
         largura: p.largura, altura: p.altura, objetoAlto: p.objetoAlto,
         vidroDuplo: p.vidroDuplo, paspatur: p.paspatur
       });
-    case 'relatorios':
-      return relatorios(p.periodo);
-    case 'simularServico':
-      return simularServico(p.moldura, p.quantidade, p.largura, p.altura);
-    case 'simularServicoManual':
-      return simularServicoManual(p.perfil, p.quantidade, p.largura, p.altura,
-                                  p.varas, p.pedaco, _ehDisponivel(p.naoDesencabecado));
-    // Endpoints do BOT (oficina) — protegidos por token, pois o web app é anônimo.
     case 'oficinaPendentes':
       if (!_tokenOficinaOk(p.token)) throw new Error('não autorizado');
       return oficinaPendentes();

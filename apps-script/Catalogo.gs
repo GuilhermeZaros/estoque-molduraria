@@ -153,35 +153,6 @@ function orcamentoPorCodigos(args) {
   });
 }
 
-// Simula a viabilidade de um serviço: N quadros da MESMA moldura e tamanho. Lê o perfil e
-// o estoque da moldura na planilha, calcula o consumo real e devolve o veredito. Somente
-// leitura (não baixa nada). Usado pela aba Simulador e pela rota ?action=simularServico.
-function simularServico(codigo, quantidade, largura, altura) {
-  var p = buscarProduto(codigo);
-  if (!p) throw new Error('Produto não encontrado: ' + codigo);
-  if (p.categoria !== 'moldura') throw new Error('O simulador é só pra molduras.');
-  var lg = Number(largura), al = Number(altura);
-  if (!lg || !al) throw new Error('Informe largura e altura em cm.');
-  var perfil = Number(p.dados.Largura_perfil_cm) || 0;
-  var consumo = consumoMolduraM(lg, al, perfil);
-  var r = simularServicoMoldura(consumo, quantidade, Number(p.dados.Estoque_atual_m), VARA_PADRAO_M);
-  r.codigo = p.dados.Codigo;
-  r.nome = p.dados.Nome;
-  r.perfil_cm = perfil;
-  r.sem_perfil = (perfil <= 0); // aviso: consumo caiu no perímetro
-  return r;
-}
-
-// Lista TODOS os produtos (molduras + materiais) pros seletores da interface de venda.
-// Inclui estoque e disponibilidade pra UI poder sinalizar itens zerados.
-function listarProdutos() {
-  var linhas = {};
-  _gruposProduto().forEach(function (g) {
-    if (abaExiste(g[1])) linhas[g[1]] = lerAba(g[1]);
-  });
-  return _produtosDe(linhas);
-}
-
 function _gruposProduto() {
   return [
     ['moldura', ABAS.MOLDURAS, 'Valor_por_metro', 'Estoque_atual_m', 'm'],

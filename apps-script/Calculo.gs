@@ -16,13 +16,6 @@ function areaM2(larguraCm, alturaCm) {
 // Perda da serra por corte (kerf), em metros. 0,2 cm = 2 mm — igual à Calculadora de Molduras.
 var KERF_M = 0.002;
 
-// Perda ao desencabeçar UMA ponta (1 corte em 45°): o triângulo (√2 × perfil) + 1 kerf.
-// ESCALA com o perfil — quanto mais largo o perfil, maior a perda.
-function desencabecoM(perfilCm) {
-  var p = Number(perfilCm) / 100;
-  return (p > 0 ? Math.SQRT2 * p : 0) + KERF_M;
-}
-
 // Consumo REAL de moldura por quadro (baixa de estoque) — modelo da Calculadora de Molduras
 // do dono. A COBRANÇA continua pelo perímetro; isto é só pra dar baixa no estoque.
 //   total = perímetro + 8×perfil      (cantos — moldura que fica no quadro)
@@ -41,59 +34,6 @@ function consumoMolduraM(larguraCm, alturaCm, perfilCm) {
 
 // Comprimento padrão da vara entregue pelos fornecedores (a maioria entrega 2,70 m).
 var VARA_PADRAO_M = 2.70;
-
-// Veredito de viabilidade pra um lote de quadros da MESMA moldura e tamanho.
-// Usa o MESMO consumo da baixa real (consumoUnitarioM = consumoMolduraM por quadro),
-// pra o simulador nunca divergir do que a venda de fato desconta. Somente leitura.
-function simularServicoMoldura(consumoUnitarioM, quantidade, estoqueM, varaM) {
-  var cu = Number(consumoUnitarioM) || 0;
-  var n = Number(quantidade) || 0;
-  var estoque = Number(estoqueM) || 0;
-  var vara = Number(varaM) || 0;
-  var necessario = Number((cu * n).toFixed(3));
-  var sobra = Number((estoque - necessario).toFixed(3));
-  var da = sobra >= 0;
-  var falta = da ? 0 : Number((-sobra).toFixed(3));
-  return {
-    consumo_unitario_m: cu,
-    quantidade: n,
-    necessario_m: necessario,
-    estoque_m: estoque,
-    sobra_m: da ? sobra : 0,
-    falta_m: falta,
-    da: da,
-    max_quadros: cu > 0 ? Math.floor(estoque / cu) : 0,
-    varas_necessarias: vara > 0 ? Math.ceil(necessario / vara) : 0,
-    varas_comprar: (da || vara <= 0) ? 0 : Math.ceil(falta / vara)
-  };
-}
-
-// Modo MANUAL (moldura que não está no sistema): o funcionário informa quanto tem em mãos —
-// varas inteiras + um pedaço solto. Se o pedaço ainda não foi desencabeçado (ponta fechada),
-// desconta a perda de abrir a ponta (perfil + DESENCABECO_EXTRA). Tudo puro.
-function estoqueManualM(varas, pedacoM, perfilCm, pedacoNaoDesencabecado, varaM) {
-  var v = Number(varas) || 0;
-  var ped = Number(pedacoM) || 0;
-  var vara = Number(varaM) || VARA_PADRAO_M;
-  var disp = v * vara + ped;
-  if (pedacoNaoDesencabecado && ped > 0) {
-    disp -= desencabecoM(perfilCm);
-  }
-  return Number(Math.max(0, disp).toFixed(3));
-}
-
-// Simulador no modo manual: perfil digitado (não vem do catálogo), estoque informado à mão.
-function simularServicoManual(perfilCm, quantidade, largura, altura, varas, pedacoM, pedacoNaoDesencabecado) {
-  var lg = Number(largura), al = Number(altura);
-  if (!lg || !al) throw new Error('Informe largura e altura em cm.');
-  var consumo = consumoMolduraM(lg, al, perfilCm);
-  var estoque = estoqueManualM(varas, pedacoM, perfilCm, pedacoNaoDesencabecado, VARA_PADRAO_M);
-  var r = simularServicoMoldura(consumo, quantidade, estoque, VARA_PADRAO_M);
-  r.perfil_cm = Number(perfilCm) || 0;
-  r.sem_perfil = (r.perfil_cm <= 0);
-  r.manual = true;
-  return r;
-}
 
 // Distribui o valor cobrado (override do funcionário) proporcionalmente entre os itens,
 // pra o histórico somar EXATAMENTE o cobrado. A última linha absorve o arredondamento.

@@ -4,10 +4,6 @@
 //  - Fluxo de status: em_producao -> acabamento -> pronto -> entregue.
 //  - Quando a oficina marca "pronto", a Julia (bot) avisa o cliente no WhatsApp e grava o aviso aqui.
 //  - O VALOR cai no Financeiro (Entradas, origem 'oficina') quando o cliente RETIRA (entregue).
-//
-// Auth: funções da interface usam a sessão de login (_validarSessao/_validarGestao).
-//       Os 2 endpoints do bot (oficinaPendentes/oficinaConfirmarAviso) são protegidos por TOKEN
-//       (Script Property OFICINA_TOKEN), checado no Api.gs — porque o web app é anônimo.
 
 // ====================== Núcleo puro (testável em Node) ======================
 
@@ -185,76 +181,6 @@ function _marcarEntregueNucleo(o) {
   _lancarEntradaOficina(valor, o.Cliente, o.ID);
   atualizarCampos(ABAS_FIN.OFICINA, o._linha, { Lancado_financeiro: true });
   return { id: String(o.ID), lancado: true };
-}
-
-// ====================== Funções da interface (login) ======================
-
-function criarOrdem(args) {
-  var email = _validarGestao(args.token);
-  return comLock(function () {
-    var r = _criarOrdemNucleo(args, email);
-    return { ok: true, id: r.id };
-  });
-}
-
-function listarOrdens(token, filtro) {
-  _validarSessao(token);
-  if (!abaExiste(ABAS_FIN.OFICINA)) return [];
-  var linhas = lerAba(ABAS_FIN.OFICINA);
-  var aceitos = filtro ? String(filtro).split(',') : null;
-  var out = [];
-  for (var i = linhas.length - 1; i >= 0; i--) {
-    var o = linhas[i];
-    if (!o.ID) continue;
-    if (aceitos && aceitos.indexOf(String(o.Status)) < 0) continue;
-    out.push({
-      id: o.ID, cliente: o.Cliente, telefone: o.Telefone, descricao: o.Descricao,
-      prazo: _prazoParaTexto(o.Prazo), valor: Number(o.Valor) || 0, status: o.Status || '',
-      aviso: o.Aviso || '', data_aviso: _dataHoraOS(o.Data_aviso),
-      data_criacao: _dataHoraOS(o.Data_criacao), data_pronto: _dataHoraOS(o.Data_pronto),
-      data_entrega: _dataHoraOS(o.Data_entrega), criado_por: o.Criado_por || ''
-    });
-  }
-  return out;
-}
-
-function marcarPronto(args) {
-  var email = _validarSessao(args.token);
-  return comLock(function () {
-    var o = _acharOrdem(args.id);
-    if (!o) throw new Error('Ordem não encontrada: ' + args.id);
-    _marcarProntoNucleo(o, email);
-    return { ok: true };
-  });
-}
-
-function marcarAcabamento(args) {
-  _validarSessao(args.token);
-  return comLock(function () {
-    var o = _acharOrdem(args.id);
-    if (!o) throw new Error('Ordem não encontrada: ' + args.id);
-    _marcarAcabamentoNucleo(o);
-    return { ok: true };
-  });
-}
-
-function editarOrdem(args) {
-  _validarGestao(args.token);
-  return comLock(function () {
-    var o = _acharOrdem(args.id);
-    if (!o) throw new Error('Ordem não encontrada: ' + args.id);
-    _editarOrdemNucleo(o, args);
-    return { ok: true };
-  });
-}
-
-function marcarEntregue(args) {
-  _validarGestao(args.token);
-  return comLock(function () {
-    var o = _acharOrdem(args.id);
-    if (!o) throw new Error('Ordem não encontrada: ' + args.id);
-    return { ok: true, lancado: _marcarEntregueNucleo(o).lancado };
-  });
 }
 
 // ====================== Endpoints do BOT (token checado no Api.gs) ======================

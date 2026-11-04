@@ -12,7 +12,7 @@ function carregar(...nomes) {
   for (const n of nomes) vm.runInContext(readFileSync(path.join(dir, n), 'utf8'), ctx, { filename: n });
   return ctx;
 }
-const ctx = carregar('Config.gs', 'Calculo.gs', 'Auth.gs', 'Oficina.gs', 'Catalogo.gs', 'AppNucleo.gs');
+const ctx = carregar('Config.gs', 'Calculo.gs', 'Usuarios.gs', 'Oficina.gs', 'Catalogo.gs', 'AppNucleo.gs');
 const js = (x) => JSON.parse(JSON.stringify(x));
 
 test('_casinhasDoDeposito: 87 casinhas na ordem corredor, lado, número; depois paredes', () => {

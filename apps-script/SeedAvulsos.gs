@@ -1,7 +1,6 @@
 // SeedAvulsos.gs — cria a categoria/aba "Avulsos" e semeia silicone + passepartout.
 // Avulso = material vendido À PARTE (por m²), FORA do cálculo automático do quadro
-// (o orçamento só conhece moldura/vidro/chapa/espelho). Aparece na Consulta e na
-// Venda avulsa da interface. Idempotente: dedup por Nome. Rode pelo menu da planilha
+// (o orçamento só conhece moldura/vidro/chapa/espelho). Idempotente: dedup por Nome. Rode pelo menu da planilha
 // (a 1ª vez pede autorização do escopo do Sheets no navegador).
 
 // [Nome, Tipo, Valor_por_m2, Descricao]

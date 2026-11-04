@@ -9,7 +9,7 @@ function onOpen() {
     .addItem('Recalcular dashboard (resumo mensal)', 'recalcularResumoMensal')
     .addSeparator()
     .addItem('Criar/conferir abas financeiras', 'garantirAbasFinanceiro')
-    .addItem('Conferir/criar usuários (login)', 'garantirAbaUsuarios')
+    .addItem('Conferir/criar usuários', 'garantirAbaUsuarios')
     .addItem('Criar aba Oficina + papéis (e gerar token do bot)', 'prepararOficina')
     .addItem('Preparar app do tablet (abas + senha)', 'prepararAppTablet')
     .addItem('Senha do financeiro (app)', 'definirSenhaFinanceiro')
