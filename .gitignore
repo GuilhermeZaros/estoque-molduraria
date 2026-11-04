@@ -1,0 +1,14 @@
+node_modules/
+.env
+.env.local
+.clasp.json
+.clasprc.json
+apps-script/DadosDaLoja.gs
+scripts/smoke-app.mjs
+catalogo/
+*.csv
+.claude/
+docs/
+dist/
+*.log
+.DS_Store

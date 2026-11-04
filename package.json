@@ -1,0 +1,11 @@
+{
+  "name": "estoque-molduraria",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "gerar-nucleo": "node scripts/gerar-nucleo-app.js",
+    "conferir": "node --use-system-ca --env-file=.env scripts/conferir-app-leitura.mjs"
+  }
+}

@@ -1,0 +1,9 @@
+/*
+!/app-tablet
+/app-tablet/node_modules
+/app-tablet/.expo
+/app-tablet/dist
+/app-tablet/web-build
+/app-tablet/.env*.local
+/app-tablet/*.jks
+/app-tablet/*.keystore

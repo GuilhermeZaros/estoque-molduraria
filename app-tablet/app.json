@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "name": "Vera Molduras",
+    "slug": "vera-tablet",
+    "version": "1.0.0",
+    "scheme": "veratablet",
+    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "br.com.veramolduras.tablet",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "runtimeVersion": {
+        "policy": "appVersion"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-status-bar",
+      "expo-image",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "O app usa a câmera pra fotografar moldura nova.",
+          "microphonePermission": false
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "c0af54a3-2535-476b-bcdd-f90a59daff5e"
+      }
+    },
+    "owner": "zarosss",
+    "updates": {
+      "url": "https://u.expo.dev/c0af54a3-2535-476b-bcdd-f90a59daff5e"
+    }
+  }
+}

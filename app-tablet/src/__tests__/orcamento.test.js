@@ -1,0 +1,271 @@
+import {
+  orcamentoVazio, quadroVazio, duplicarQuadro, trocarTipo, escolherTamanho, tamanhoDaCamiseta, deAberto,
+  moldurasDoOrcamento, materiaisDe, calcularQuadro, calcularPedido, avisoMoldura, avisosDoPedido, dadosParaApi,
+  dadosDoTexto, filtrarAbertos, rotuloQuadro
+} from '../orcamento';
+
+const mold = (codigo, estoque_m, extra = {}) => ({
+  codigo, nome: 'Moldura ' + codigo, marca: 'Artmold', estilo: '', cor: '', perfil_cm: 2, preco_m: 30,
+  estoque_m, foto_url: '', local: 'CR3-E2', disponivel: true, ...extra
+});
+const pacote = {
+  molduras: [mold('M1', 12.4), mold('M2', 3), mold('M3', 5, { preco_m: 0, disponivel: false })],
+  materiais: [
+    { codigo: 'VID-002', nome: 'Vidro antirreflexo', categoria: 'vidro', preco: 460, disponivel: true },
+    { codigo: 'VID-001', nome: 'Vidro simples', categoria: 'vidro', preco: 180, disponivel: true },
+    { codigo: 'VID-009', nome: 'Vidro velho', categoria: 'vidro', preco: 100, disponivel: false },
+    { codigo: 'CHA-001', nome: 'Chapa Eucatex', categoria: 'chapa', preco: 90, disponivel: true },
+    { codigo: 'ESP-001', nome: 'Espelho 3 mm', categoria: 'espelho', preco: 330, disponivel: true }
+  ],
+  paspatur_m2: 330,
+  taxa_pintura_chapa: 25
+};
+const quadro = (mudar) => ({ ...quadroVazio('quadro'), largura: '40', altura: '50', ...mudar });
+const camiseta = (mudar) => ({ ...escolherTamanho(quadroVazio('camiseta', pacote), 'M'), moldura: 'M1', ...mudar });
+const pedido = (quadros, mudar) => ({ ...orcamentoVazio('ref-0000-0001'), quadros, ...mudar });
+
+test('orçamento novo começa com um quadro vazio', () => {
+  const f = orcamentoVazio('ref-0000-0001');
+  expect(f.ref_app).toBe('ref-0000-0001');
+  expect([f.cliente, f.telefone, f.valor_final, f.obs]).toEqual(['', '', '', '']);
+  expect(f.quadros).toHaveLength(1);
+  const q = f.quadros[0];
+  expect(q.tipo).toBe('quadro');
+  expect(q.quantidade).toBe(1);
+  expect([q.moldura, q.vidro, q.chapa, q.espelho, q.largura, q.paspatur]).toEqual(['', '', '', '', '', '']);
+  expect(q.objeto_alto).toBe(false);
+});
+
+test('cada quadro tem uma chave própria; duplicar copia tudo com chave nova', () => {
+  const a = quadro({ moldura: 'M1', vidro: 'VID-001' });
+  const b = duplicarQuadro(a);
+  expect(b.chave).not.toBe(a.chave);
+  expect({ ...b, chave: '' }).toEqual({ ...a, chave: '' });
+  expect(quadroVazio('quadro').chave).not.toBe(quadroVazio('quadro').chave);
+});
+
+test('reforma nova começa sem nada marcado', () => {
+  const q = quadroVazio('reforma', pacote);
+  expect(q.tipo).toBe('reforma');
+  expect([q.moldura, q.vidro, q.chapa, q.espelho]).toEqual(['', '', '', '']);
+});
+
+test('camiseta nova vem com borda de 4 cm, relevo e o vidro e o fundo mais baratos', () => {
+  const q = quadroVazio('camiseta', pacote);
+  expect(q).toMatchObject({ tipo: 'camiseta', margem: '4', objeto_alto: true, vidro: 'VID-001', chapa: 'CHA-001', paspatur: '' });
+});
+
+test('tamanho da camiseta preenche a medida deitada e é reconhecido de volta', () => {
+  const q = escolherTamanho(quadroVazio('camiseta', pacote), 'GG');
+  expect([q.largura, q.altura]).toEqual(['56', '76']);
+  expect(tamanhoDaCamiseta('56', '76')).toBe('GG');
+  expect(tamanhoDaCamiseta(52, 72)).toBe('M');
+  expect(tamanhoDaCamiseta('53', '72')).toBe('');
+});
+
+test('trocar pra camiseta liga o relevo e tira o paspatur; voltar pra quadro desliga o relevo', () => {
+  const c = trocarTipo(quadro({ paspatur: '5', vidro: 'VID-002' }), 'camiseta', pacote);
+  expect(c).toMatchObject({ tipo: 'camiseta', paspatur: '', margem: '4', objeto_alto: true, vidro: 'VID-002', chapa: 'CHA-001' });
+  const q = trocarTipo(c, 'quadro', pacote);
+  expect(q).toMatchObject({ tipo: 'quadro', margem: '', objeto_alto: false, vidro: 'VID-002' });
+  const r = trocarTipo(q, 'reforma', pacote);
+  expect(r).toMatchObject({ tipo: 'reforma', vidro: 'VID-002' });
+});
+
+test('nome curto de cada quadro pra lista', () => {
+  expect(rotuloQuadro(quadro({ largura: '20', altura: '30,5' }))).toBe('Quadro 20 x 30,5');
+  expect(rotuloQuadro(quadroVazio('quadro'))).toBe('Quadro');
+  expect(rotuloQuadro({ ...quadroVazio('reforma'), largura: '40', altura: '60' })).toBe('Reforma 40 x 60');
+  expect(rotuloQuadro(camiseta())).toBe('Camiseta M');
+  expect(rotuloQuadro({ ...quadroVazio('camiseta', pacote), largura: '60', altura: '90' })).toBe('Camiseta 60 x 90');
+  expect(rotuloQuadro(quadroVazio('camiseta', pacote))).toBe('Camiseta');
+});
+
+test('paspatur fora das pílulas abre o campo de outra borda', () => {
+  const salvo = (paspatur_cm) => deAberto({ ref_app: 'r', quadros: [{ largura_cm: 20, altura_cm: 30, paspatur_cm }] }).quadros[0];
+  expect(salvo(6).borda_outra).toBe(true);
+  expect(salvo(5).borda_outra).toBe(false);
+  expect(salvo(0).borda_outra).toBe(false);
+});
+
+test('catálogo do orçamento só tem o que tem preço e está disponível', () => {
+  expect(moldurasDoOrcamento(pacote).map((m) => m.codigo)).toEqual(['M1', 'M2']);
+  expect(materiaisDe(pacote, 'vidro').map((m) => m.codigo)).toEqual(['VID-002', 'VID-001']);
+});
+
+test('quadro com paspatur e quantidade igual à planilha', () => {
+  const r = calcularQuadro(pacote, quadro({ paspatur: '5', quantidade: 2, moldura: 'M1', vidro: 'VID-001', chapa: 'CHA-001' }));
+  expect(r.ok).toBe(true);
+  expect(r.externa).toEqual({ largura: 50, altura: 60 });
+  expect(r.borda).toBe(5);
+  expect(r.calc.valor_unitario).toBe(246);
+  expect(r.calc.valor_total).toBe(492);
+  expect(r.calc.consumo_moldura_m).toBe(4.978);
+});
+
+test('2 vidros conta o vidro duas vezes e ignora o fundo; objeto em relevo soma a pintura', () => {
+  const r = calcularQuadro(pacote, quadro({ vidro: 'VID-001', chapa: 'CHA-001', vidro_duplo: true, objeto_alto: true }));
+  expect(r.calc.itens.map((i) => i.categoria)).toEqual(['vidro']);
+  expect(r.calc.valor_total).toBe(97);
+});
+
+test('camiseta M fica 60 x 80 com a borda, sem cobrar paspatur, e soma a pintura', () => {
+  const r = calcularQuadro(pacote, camiseta());
+  expect(r.ok).toBe(true);
+  expect(r.externa).toEqual({ largura: 60, altura: 80 });
+  expect(r.borda).toBe(0);
+  expect(r.margem).toBe(4);
+  expect(r.calc.itens.map((i) => i.categoria)).toEqual(['moldura', 'vidro', 'chapa']);
+  expect(r.calc.pintura_chapa).toBe(25);
+  expect(r.calc.valor_total).toBe(238.6);
+});
+
+test('reforma cobra só o que vai trocar', () => {
+  const r = calcularQuadro(pacote, { ...quadroVazio('reforma'), largura: '40', altura: '60', vidro: 'VID-001' });
+  expect(r.calc.valor_total).toBe(43.2);
+});
+
+test('erros de cada tipo: sem medida, sem item, código que sumiu', () => {
+  expect(calcularQuadro(pacote, quadro({ largura: '', moldura: 'M1' })).erro).toBe('Informe a largura e a altura da foto.');
+  expect(calcularQuadro(pacote, quadro({})).erro).toBe('Escolha pelo menos a moldura, o vidro, o fundo ou o espelho.');
+  expect(calcularQuadro(pacote, quadro({ moldura: 'X9' })).erro).toBe('A moldura X9 não está mais no catálogo.');
+  expect(calcularQuadro(pacote, { ...quadroVazio('reforma'), largura: '40', altura: '60' }).erro)
+    .toBe('Marque o que vai trocar: moldura, vidro, fundo ou espelho.');
+  expect(calcularQuadro(pacote, { ...quadroVazio('camiseta', pacote), moldura: 'M1' }).erro)
+    .toBe('Escolha o tamanho ou informe a medida da camiseta.');
+});
+
+test('pedido soma os quadros, junta a moldura repetida e usa o valor passado pro cliente', () => {
+  const rr = calcularPedido(pacote, pedido([
+    quadro({ moldura: 'M1' }),
+    quadro({ moldura: 'M1', quantidade: 2 }),
+    camiseta({ moldura: 'M2' })
+  ], { valor_final: '500' }));
+  expect(rr.ok).toBe(true);
+  expect(rr.quadros).toHaveLength(3);
+  expect(rr.valor_total).toBe(Number((54 + 108 + rr.quadros[2].calc.valor_total).toFixed(2)));
+  expect(rr.valor_final).toBe(500);
+  expect(rr.quantidade).toBe(4);
+  expect(rr.molduras).toEqual([
+    { codigo: 'M1', metros: Number((rr.quadros[0].calc.consumo_moldura_m + rr.quadros[1].calc.consumo_moldura_m).toFixed(3)) },
+    { codigo: 'M2', metros: rr.quadros[2].calc.consumo_moldura_m }
+  ]);
+});
+
+test('pedido com um quadro errado não fecha e diz qual é', () => {
+  const rr = calcularPedido(pacote, pedido([quadro({ moldura: 'M1' }), quadro({ largura: '' })]));
+  expect(rr.ok).toBe(false);
+  expect(rr.erro).toBe('Quadro 2: Informe a largura e a altura da foto.');
+  expect(rr.valor_total).toBe(54);
+  const so = calcularPedido(pacote, pedido([quadro({ largura: '' })]));
+  expect(so.erro).toBe('Informe a largura e a altura da foto.');
+});
+
+test('aviso da moldura nas três cores, com lugar', () => {
+  const vermelho = avisoMoldura(mold('M2', 3), 4.978);
+  expect(vermelho.cor).toBe('vermelho');
+  expect(vermelho.titulo).toBe('Não dá');
+  expect(vermelho.texto).toBe('Precisa de 4,98 m (2 varas), tem 3,00 m, faltam 1,98 m.');
+  expect(vermelho.lugar).toBe('Fica em: Corredor 3, esquerda, casinha 2');
+  const amarelo = avisoMoldura(mold('M2', 3), 2.489);
+  expect(amarelo.cor).toBe('amarelo');
+  expect(amarelo.texto).toBe('Precisa de 2,49 m (1 vara), tem 3,00 m. Sobram 0,51 m.');
+  const verde = avisoMoldura(mold('M1', 12.4, { local: '' }), 2.489);
+  expect(verde.cor).toBe('verde');
+  expect(verde.lugar).toBe('Ainda sem casinha');
+  expect(verde.naoConferida).toBe(true);
+  expect(avisoMoldura(null, 2)).toBeNull();
+});
+
+test('aviso de cada moldura soma os quadros que usam ela', () => {
+  const f = pedido([quadro({ moldura: 'M2', paspatur: '5' }), quadro({ vidro: 'VID-001' }), quadro({ moldura: 'M2', paspatur: '5' })]);
+  const avisos = avisosDoPedido(pacote, f, calcularPedido(pacote, f));
+  expect([...avisos.keys()]).toEqual(['M2']);
+  const a = avisos.get('M2');
+  expect(a.quadros).toEqual([1, 3]);
+  expect(a.cor).toBe('vermelho');
+  expect(a.texto).toBe('Precisa de 4,98 m (2 varas), tem 3,00 m, faltam 1,98 m.');
+});
+
+test('dados pra planilha: um item por quadro, chapa some com 2 vidros, camiseta leva tamanho e borda', () => {
+  const f = pedido([
+    quadro({ moldura: 'M1', vidro: 'VID-001', chapa: 'CHA-001', vidro_duplo: true }),
+    camiseta()
+  ], { cliente: ' Maria ', telefone: '11 98888-7777', obs: ' urgente ' });
+  const rr = calcularPedido(pacote, f);
+  const d = dadosParaApi(f, rr);
+  expect(d).toMatchObject({
+    ref_app: 'ref-0000-0001', cliente: 'Maria', telefone: '11 98888-7777', obs: 'urgente',
+    valor_final: 0, valor_calculado: rr.valor_total
+  });
+  expect(d.consumo_m).toBe(Number((rr.quadros[0].calc.consumo_moldura_m + rr.quadros[1].calc.consumo_moldura_m).toFixed(3)));
+  expect(d.quadros).toEqual([
+    {
+      tipo: 'quadro', tamanho: '', largura_cm: 40, altura_cm: 50, margem_cm: 0, quantidade: 1, paspatur_cm: 0,
+      moldura: 'M1', vidro: 'VID-001', chapa: '', espelho: '', vidro_duplo: true, objeto_alto: false,
+      valor_calculado: rr.quadros[0].calc.valor_total, consumo_m: rr.quadros[0].calc.consumo_moldura_m
+    },
+    {
+      tipo: 'camiseta', tamanho: 'M', largura_cm: 52, altura_cm: 72, margem_cm: 4, quantidade: 1, paspatur_cm: 0,
+      moldura: 'M1', vidro: 'VID-001', chapa: 'CHA-001', espelho: '', vidro_duplo: false, objeto_alto: true,
+      valor_calculado: 238.6, consumo_m: rr.quadros[1].calc.consumo_moldura_m
+    }
+  ]);
+});
+
+test('abrir um orçamento salvo devolve os quadros preenchidos', () => {
+  const f = deAberto({
+    ref_app: 'ref-0000-0009', id: 'ORC-0003', cliente: 'Ana', telefone: '119', valor_calculado: 100,
+    valor_final: 90, obs: 'urgente',
+    quadros: [
+      { tipo: 'quadro', tamanho: '', largura_cm: 30.5, altura_cm: 40, margem_cm: 0, quantidade: 3, paspatur_cm: 0,
+        moldura: 'M1', vidro: '', chapa: 'CHA-001', espelho: '', vidro_duplo: false, objeto_alto: true },
+      { tipo: 'camiseta', tamanho: 'M', largura_cm: 52, altura_cm: 72, margem_cm: 4, quantidade: 1, paspatur_cm: 0,
+        moldura: 'M2', vidro: 'VID-001', chapa: 'CHA-001', espelho: '', vidro_duplo: false, objeto_alto: true }
+    ]
+  });
+  expect(f).toMatchObject({ ref_app: 'ref-0000-0009', cliente: 'Ana', valor_final: '90', obs: 'urgente' });
+  expect(f.quadros).toHaveLength(2);
+  expect(f.quadros[0]).toMatchObject({ tipo: 'quadro', largura: '30,5', altura: '40', quantidade: 3, paspatur: '', margem: '', chapa: 'CHA-001', objeto_alto: true });
+  expect(f.quadros[1]).toMatchObject({ tipo: 'camiseta', largura: '52', altura: '72', margem: '4', moldura: 'M2' });
+  expect(f.quadros[0].chave).not.toBe(f.quadros[1].chave);
+});
+
+test('abrir um orçamento antigo, de antes dos vários quadros, vira um quadro', () => {
+  const f = deAberto({
+    ref_app: 'r', id: 'ORC-0001', cliente: 'Lia', largura_cm: 20, altura_cm: 30, quantidade: 2, paspatur_cm: 5,
+    moldura: 'M1', vidro: 'VID-001', chapa: '', espelho: '', vidro_duplo: false, objeto_alto: false,
+    valor_calculado: 100, valor_final: 100
+  });
+  expect(f.valor_final).toBe('');
+  expect(f.quadros).toHaveLength(1);
+  expect(f.quadros[0]).toMatchObject({ tipo: 'quadro', largura: '20', altura: '30', quantidade: 2, paspatur: '5', moldura: 'M1' });
+});
+
+test('dados do texto do WhatsApp por quadro, com nomes e valores', () => {
+  const f = pedido([quadro({ moldura: 'M1', paspatur: '5', quantidade: 2 }), camiseta()], { cliente: 'Maria' });
+  const rr = calcularPedido(pacote, f);
+  const d = dadosDoTexto(pacote, f, rr);
+  expect(d.cliente).toBe('Maria');
+  expect(d.ajustado).toBe(false);
+  expect(d.total).toBe(rr.valor_final);
+  expect(d.quadros[0]).toMatchObject({
+    tipo: 'quadro', largura: 40, altura: 50, borda: 5, externa: { largura: 50, altura: 60 }, quantidade: 2,
+    moldura: 'Moldura M1', vidro: '', fundo: '', espelho: '', valor_total: rr.quadros[0].calc.valor_total,
+    valor_unitario: rr.quadros[0].calc.valor_unitario
+  });
+  expect(d.quadros[1]).toMatchObject({ tipo: 'camiseta', tamanho: 'M', margem: 4, externa: { largura: 60, altura: 80 }, vidro: 'Vidro simples', fundo: 'Chapa Eucatex' });
+  expect(dadosDoTexto(pacote, { ...f, valor_final: '300' }, calcularPedido(pacote, { ...f, valor_final: '300' })).ajustado).toBe(true);
+});
+
+test('lista de abertos: mais novo primeiro e busca por nome, telefone ou número', () => {
+  const abertos = [
+    { ref_app: 'a', id: 'ORC-0001', cliente: 'José Antônio', telefone: '(11) 98888-7777', data_criacao: '01/11/2026 10:00' },
+    { ref_app: 'b', id: '', cliente: 'Maria', telefone: '', data_criacao: '2026-11-03T12:00:00.000Z' },
+    { ref_app: 'c', id: 'ORC-0002', cliente: 'Ana', telefone: '1133334444', data_criacao: '02/11/2026 09:00' }
+  ];
+  expect(filtrarAbertos(abertos, '').map((o) => o.ref_app)).toEqual(['b', 'c', 'a']);
+  expect(filtrarAbertos(abertos, 'jose antonio').map((o) => o.ref_app)).toEqual(['a']);
+  expect(filtrarAbertos(abertos, '988887777').map((o) => o.ref_app)).toEqual(['a']);
+  expect(filtrarAbertos(abertos, 'orc-0002').map((o) => o.ref_app)).toEqual(['c']);
+});
