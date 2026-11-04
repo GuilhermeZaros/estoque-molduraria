@@ -37,7 +37,7 @@ O app funciona mesmo com a internet ruim: guarda o que foi feito numa fila e man
 
 ## Ligação com o molduras-bot
 
-A Julia, que atende os clientes no WhatsApp, fica no repositório [molduras-bot](https://github.com/GuilhermeZaros/molduras-bot), que é privado. Ela não tem banco próprio: tudo que ela sabe sobre as molduras vem da API deste projeto.
+A Julia, que atende os clientes no WhatsApp, fica no repositório [molduras-bot](https://github.com/GuilhermeZaros/molduras-bot). Ela não tem banco próprio: tudo que ela sabe sobre as molduras vem da API deste projeto.
 
 - Quando o cliente pergunta por uma moldura ou pede um orçamento, a Julia chama `buscarMolduras`, `listarMateriais`, `consultarProduto` e `calcularOrcamento`. Assim ela só oferece o que tem em estoque e o preço sai da mesma conta que a loja usa.
 - Quando a oficina marca um quadro como pronto, a Julia percebe na próxima consulta a `oficinaPendentes` (ela olha de minuto em minuto), avisa o cliente no WhatsApp e confirma o aviso com `oficinaConfirmarAviso`.
