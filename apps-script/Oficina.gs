@@ -43,8 +43,12 @@ function _ordemParaApp(o) {
     telefone: String(o.Telefone || ''), descricao: String(o.Descricao || ''), prazo: _prazoParaTexto(o.Prazo),
     valor: Number(o.Valor) || 0, status: String(o.Status || ''), aviso: String(o.Aviso || ''),
     data_criacao: _isoOuTexto(o.Data_criacao), data_pronto: _isoOuTexto(o.Data_pronto),
-    data_entrega: _isoOuTexto(o.Data_entrega)
+    data_entrega: _isoOuTexto(o.Data_entrega), fotos: _fotosDaLinha(o.Fotos)
   };
+}
+
+function _fotosDaLinha(v) {
+  return String(v == null ? '' : v).split(/\s+/).filter(function (f) { return f; });
 }
 
 // Date -> "dd/mm/aaaa hh:mm" (string). Regra de ouro: nada de Date no retorno do google.script.run.

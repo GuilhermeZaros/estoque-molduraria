@@ -751,6 +751,102 @@ test('fecharVenda: com oficina cria a ordem com o valor final; sem oficina não 
   assert.equal(dados2.Oficina.length, 0);
 });
 
+function driveFalso(ctx) {
+  const drive = { pastas: [], arquivos: [], lixeira: [], criouPasta: 0 };
+  const iterar = (lista) => { let i = 0; return { hasNext: () => i < lista.length, next: () => lista[i++] }; };
+  const arquivo = (nome) => {
+    const id = 'F' + (drive.arquivos.length + 1);
+    const a = { id, nome, compartilhado: false, getId: () => id, setSharing: () => { a.compartilhado = true; } };
+    drive.arquivos.push(a);
+    return a;
+  };
+  const sub = {
+    createFile: (blob) => arquivo(blob.nome),
+    getFilesByName: (nome) => iterar(drive.arquivos.filter((a) => a.nome === nome))
+  };
+  const raiz = {
+    getFoldersByName: (nome) => iterar(drive.pastas.filter((p) => p === nome).map(() => sub)),
+    createFolder: (nome) => { drive.pastas.push(nome); drive.criouPasta += 1; return sub; }
+  };
+  ctx.DriveApp = {
+    Access: { ANYONE_WITH_LINK: 'link' },
+    Permission: { VIEW: 'ver' },
+    getFolderById: () => raiz,
+    getFileById: (id) => ({ setTrashed: () => drive.lixeira.push(id) })
+  };
+  ctx.Utilities = { base64Decode: (s) => s, newBlob: (bytes, mime, nome) => ({ bytes, mime, nome }) };
+  ctx.FOTO_PASTA_ID = 'pasta-das-fotos';
+  return drive;
+}
+
+const LINK = (id) => 'https://drive.google.com/thumbnail?id=' + id + '&sz=w1000';
+
+test('fotoOrdem: salva na pasta da oficina, acrescenta o link e acha a ordem nova pelo ref', () => {
+  const { ctx, dados } = montar({ Oficina: [] });
+  const drive = driveFalso(ctx);
+  ctx.appExecutar({ id_op: 'op-00000200', acao: 'criarOrdem', dados: { ref_app: 'os-ref-9', cliente: 'Carla' } });
+  const r1 = js(ctx.appExecutar({
+    id_op: 'op-00000201', acao: 'fotoOrdem', dados: { ref_app: 'os-ref-9', foto_ref: 'a1', foto_base64: 'AAA', foto_tipo: 'image/jpeg' }
+  }));
+  const r2 = js(ctx.appExecutar({
+    id_op: 'op-00000202', acao: 'fotoOrdem', dados: { id: 'OS-001', foto_ref: 'b2', foto_base64: 'BBB' }
+  }));
+  assert.deepEqual(r1.resultado, { id: 'OS-001', foto_ref: 'a1', foto_url: LINK('F1') });
+  assert.equal(r2.resultado.foto_url, LINK('F2'));
+  assert.deepEqual(drive.arquivos.map((a) => a.nome), ['oficina-a1.jpg', 'oficina-b2.jpg']);
+  assert.ok(drive.arquivos.every((a) => a.compartilhado));
+  assert.equal(drive.criouPasta, 1);
+  assert.deepEqual(drive.pastas, ['Fotos da oficina']);
+  assert.equal(dados.Oficina[0].Fotos, LINK('F1') + '\n' + LINK('F2'));
+});
+
+test('fotoOrdem: recusa a sexta foto e foto vazia', () => {
+  const cinco = [1, 2, 3, 4, 5].map((n) => LINK('X' + n)).join('\n');
+  const { ctx, dados } = montar({ Oficina: [ordem({ Fotos: cinco })] });
+  const drive = driveFalso(ctx);
+  assert.throws(
+    () => ctx.appExecutar({ id_op: 'op-00000203', acao: 'fotoOrdem', dados: { id: 'OS-001', foto_ref: 'c3', foto_base64: 'CCC' } }),
+    /já tem 5 fotos/
+  );
+  const { ctx: ctx2 } = montar({ Oficina: [ordem()] });
+  driveFalso(ctx2);
+  assert.throws(
+    () => ctx2.appExecutar({ id_op: 'op-00000204', acao: 'fotoOrdem', dados: { id: 'OS-001', foto_ref: 'd4', foto_base64: '' } }),
+    /foto chegou vazia/
+  );
+  assert.equal(drive.arquivos.length, 0);
+  assert.equal(dados.Oficina[0].Fotos, cinco);
+});
+
+test('tirarFotoOrdem: pelo link ou pelo ref tira só aquela foto e manda o arquivo pra lixeira', () => {
+  const { ctx, dados } = montar({ Oficina: [ordem()] });
+  const drive = driveFalso(ctx);
+  ['a1', 'b2', 'c3'].forEach((ref, i) => ctx.appExecutar({
+    id_op: 'op-0000021' + i, acao: 'fotoOrdem', dados: { ref_app: 'os-ref-1', foto_ref: ref, foto_base64: 'X' }
+  }));
+  const r1 = js(ctx.appExecutar({ id_op: 'op-00000220', acao: 'tirarFotoOrdem', dados: { id: 'OS-001', foto_url: LINK('F2') } }));
+  const r2 = js(ctx.appExecutar({
+    id_op: 'op-00000221', acao: 'tirarFotoOrdem', dados: { ref_app: 'os-ref-1', foto_url: 'file:///cache/c3.jpg', foto_ref: 'c3' }
+  }));
+  assert.deepEqual(r1.resultado, { id: 'OS-001', foto_url: LINK('F2') });
+  assert.equal(r2.resultado.foto_url, LINK('F3'));
+  assert.equal(dados.Oficina[0].Fotos, LINK('F1'));
+  assert.deepEqual(drive.lixeira, ['F2', 'F3']);
+  const r3 = js(ctx.appExecutar({ id_op: 'op-00000222', acao: 'tirarFotoOrdem', dados: { id: 'OS-001', foto_url: LINK('F9') } }));
+  assert.deepEqual(r3.resultado, { id: 'OS-001', foto_url: '' });
+  assert.deepEqual(drive.lixeira, ['F2', 'F3']);
+});
+
+test('appSync e appOficinaHistorico: fotos vêm em lista', () => {
+  const { ctx } = montar({
+    Molduras: [],
+    Oficina: [ordem({ Fotos: LINK('F1') + '\n' + LINK('F2') }), ordem({ ID: 'OS-002', Ref_app: '', Fotos: '' })]
+  });
+  const s = js(ctx.appSync());
+  assert.deepEqual(s.oficina.map((o) => o.fotos), [[], [LINK('F1'), LINK('F2')]]);
+  assert.deepEqual(js(ctx.appOficinaHistorico('2026-11')).ordens[1].fotos, [LINK('F1'), LINK('F2')]);
+});
+
 function servicosFalsos(ctx, senha) {
   const props = {};
   const cache = {};

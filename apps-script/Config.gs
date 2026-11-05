@@ -69,7 +69,7 @@ var CABECALHOS_FIN = {
   // Oficina: ordens de serviço (texto livre). Protegida do seed, como o resto do financeiro.
   Oficina:      ['ID', 'Data_criacao', 'Cliente', 'Telefone', 'Descricao', 'Prazo', 'Valor',
                  'Status', 'Aviso', 'Data_aviso', 'Data_pronto', 'Data_entrega',
-                 'Lancado_financeiro', 'Criado_por', 'Finalizado_por', 'Obs', 'Ref_app']
+                 'Lancado_financeiro', 'Criado_por', 'Finalizado_por', 'Obs', 'Ref_app', 'Fotos']
 };
 
 // Enum fixo de categorias de SAÍDA. O que vier fora cai em 'Outros' (com aviso no log).

@@ -129,6 +129,8 @@ function _executarAcaoApp(acao, d) {
     case 'marcarAcabamento': return _marcarAcabamentoNucleo(_acharOrdemApp(d));
     case 'marcarPronto': return _marcarProntoNucleo(_acharOrdemApp(d), 'app');
     case 'marcarEntregue': return _marcarEntregueNucleo(_acharOrdemApp(d));
+    case 'fotoOrdem': return _appFotoOrdem(d);
+    case 'tirarFotoOrdem': return _appTirarFotoOrdem(d);
     case 'lancarGasto': return _gravarGasto(d, 'tablet');
     case 'lancarVenda': return _gravarVenda(d, 'tablet');
     case 'ajustarSaldos': return _gravarSaldos(d);
@@ -505,7 +507,62 @@ function _salvarFotoMoldura(codigo, base64, tipo) {
   var blob = Utilities.newBlob(Utilities.base64Decode(String(base64)), mime, 'app-' + codigo + '.jpg');
   var arquivo = DriveApp.getFolderById(FOTO_PASTA_ID).createFile(blob);
   arquivo.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return _linkDaFoto(arquivo);
+}
+
+function _linkDaFoto(arquivo) {
   return 'https://drive.google.com/thumbnail?id=' + arquivo.getId() + '&sz=w1000';
+}
+
+var LIMITE_FOTOS_ORDEM = 5;
+var PASTA_FOTOS_OFICINA = 'Fotos da oficina';
+
+function _pastaFotosOficina() {
+  var raiz = DriveApp.getFolderById(FOTO_PASTA_ID);
+  var achadas = raiz.getFoldersByName(PASTA_FOTOS_OFICINA);
+  return achadas.hasNext() ? achadas.next() : raiz.createFolder(PASTA_FOTOS_OFICINA);
+}
+
+function _nomeFotoOrdem(ref) {
+  return 'oficina-' + ref + '.jpg';
+}
+
+function _appFotoOrdem(d) {
+  garantirColunas(ABAS_FIN.OFICINA, CABECALHOS_FIN.Oficina);
+  var o = _acharOrdemApp(d);
+  var ref = String(d.foto_ref || '');
+  if (!ref) throw new Error('Foto sem identificação.');
+  if (!d.foto_base64) throw new Error('A foto chegou vazia. Tire de novo.');
+  var fotos = _fotosDaLinha(o.Fotos);
+  if (fotos.length >= LIMITE_FOTOS_ORDEM) throw new Error('A ordem já tem ' + LIMITE_FOTOS_ORDEM + ' fotos.');
+  var mime = String(d.foto_tipo || 'image/jpeg');
+  var blob = Utilities.newBlob(Utilities.base64Decode(String(d.foto_base64)), mime, _nomeFotoOrdem(ref));
+  var arquivo = _pastaFotosOficina().createFile(blob);
+  arquivo.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  var url = _linkDaFoto(arquivo);
+  fotos.push(url);
+  atualizarCampos(ABAS_FIN.OFICINA, o._linha, { Fotos: fotos.join('\n') });
+  return { id: String(o.ID), foto_ref: ref, foto_url: url };
+}
+
+function _linkPeloNome(ref) {
+  if (!ref) return '';
+  var achados = _pastaFotosOficina().getFilesByName(_nomeFotoOrdem(ref));
+  return achados.hasNext() ? _linkDaFoto(achados.next()) : '';
+}
+
+function _appTirarFotoOrdem(d) {
+  var o = _acharOrdemApp(d);
+  var fotos = _fotosDaLinha(o.Fotos);
+  var url = String(d.foto_url || '');
+  if (!/^https?:/i.test(url)) url = _linkPeloNome(String(d.foto_ref || ''));
+  if (!url || fotos.indexOf(url) < 0) return { id: String(o.ID), foto_url: '' };
+  atualizarCampos(ABAS_FIN.OFICINA, o._linha, { Fotos: fotos.filter(function (f) { return f !== url; }).join('\n') });
+  var id = url.match(/[?&]id=([^&]+)/);
+  if (id) {
+    try { DriveApp.getFileById(id[1]).setTrashed(true); } catch (e) {}
+  }
+  return { id: String(o.ID), foto_url: url };
 }
 
 function _appCadastrarMoldura(d) {
