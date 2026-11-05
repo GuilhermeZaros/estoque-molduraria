@@ -29,6 +29,18 @@ function _precoPaspaturDe(linhas) {
   return 330;
 }
 
+function _precoSilicone() {
+  return _precoSiliconeDe(abaExiste(ABAS.AVULSOS) ? lerAba(ABAS.AVULSOS) : []);
+}
+
+function _precoSiliconeDe(linhas) {
+  var lista = linhas || [];
+  for (var i = 0; i < lista.length; i++) {
+    if (/silicon/i.test(String(lista[i].Nome))) return Math.max(0, Number(lista[i].Valor_por_m2) || 0);
+  }
+  return 0;
+}
+
 // Molduras que casam com os filtros E têm estoque (> 0). Retorna até `limite` (máx 5).
 // larguraMin/larguraMax (cm) filtram pela LARGURA DO PERFIL — quando o cliente pede
 // "3cm", a busca só devolve molduras nessa faixa (antes o modelo filtrava e errava).
@@ -145,11 +157,13 @@ function orcamentoPorCodigos(args) {
   }
   if (itens.length === 0) throw new Error('Informe pelo menos um item (moldura, vidro, chapa ou espelho).');
   var paspatur = _ehDisponivel(args.paspatur);
+  var duplo = _ehDisponivel(args.vidroDuplo);
   return calcularOrcamento(largura, altura, itens, {
     objetoAlto: _ehDisponivel(args.objetoAlto),
-    vidroDuplo: _ehDisponivel(args.vidroDuplo),
+    vidroDuplo: duplo,
     paspatur: paspatur,
-    paspaturPrecoM2: paspatur ? _precoPaspatur() : 0
+    paspaturPrecoM2: paspatur ? _precoPaspatur() : 0,
+    siliconePrecoM2: duplo ? _precoSilicone() : 0
   });
 }
 

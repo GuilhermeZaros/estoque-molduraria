@@ -59,6 +59,12 @@ test('descrição dos quadros junta medida, moldura e materiais', () => {
   expect(texto).toMatch(/Vidro simples \(2 vidros\)$/);
 });
 
+test('descrição dos 2 vidros leva a borda', () => {
+  const pacote = { molduras: [], materiais: [{ codigo: 'VID-001', nome: 'Vidro simples' }] };
+  const quadros = [{ tipo: 'quadro', largura_cm: '21', altura_cm: '30', quantidade: 1, vidro: 'VID-001', vidro_duplo: true, margem: '3' }];
+  expect(descricaoDosQuadros(pacote, quadros)).toMatch(/Vidro simples \(2 vidros, borda 3 cm\)$/);
+});
+
 test('descrição dos quadros leva os serviços e ignora paspatur do objeto', () => {
   const texto = descricaoDosQuadros({ molduras: [], materiais: [] }, [
     { tipo: 'objeto', largura: '52', altura: '72', quantidade: 1, paspatur: '5', servicos: [] },

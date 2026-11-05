@@ -78,6 +78,17 @@ function calcularOrcamento(larguraCm, alturaCm, itens, opcoes) {
     total += pasValor;
   }
 
+  if (opcoes.vidroDuplo && Number(opcoes.siliconePrecoM2) > 0) {
+    var silValor = _arredondarPraCima(area * Number(opcoes.siliconePrecoM2));
+    linhas.push({
+      categoria: 'silicone', item: 'Silicone',
+      quantidade: Number(area.toFixed(3)), unidade: 'm²',
+      calculo: 'área ' + area.toFixed(3) + 'm² x R$ ' + opcoes.siliconePrecoM2 + '/m²',
+      valor: silValor, consumo: Number(area.toFixed(3))
+    });
+    total += silValor;
+  }
+
   var pinturaChapa = opcoes.objetoAlto ? TAXA_PINTURA_CHAPA : 0;
   total += pinturaChapa;
 
@@ -91,6 +102,10 @@ function calcularOrcamento(larguraCm, alturaCm, itens, opcoes) {
   };
   if (pinturaChapa) resultado.pintura_chapa = pinturaChapa;
   return resultado;
+}
+
+function _ehDisponivel(valor) {
+  return valor === true || String(valor).toUpperCase() === 'TRUE';
 }
 
 var LADOS_CORREDOR = { E: 'esquerda', D: 'direita', F: 'fundo' };
@@ -239,7 +254,7 @@ function _quadrosDoPedido(d) {
 }
 
 function _bordaDoQuadro(q) {
-  if (_ehObjeto(q)) return { cm: Math.max(0, Number(q.margem_cm) || 0), paspatur: false };
+  if (_ehObjeto(q) || _ehDisponivel(q.vidro_duplo)) return { cm: Math.max(0, Number(q.margem_cm) || 0), paspatur: false };
   var p = Math.max(0, Number(q.paspatur_cm) || 0);
   return { cm: p, paspatur: p > 0 };
 }
@@ -285,6 +300,7 @@ export {
   TAXA_PINTURA_CHAPA,
   _arredondarPraCima as arredondarPraCima,
   calcularOrcamento,
+  _ehDisponivel as ehDisponivel,
   LADOS_CORREDOR,
   _casinhasDoDeposito as casinhasDoDeposito,
   _normalizarCasinha as normalizarCasinha,

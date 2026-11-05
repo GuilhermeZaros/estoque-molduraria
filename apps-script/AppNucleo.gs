@@ -109,7 +109,7 @@ function _ehObjeto(q) {
 }
 
 function _bordaDoQuadro(q) {
-  if (_ehObjeto(q)) return { cm: Math.max(0, Number(q.margem_cm) || 0), paspatur: false };
+  if (_ehObjeto(q) || _ehDisponivel(q.vidro_duplo)) return { cm: Math.max(0, Number(q.margem_cm) || 0), paspatur: false };
   var p = Math.max(0, Number(q.paspatur_cm) || 0);
   return { cm: p, paspatur: p > 0 };
 }

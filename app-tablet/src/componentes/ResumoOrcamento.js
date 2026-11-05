@@ -4,10 +4,11 @@ import { Icone } from './Icone';
 import { formatarReais, formatarNumero } from '../formato';
 import { AVISO, cores, tamanho } from '../tema';
 
-const NOMES = { moldura: 'Moldura', vidro: 'Vidro', chapa: 'Fundo', espelho: 'Espelho', paspatur: 'Paspatur' };
+const NOMES = { moldura: 'Moldura', vidro: 'Vidro', chapa: 'Fundo', espelho: 'Espelho', paspatur: 'Paspatur', silicone: 'Silicone' };
 
 function nomeDoItem(it, r, vidroDuplo) {
   if (it.categoria === 'paspatur') return 'Borda de ' + formatarNumero(r.borda) + ' cm';
+  if (it.categoria === 'silicone') return 'Junta dos 2 vidros';
   if (it.categoria === 'vidro' && vidroDuplo) return it.item + ' (2 vidros)';
   return it.item;
 }

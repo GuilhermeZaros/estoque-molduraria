@@ -45,6 +45,22 @@ test('um quadro sem nome, com 2 vidros', () => {
   expect(texto).toBe('Olá! Segue o orçamento da Vera Molduras:\nQuadro de 30 x 30 cm\nVidro: Vidro simples (2 vidros)\nTotal: R$ 97,00');
 });
 
+test('2 vidros com borda mostram o tamanho final e não falam do silicone', () => {
+  const texto = textoOrcamento({
+    cliente: '', ajustado: false, total: 109.1,
+    quadros: [q({
+      largura: 21, altura: 30, margem: 3, externa: { largura: 27, altura: 36 }, vidro: 'Vidro simples', vidro_duplo: true,
+      valor_total: 109.1
+    })]
+  });
+  expect(texto).toBe([
+    'Olá! Segue o orçamento da Vera Molduras:',
+    'Quadro de 21 x 30 cm, com borda de 3 cm (fica 27 x 36 cm)',
+    'Vidro: Vidro simples (2 vidros)',
+    'Total: R$ 109,10'
+  ].join('\n'));
+});
+
 test('vários quadros: lista numerada com o valor de cada, reforma com serviço e objeto', () => {
   const texto = textoOrcamento({
     cliente: 'Ana', ajustado: false, total: 899.2,

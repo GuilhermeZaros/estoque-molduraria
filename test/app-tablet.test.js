@@ -48,6 +48,7 @@ test('appSync: pacote com molduras, materiais, casinhas contadas, abertos, compr
   assert.equal(s.molduras[0].estoque_m, 27);
   assert.deepEqual(s.materiais.map((m) => m.codigo), ['V1']);
   assert.equal(s.paspatur_m2, 330);
+  assert.equal(s.silicone_m2, 0);
   assert.equal(s.taxa_pintura_chapa, 30);
   assert.deepEqual(s.casinhas_contadas, ['CR1-E1']);
   assert.deepEqual(s.orcamentos_abertos.map((o) => o.id), ['ORC-0001']);
@@ -386,6 +387,46 @@ test('salvarOrcamento: reforma que troca material ainda precisa da medida', () =
     () => ctx.appExecutar({ id_op: 'op-00000041', acao: 'salvarOrcamento', dados: pedidoVarios([{ tipo: 'reforma', vidro: 'V1' }]) }),
     /Informe largura e altura/
   );
+});
+
+const comSilicone = () => ({
+  ...abasVarios(),
+  Avulsos: [
+    { Codigo: 'AVU-001', Nome: 'Silicone', Valor_por_m2: 10 },
+    { Codigo: 'AVU-002', Nome: 'Passepartout Importado', Valor_por_m2: 330 }
+  ]
+});
+const certificadoDuplo = () => ({
+  tipo: 'quadro', largura_cm: 21, altura_cm: 30, margem_cm: 3, quantidade: 1,
+  moldura: 'M1', vidro: 'V1', chapa: 'C1', vidro_duplo: true
+});
+
+test('appSync: manda o preço do silicone da aba Avulsos', () => {
+  const { ctx } = montar(comSilicone());
+  assert.equal(js(ctx.appSync()).silicone_m2, 10);
+});
+
+test('2 vidros: a borda aumenta o quadro, cobra silicone e grava a margem', () => {
+  const { ctx, dados } = montar(comSilicone());
+  const c = js(ctx._calcularOrcamentoApp(certificadoDuplo()));
+  assert.deepEqual(c.itens.map((i) => [i.categoria, i.valor]), [['moldura', 73.1], ['vidro', 35], ['silicone', 1]]);
+  assert.equal(c.valor_total, 109.1);
+  ctx.appExecutar({ id_op: 'op-00000050', acao: 'salvarOrcamento', dados: pedidoVarios([certificadoDuplo()]) });
+  const q = dados.Orcamento_quadros[0];
+  assert.deepEqual([q.Largura_cm, q.Altura_cm, q.Margem_cm, q.Paspatur_cm, q.Chapa, q.Vidro_duplo], [21, 30, 3, 0, '', true]);
+  const aberto = js(ctx.appSync()).orcamentos_abertos[0].quadros[0];
+  assert.equal(aberto.margem_cm, 3);
+  assert.equal(aberto.vidro_duplo, true);
+});
+
+test('fecharVenda: 2 vidros grava o silicone no histórico', () => {
+  const { ctx, dados } = montar(comSilicone());
+  const r = js(ctx.appExecutar({ id_op: 'op-00000051', acao: 'fecharVenda', dados: pedidoVarios([certificadoDuplo()]) }));
+  assert.equal(r.resultado.valor_final, 109.1);
+  const vendas = dados.Historico.filter((h) => h.Tipo_movimentacao === 'venda');
+  assert.deepEqual(vendas.map((h) => [h.Categoria, h.Produto, h.Valor]), [
+    ['moldura', 'Madeira lisa 3cm', 73.1], ['vidro', 'Vidro incolor', 35], ['silicone', 'Silicone', 1]
+  ]);
 });
 
 test('fecharVenda: cada serviço vira uma venda no histórico e entra no valor ajustado', () => {

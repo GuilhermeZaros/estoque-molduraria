@@ -147,6 +147,13 @@ test('_quadrosDoPedido: lista de quadros; pedido antigo vira 1 quadro', () => {
   assert.deepEqual(js(ctx._quadrosDoPedido({ quadros: [], largura_cm: 10 })), [{ quadros: [], largura_cm: 10 }]);
 });
 
+test('_bordaDoQuadro: 2 vidros usam a borda em volta e não cobram paspatur', () => {
+  assert.deepEqual(js(ctx._bordaDoQuadro({ tipo: 'quadro', vidro_duplo: true, margem_cm: 3, paspatur_cm: 5 })), { cm: 3, paspatur: false });
+  assert.deepEqual(js(ctx._bordaDoQuadro({ tipo: 'reforma', vidro_duplo: 'TRUE', margem_cm: 2 })), { cm: 2, paspatur: false });
+  assert.deepEqual(js(ctx._bordaDoQuadro({ tipo: 'quadro', vidro_duplo: true })), { cm: 0, paspatur: false });
+  assert.deepEqual(js(ctx._bordaDoQuadro({ tipo: 'quadro', vidro_duplo: false, margem_cm: 3, paspatur_cm: 5 })), { cm: 5, paspatur: true });
+});
+
 test('_bordaDoQuadro: paspatur cobra; margem da camiseta só aumenta a medida', () => {
   assert.deepEqual(js(ctx._bordaDoQuadro({ tipo: 'quadro', paspatur_cm: 5 })), { cm: 5, paspatur: true });
   assert.deepEqual(js(ctx._bordaDoQuadro({ paspatur_cm: '' })), { cm: 0, paspatur: false });

@@ -95,7 +95,8 @@ export function descricaoDosQuadros(pacote, quadros) {
     const moldura = q.moldura ? pacote.molduras.find((m) => m.codigo === q.moldura) : null;
     if (moldura) partes.push('moldura ' + moldura.nome);
     if (Number(String(q.paspatur || '').replace(',', '.')) > 0 && q.tipo !== 'objeto') partes.push('paspatur ' + q.paspatur + ' cm');
-    if (q.vidro) partes.push(nomeMaterial(pacote, q.vidro) + (q.vidro_duplo ? ' (2 vidros)' : ''));
+    const bordaDupla = q.vidro_duplo && Number(String(q.margem || '').replace(',', '.')) > 0 ? ', borda ' + q.margem + ' cm' : '';
+    if (q.vidro) partes.push(nomeMaterial(pacote, q.vidro) + (q.vidro_duplo ? ' (2 vidros' + bordaDupla + ')' : ''));
     if (q.chapa && !q.vidro_duplo) partes.push(nomeMaterial(pacote, q.chapa));
     if (q.espelho) partes.push(nomeMaterial(pacote, q.espelho));
     (q.servicos || []).forEach((s) => { if (String(s.descricao || '').trim()) partes.push(String(s.descricao).trim()); });

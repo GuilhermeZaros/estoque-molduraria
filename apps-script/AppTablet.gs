@@ -44,6 +44,7 @@ function appSync() {
     molduras: a[ABAS.MOLDURAS].map(function (x) { return _molduraParaApp(x); }),
     materiais: _produtosDe(a).filter(function (p) { return p.categoria !== 'moldura'; }),
     paspatur_m2: _precoPaspaturDe(a[ABAS.AVULSOS]),
+    silicone_m2: _precoSiliconeDe(a[ABAS.AVULSOS]),
     taxa_pintura_chapa: TAXA_PINTURA_CHAPA,
     casinhas_contadas: a[ABAS_APP.CASINHAS]
       .filter(function (c) { return c.Contada_em; })
@@ -196,16 +197,15 @@ function _tipoDoQuadro(q) {
 
 function _linhaDoQuadro(id, ref, q, c, n) {
   var tipo = _tipoDoQuadro(q);
-  var objeto = _ehObjeto(q);
   var borda = _bordaDoQuadro(q);
   var duplo = _ehDisponivel(q.vidro_duplo);
   return {
     Orcamento: id, Ref_app: ref, N: n, Tipo: tipo,
     Tamanho: tipo === 'camiseta' ? String(q.tamanho || '') : '',
     Largura_cm: Number(q.largura_cm) || 0, Altura_cm: Number(q.altura_cm) || 0,
-    Margem_cm: objeto ? borda.cm : 0,
+    Margem_cm: borda.paspatur ? 0 : borda.cm,
     Quantidade: c.quantidade,
-    Paspatur_cm: objeto ? 0 : borda.cm,
+    Paspatur_cm: borda.paspatur ? borda.cm : 0,
     Moldura: String(q.moldura || ''), Vidro: String(q.vidro || ''),
     Chapa: duplo ? '' : String(q.chapa || ''), Espelho: String(q.espelho || ''),
     Vidro_duplo: duplo, Objeto_alto: _ehDisponivel(q.objeto_alto),

@@ -125,7 +125,7 @@ export function EditorQuadro({ q, n, total, pacote, r, aviso, aoMudar, aoTrocarT
             {r && r.ok && r.borda > 0 ? (
               <Text style={s.nota}>Com o paspatur o quadro fica {formatarNumero(r.externa.largura)} x {formatarNumero(r.externa.altura)} cm.</Text>
             ) : null}
-            {q.vidro_duplo ? <Text style={s.nota}>Com 2 vidros não vai paspatur. Escolher uma borda tira os 2 vidros.</Text> : null}
+            {q.vidro_duplo ? <Text style={s.nota}>Com 2 vidros não vai paspatur. Escolher um paspatur tira os 2 vidros.</Text> : null}
           </Cartao>
         </>
       )}
@@ -164,10 +164,29 @@ export function EditorQuadro({ q, n, total, pacote, r, aviso, aoMudar, aoTrocarT
         {q.vidro && !objeto ? (
           <Interruptor
             titulo="2 vidros (sem fundo)"
-            dica="Pra quadro que mostra os dois lados. Não leva paspatur."
+            dica="Pra quadro que mostra os dois lados. Leva silicone e não leva paspatur."
             valor={q.vidro_duplo}
             aoMudar={(v) => aoMudar({ vidro_duplo: v })}
           />
+        ) : null}
+        {q.vidro && !objeto && q.vidro_duplo ? (
+          <>
+            <Text style={s.rotulo}>Borda em volta</Text>
+            <GrupoPilulas
+              opcoes={BORDAS}
+              valor={q.margem_outra ? null : q.margem}
+              aoMudar={(v) => aoMudar({ margem_outra: false, margem: v })}
+            />
+            <Campo
+              rotulo="Outra borda (cm)"
+              valor={q.margem_outra ? q.margem : ''}
+              aoMudar={(v) => aoMudar({ margem_outra: v !== '', margem: v })}
+              teclado="decimal-pad"
+            />
+            {r && r.ok && r.margem > 0 ? (
+              <Text style={s.nota}>Com a borda o quadro fica {formatarNumero(r.externa.largura)} x {formatarNumero(r.externa.altura)} cm.</Text>
+            ) : null}
+          </>
         ) : null}
       </Cartao>
 
@@ -211,6 +230,7 @@ const s = StyleSheet.create({
   dupla: { flexDirection: 'row', gap: 12 },
   metade: { flex: 1 },
   nota: { fontSize: tamanho.pequeno, color: cores.marinho, fontWeight: '600' },
+  rotulo: { fontSize: 18, fontWeight: '700', color: cores.tinta },
   servico: {
     flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: 12, paddingBottom: 14,
     borderBottomWidth: 1, borderBottomColor: cores.linha

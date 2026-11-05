@@ -46,8 +46,8 @@ export function servicoVazio() {
 
 export function quadroVazio(tipo = 'quadro', pacote) {
   const q = {
-    chave: novaChave(), tipo, largura: '', altura: '', margem: '', quantidade: 1, paspatur: '', borda_outra: false, moldura: '',
-    vidro: '', chapa: '', espelho: '', vidro_duplo: false, objeto_alto: false, servicos: []
+    chave: novaChave(), tipo, largura: '', altura: '', margem: '', margem_outra: false, quantidade: 1, paspatur: '',
+    borda_outra: false, moldura: '', vidro: '', chapa: '', espelho: '', vidro_duplo: false, objeto_alto: false, servicos: []
   };
   if (tipo !== 'objeto') return q;
   return {
@@ -64,18 +64,21 @@ export function trocarTipo(q, tipo, pacote) {
   if (q.tipo === tipo) return q;
   if (tipo === 'objeto') {
     return {
-      ...q, tipo, paspatur: '', borda_outra: false, margem: String(MARGEM_OBJETO_CM), objeto_alto: true, vidro_duplo: false,
-      espelho: '', vidro: q.vidro || maisBarato(pacote, 'vidro'), chapa: q.chapa || maisBarato(pacote, 'chapa')
+      ...q, tipo, paspatur: '', borda_outra: false, margem: String(MARGEM_OBJETO_CM), margem_outra: false, objeto_alto: true,
+      vidro_duplo: false, espelho: '', vidro: q.vidro || maisBarato(pacote, 'vidro'), chapa: q.chapa || maisBarato(pacote, 'chapa')
     };
   }
-  if (q.tipo === 'objeto') return { ...q, tipo, margem: '', objeto_alto: false };
+  if (q.tipo === 'objeto') return { ...q, tipo, margem: '', margem_outra: false, objeto_alto: false };
   return { ...q, tipo };
 }
 
+const SEM_MARGEM = { margem: '', margem_outra: false };
+
 export function mudarQuadro(q, campos) {
   const novo = { ...q, ...campos };
-  if (campos.vidro_duplo) return { ...novo, paspatur: '', borda_outra: false, objeto_alto: false };
-  if ('paspatur' in campos && lerNumero(campos.paspatur) !== 0) return { ...novo, vidro_duplo: false };
+  if (campos.vidro_duplo) return { ...novo, ...SEM_MARGEM, paspatur: '', borda_outra: false, objeto_alto: false };
+  if ('vidro_duplo' in campos && q.tipo !== 'objeto') return { ...novo, ...SEM_MARGEM };
+  if ('paspatur' in campos && lerNumero(campos.paspatur) !== 0) return { ...novo, ...SEM_MARGEM, vidro_duplo: false };
   return novo;
 }
 
@@ -106,7 +109,8 @@ function deQuadroSalvo(x) {
     tipo,
     largura: numeroOuVazio(x.largura_cm),
     altura: numeroOuVazio(x.altura_cm),
-    margem: tipo === 'objeto' ? formatarNumero(Number(x.margem_cm) || 0) : '',
+    margem: tipo === 'objeto' ? formatarNumero(Number(x.margem_cm) || 0) : x.vidro_duplo ? numeroOuVazio(x.margem_cm) : '',
+    margem_outra: tipo !== 'objeto' && !!x.vidro_duplo && Number(x.margem_cm) > 0 && !BORDAS_PASPATUR.includes(Number(x.margem_cm)),
     quantidade: Math.max(1, Math.round(Number(x.quantidade) || 1)),
     paspatur: numeroOuVazio(x.paspatur_cm),
     borda_outra: Number(x.paspatur_cm) > 0 && !BORDAS_PASPATUR.includes(Number(x.paspatur_cm)),
@@ -168,9 +172,13 @@ export function calcularQuadro(pacote, q) {
   const temMedida = largura > 0 && altura > 0;
   const reforma = q.tipo === 'reforma';
   if (!reforma && !temMedida) return { ok: false, erro: erroDeMedida(q.tipo) };
-  const objeto = q.tipo === 'objeto';
-  const borda = bordaDoQuadro({ tipo: q.tipo, paspatur_cm: lerNumero(q.paspatur), margem_cm: lerNumero(q.margem) });
-  if (!(borda.cm >= 0)) return { ok: false, erro: objeto ? 'A borda não é um número.' : 'A borda do paspatur não é um número.' };
+  const usaMargem = q.tipo === 'objeto' || !!q.vidro_duplo;
+  if (Number.isNaN(lerNumero(usaMargem ? q.margem : q.paspatur))) {
+    return { ok: false, erro: usaMargem ? 'A borda não é um número.' : 'A borda do paspatur não é um número.' };
+  }
+  const borda = bordaDoQuadro({
+    tipo: q.tipo, vidro_duplo: !!q.vidro_duplo, paspatur_cm: lerNumero(q.paspatur), margem_cm: lerNumero(q.margem)
+  });
   const servicos = lerServicos(q.servicos);
   if (servicos.erro) return { ok: false, erro: servicos.erro };
   const itens = [];
@@ -194,12 +202,13 @@ export function calcularQuadro(pacote, q) {
     objetoAlto: !!q.objeto_alto,
     vidroDuplo: !!q.vidro_duplo,
     paspatur: borda.paspatur,
-    paspaturPrecoM2: borda.paspatur ? Number(pacote.paspatur_m2) || 0 : 0
+    paspaturPrecoM2: borda.paspatur ? Number(pacote.paspatur_m2) || 0 : 0,
+    siliconePrecoM2: q.vidro_duplo ? Number(pacote.silicone_m2) || 0 : 0
   });
   return {
     ok: true, tipo: q.tipo, largura: temMedida ? largura : 0, altura: temMedida ? altura : 0, externa, moldura,
     borda: borda.paspatur ? borda.cm : 0,
-    margem: objeto ? borda.cm : 0,
+    margem: borda.paspatur ? 0 : borda.cm,
     calc: totaisOrcamentoApp(orc, q.quantidade, servicos.lista)
   };
 }

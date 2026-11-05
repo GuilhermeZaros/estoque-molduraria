@@ -25,6 +25,7 @@ function tituloQuadro(q, varios) {
   }
   let t = (n > 1 ? n + ' quadros de ' : 'Quadro de ') + medida(q.largura, q.altura);
   if (q.borda > 0) t += ', com paspatur de ' + formatarNumero(q.borda) + ' cm (fica ' + medida(q.externa.largura, q.externa.altura) + ')';
+  else if (q.vidro_duplo && q.margem > 0) t += ', com borda de ' + formatarNumero(q.margem) + ' cm (fica ' + medida(q.externa.largura, q.externa.altura) + ')';
   return t;
 }
 

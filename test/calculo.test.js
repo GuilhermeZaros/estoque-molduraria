@@ -104,6 +104,28 @@ test('calcularOrcamento: total com pintura continua redondo', () => {
   assert.equal(orc.valor_total, 43.3);
 });
 
+test('calcularOrcamento: 2 vidros cobram o silicone pela área do quadro', () => {
+  const orc = ctx.calcularOrcamento(27, 36, [
+    { categoria: 'vidro', nome: 'Vidro Simples 2mm', preco: 180 }
+  ], { vidroDuplo: true, siliconePrecoM2: 10 });
+  assert.deepEqual(Array.from(orc.itens, (i) => i.categoria), ['vidro', 'silicone']);
+  assert.equal(orc.itens[0].valor, 35);
+  assert.equal(orc.itens[1].item, 'Silicone');
+  assert.equal(orc.itens[1].quantidade, 0.097);
+  assert.equal(orc.itens[1].unidade, 'm²');
+  assert.equal(orc.itens[1].valor, 1);
+  assert.equal(orc.valor_total, 36);
+});
+
+test('calcularOrcamento: sem 2 vidros não tem silicone', () => {
+  const orc = ctx.calcularOrcamento(27, 36, [
+    { categoria: 'vidro', nome: 'Vidro Simples 2mm', preco: 180 }
+  ], { siliconePrecoM2: 10 });
+  assert.deepEqual(Array.from(orc.itens, (i) => i.categoria), ['vidro']);
+  const semPreco = ctx.calcularOrcamento(27, 36, [{ categoria: 'vidro', nome: 'V', preco: 180 }], { vidroDuplo: true });
+  assert.deepEqual(Array.from(semPreco.itens, (i) => i.categoria), ['vidro']);
+});
+
 test('consumoMolduraM: bate com a Calculadora de Molduras — 90x60 perfil 2cm = 328,9cm', () => {
   // perim 3.00 + 8P 0.16 + 4√2P 0.11314 + 8*kerf 0.016 = 3.289
   assert.equal(ctx.consumoMolduraM(90, 60, 2), 3.289);

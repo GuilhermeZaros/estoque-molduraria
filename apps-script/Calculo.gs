@@ -124,6 +124,17 @@ function calcularOrcamento(larguraCm, alturaCm, itens, opcoes) {
     total += pasValor;
   }
 
+  if (opcoes.vidroDuplo && Number(opcoes.siliconePrecoM2) > 0) {
+    var silValor = _arredondarPraCima(area * Number(opcoes.siliconePrecoM2));
+    linhas.push({
+      categoria: 'silicone', item: 'Silicone',
+      quantidade: Number(area.toFixed(3)), unidade: 'm²',
+      calculo: 'área ' + area.toFixed(3) + 'm² x R$ ' + opcoes.siliconePrecoM2 + '/m²',
+      valor: silValor, consumo: Number(area.toFixed(3))
+    });
+    total += silValor;
+  }
+
   // Objeto em relevo na chapa → pintura da chapa (taxa fixa interna, não detalhada ao cliente).
   var pinturaChapa = opcoes.objetoAlto ? TAXA_PINTURA_CHAPA : 0;
   total += pinturaChapa;

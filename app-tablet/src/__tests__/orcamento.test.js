@@ -18,6 +18,7 @@ const pacote = {
     { codigo: 'ESP-001', nome: 'Espelho 3 mm', categoria: 'espelho', preco: 330, disponivel: true }
   ],
   paspatur_m2: 330,
+  silicone_m2: 10,
   taxa_pintura_chapa: 30
 };
 const quadro = (mudar) => ({ ...quadroVazio('quadro'), largura: '40', altura: '50', ...mudar });
@@ -84,6 +85,50 @@ test('escolher um paspatur desliga os 2 vidros', () => {
   expect(mudarQuadro(duplo, { borda_outra: false, paspatur: '' })).toMatchObject({ paspatur: '', vidro_duplo: true });
 });
 
+test('ligar os 2 vidros começa sem borda; desligar ou escolher paspatur tira a borda', () => {
+  const ligado = mudarQuadro(quadro({ vidro: 'VID-001' }), { vidro_duplo: true });
+  expect(ligado).toMatchObject({ vidro_duplo: true, margem: '', margem_outra: false });
+  const comBorda = mudarQuadro(ligado, { margem_outra: false, margem: '3' });
+  expect(comBorda).toMatchObject({ vidro_duplo: true, margem: '3' });
+  expect(mudarQuadro(comBorda, { vidro_duplo: false })).toMatchObject({ vidro_duplo: false, margem: '', margem_outra: false });
+  expect(mudarQuadro(comBorda, { vidro: '', vidro_duplo: false })).toMatchObject({ margem: '' });
+  expect(mudarQuadro(comBorda, { borda_outra: false, paspatur: '5' })).toMatchObject({ vidro_duplo: false, margem: '', paspatur: '5' });
+});
+
+test('tirar o vidro do objeto não mexe na borda do objeto', () => {
+  expect(mudarQuadro(objeto(), { vidro: '', vidro_duplo: false })).toMatchObject({ margem: '4' });
+});
+
+test('2 vidros com borda: o quadro cresce e cobra o silicone', () => {
+  const r = calcularQuadro(pacote, quadro({ largura: '21', altura: '30', vidro: 'VID-001', chapa: 'CHA-001', vidro_duplo: true, margem: '3' }));
+  expect(r.ok).toBe(true);
+  expect(r.externa).toMatchObject({ largura: 27, altura: 36 });
+  expect(r.margem).toBe(3);
+  expect(r.borda).toBe(0);
+  expect(r.calc.itens.map((i) => [i.categoria, i.valor])).toEqual([['vidro', 35], ['silicone', 1]]);
+  expect(r.calc.valor_total).toBe(36);
+});
+
+test('2 vidros sem borda ficam no tamanho da foto; sem preço não tem silicone', () => {
+  const r = calcularQuadro({ ...pacote, silicone_m2: 0 }, quadro({ largura: '21', altura: '30', vidro: 'VID-001', vidro_duplo: true }));
+  expect(r.externa).toMatchObject({ largura: 21, altura: 30 });
+  expect(r.calc.itens.map((i) => i.categoria)).toEqual(['vidro']);
+});
+
+test('borda dos 2 vidros que não é número dá erro', () => {
+  expect(calcularQuadro(pacote, quadro({ vidro: 'VID-001', vidro_duplo: true, margem: 'abc' })))
+    .toEqual({ ok: false, erro: 'A borda não é um número.' });
+});
+
+test('2 vidros salvos voltam com a borda', () => {
+  const salvo = (margem_cm) => deAberto({
+    ref_app: 'r', quadros: [{ largura_cm: 21, altura_cm: 30, vidro: 'VID-001', vidro_duplo: true, margem_cm }]
+  }).quadros[0];
+  expect(salvo(3)).toMatchObject({ vidro_duplo: true, margem: '3', margem_outra: false });
+  expect(salvo(6)).toMatchObject({ margem: '6', margem_outra: true });
+  expect(salvo(0)).toMatchObject({ margem: '', margem_outra: false });
+});
+
 test('mudar outro campo só troca aquele campo', () => {
   const q = quadro({ vidro: 'VID-001', vidro_duplo: true });
   expect(mudarQuadro(q, { largura: '60' })).toEqual({ ...q, largura: '60' });
@@ -120,10 +165,10 @@ test('quadro com paspatur e quantidade igual à planilha', () => {
   expect(r.calc.consumo_moldura_m).toBe(4.978);
 });
 
-test('2 vidros conta o vidro duas vezes e ignora o fundo; a pintura da chapa soma R$ 30', () => {
+test('2 vidros conta o vidro duas vezes, ignora o fundo e soma o silicone; a pintura da chapa soma R$ 30', () => {
   const r = calcularQuadro(pacote, quadro({ vidro: 'VID-001', chapa: 'CHA-001', vidro_duplo: true, objeto_alto: true }));
-  expect(r.calc.itens.map((i) => i.categoria)).toEqual(['vidro']);
-  expect(r.calc.valor_total).toBe(102);
+  expect(r.calc.itens.map((i) => i.categoria)).toEqual(['vidro', 'silicone']);
+  expect(r.calc.valor_total).toBe(104);
 });
 
 test('objeto de 52 x 72 fica 60 x 80 com a borda, sem cobrar paspatur, e soma a pintura', () => {

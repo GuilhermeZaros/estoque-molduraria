@@ -38,6 +38,7 @@ export const PACOTE_DEMO = {
     material('ESP-001', 'Espelho 3 mm', 'espelho', 330)
   ],
   paspatur_m2: 330,
+  silicone_m2: 10,
   taxa_pintura_chapa: 30,
   casinhas_contadas: ['CR1-E1', 'CR1-E2', 'CR1-F3', 'CR1-D5', 'CR3-D1', 'PR1-2'],
   orcamentos_abertos: [{
