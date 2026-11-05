@@ -22,6 +22,11 @@ function consumoMolduraM(larguraCm, alturaCm, perfilCm) {
 
 var TAXA_PINTURA_CHAPA = 30;
 
+function _arredondarPraCima(valor) {
+  var centavos = Math.round(Number(valor) * 100);
+  return Math.ceil(centavos / 10) / 10;
+}
+
 function calcularOrcamento(larguraCm, alturaCm, itens, opcoes) {
   opcoes = opcoes || {};
   var perim = perimetroM(larguraCm, alturaCm);
@@ -49,7 +54,7 @@ function calcularOrcamento(larguraCm, alturaCm, itens, opcoes) {
       consumo = area * dobra;
     }
 
-    var valor = bruto;
+    var valor = _arredondarPraCima(bruto);
     linhas.push({
       categoria: it.categoria,
       item: it.nome,
@@ -63,7 +68,7 @@ function calcularOrcamento(larguraCm, alturaCm, itens, opcoes) {
   }
 
   if (opcoes.paspatur && Number(opcoes.paspaturPrecoM2) > 0) {
-    var pasValor = area * Number(opcoes.paspaturPrecoM2);
+    var pasValor = _arredondarPraCima(area * Number(opcoes.paspaturPrecoM2));
     linhas.push({
       categoria: 'paspatur', item: 'Paspatur',
       quantidade: Number(area.toFixed(3)), unidade: 'm²',
@@ -278,6 +283,7 @@ export {
   areaM2,
   consumoMolduraM,
   TAXA_PINTURA_CHAPA,
+  _arredondarPraCima as arredondarPraCima,
   calcularOrcamento,
   LADOS_CORREDOR,
   _casinhasDoDeposito as casinhasDoDeposito,

@@ -125,6 +125,7 @@ export function EditorQuadro({ q, n, total, pacote, r, aviso, aoMudar, aoTrocarT
             {r && r.ok && r.borda > 0 ? (
               <Text style={s.nota}>Com o paspatur o quadro fica {formatarNumero(r.externa.largura)} x {formatarNumero(r.externa.altura)} cm.</Text>
             ) : null}
+            {q.vidro_duplo ? <Text style={s.nota}>Com 2 vidros não vai paspatur. Escolher uma borda tira os 2 vidros.</Text> : null}
           </Cartao>
         </>
       )}
@@ -163,9 +164,9 @@ export function EditorQuadro({ q, n, total, pacote, r, aviso, aoMudar, aoTrocarT
         {q.vidro && !objeto ? (
           <Interruptor
             titulo="2 vidros (sem fundo)"
-            dica="Pra quadro que mostra os dois lados"
+            dica="Pra quadro que mostra os dois lados. Não leva paspatur."
             valor={q.vidro_duplo}
-            aoMudar={(v) => aoMudar(v ? { vidro_duplo: true, objeto_alto: false } : { vidro_duplo: false })}
+            aoMudar={(v) => aoMudar({ vidro_duplo: v })}
           />
         ) : null}
       </Cartao>

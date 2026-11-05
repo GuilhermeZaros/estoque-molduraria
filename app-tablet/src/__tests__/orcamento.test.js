@@ -1,5 +1,5 @@
 import {
-  orcamentoVazio, quadroVazio, duplicarQuadro, trocarTipo, servicoVazio, deAberto,
+  orcamentoVazio, quadroVazio, duplicarQuadro, trocarTipo, mudarQuadro, servicoVazio, deAberto,
   moldurasDoOrcamento, materiaisDe, calcularQuadro, calcularPedido, avisoMoldura, avisosDoPedido, dadosParaApi,
   dadosDoTexto, filtrarAbertos, rotuloQuadro
 } from '../orcamento';
@@ -68,6 +68,25 @@ test('trocar pra objeto liga a pintura e tira o paspatur; voltar pra quadro desl
   expect(q).toMatchObject({ tipo: 'quadro', margem: '', objeto_alto: false, vidro: 'VID-002' });
   const r = trocarTipo(q, 'reforma', pacote);
   expect(r).toMatchObject({ tipo: 'reforma', vidro: 'VID-002' });
+});
+
+test('ligar os 2 vidros tira o paspatur e a pintura', () => {
+  expect(mudarQuadro(quadro({ vidro: 'VID-001', paspatur: '5', objeto_alto: true }), { vidro_duplo: true }))
+    .toMatchObject({ vidro_duplo: true, paspatur: '', borda_outra: false, objeto_alto: false });
+  expect(mudarQuadro(quadro({ vidro: 'VID-001', paspatur: '6', borda_outra: true }), { vidro_duplo: true }))
+    .toMatchObject({ vidro_duplo: true, paspatur: '', borda_outra: false });
+});
+
+test('escolher um paspatur desliga os 2 vidros', () => {
+  const duplo = quadro({ vidro: 'VID-001', vidro_duplo: true });
+  expect(mudarQuadro(duplo, { borda_outra: false, paspatur: '5' })).toMatchObject({ paspatur: '5', vidro_duplo: false });
+  expect(mudarQuadro(duplo, { borda_outra: true, paspatur: '6' })).toMatchObject({ paspatur: '6', vidro_duplo: false });
+  expect(mudarQuadro(duplo, { borda_outra: false, paspatur: '' })).toMatchObject({ paspatur: '', vidro_duplo: true });
+});
+
+test('mudar outro campo só troca aquele campo', () => {
+  const q = quadro({ vidro: 'VID-001', vidro_duplo: true });
+  expect(mudarQuadro(q, { largura: '60' })).toEqual({ ...q, largura: '60' });
 });
 
 test('nome curto de cada quadro pra lista', () => {

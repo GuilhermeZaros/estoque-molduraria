@@ -67,6 +67,43 @@ test('calcularOrcamento: sem objeto alto nao soma taxa nem expoe pintura_chapa',
   assert.equal(orc.pintura_chapa, undefined);
 });
 
+test('_arredondarPraCima: sobe pros 10 centavos de cima', () => {
+  assert.equal(ctx._arredondarPraCima(13.25), 13.3);
+  assert.equal(ctx._arredondarPraCima(6.61), 6.7);
+  assert.equal(ctx._arredondarPraCima(72.67), 72.7);
+  assert.equal(ctx._arredondarPraCima(72.61), 72.7);
+});
+
+test('_arredondarPraCima: valor redondo fica igual', () => {
+  assert.equal(ctx._arredondarPraCima(13.2), 13.2);
+  assert.equal(ctx._arredondarPraCima(247), 247);
+  assert.equal(ctx._arredondarPraCima(0), 0);
+});
+
+test('_arredondarPraCima: sobra de conta abaixo do centavo não sobe 10 centavos', () => {
+  assert.equal(ctx._arredondarPraCima(13.2000001), 13.2);
+  assert.equal(ctx._arredondarPraCima(0.1 + 0.2), 0.3);
+  assert.equal(ctx._arredondarPraCima(0.004), 0);
+});
+
+test('calcularOrcamento: cada item sobe pros 10 centavos de cima e o total soma os itens', () => {
+  const orc = ctx.calcularOrcamento(25, 53, [
+    { categoria: 'moldura', nome: 'Linhas Preta', preco: 19 },
+    { categoria: 'vidro', nome: 'Vidro Simples 2mm', preco: 100 }
+  ], { paspatur: true, paspaturPrecoM2: 50 });
+  assert.equal(orc.itens[0].valor, 29.7);
+  assert.equal(orc.itens[1].valor, 13.3);
+  assert.equal(orc.itens[2].valor, 6.7);
+  assert.equal(orc.valor_total, 49.7);
+});
+
+test('calcularOrcamento: total com pintura continua redondo', () => {
+  const orc = ctx.calcularOrcamento(25, 53, [
+    { categoria: 'vidro', nome: 'Vidro Simples 2mm', preco: 100 }
+  ], { objetoAlto: true });
+  assert.equal(orc.valor_total, 43.3);
+});
+
 test('consumoMolduraM: bate com a Calculadora de Molduras — 90x60 perfil 2cm = 328,9cm', () => {
   // perim 3.00 + 8P 0.16 + 4√2P 0.11314 + 8*kerf 0.016 = 3.289
   assert.equal(ctx.consumoMolduraM(90, 60, 2), 3.289);

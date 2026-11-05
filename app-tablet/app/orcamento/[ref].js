@@ -4,7 +4,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import * as Crypto from 'expo-crypto';
 import { useEstado, central } from '../../src/estado';
 import {
-  orcamentoVazio, quadroVazio, duplicarQuadro, trocarTipo, deAberto, calcularPedido, avisosDoPedido, dadosParaApi,
+  orcamentoVazio, quadroVazio, duplicarQuadro, trocarTipo, mudarQuadro, deAberto, calcularPedido, avisosDoPedido, dadosParaApi,
   dadosDoTexto, rotuloQuadro
 } from '../../src/orcamento';
 import { numeroWhatsApp, linkWhatsApp, textoOrcamento } from '../../src/whatsapp';
@@ -160,7 +160,7 @@ export default function EditorOrcamento() {
       pacote={visivel}
       r={r}
       aviso={atual.moldura ? avisos.get(atual.moldura) : null}
-      aoMudar={(campos) => mudarQuadros((qs) => qs.map((q, j) => (j === i ? { ...q, ...campos } : q)))}
+      aoMudar={(campos) => mudarQuadros((qs) => qs.map((q, j) => (j === i ? mudarQuadro(q, campos) : q)))}
       aoTrocarTipo={(tipo) => mudarQuadros((qs) => qs.map((q, j) => (j === i ? trocarTipo(q, tipo, visivel) : q)))}
       aoDuplicar={duplicar}
       aoTirar={f.quadros.length > 1 ? () => setTirando(i) : null}

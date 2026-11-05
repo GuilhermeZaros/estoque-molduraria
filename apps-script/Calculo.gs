@@ -61,6 +61,11 @@ function _distribuirValor(valoresCalculados, valorTotalCalculado, valorCobrado) 
 // Taxa fixa da pintura da chapa, marcada no orçamento. Independe de tamanho e cor.
 var TAXA_PINTURA_CHAPA = 30;
 
+function _arredondarPraCima(valor) {
+  var centavos = Math.round(Number(valor) * 100);
+  return Math.ceil(centavos / 10) / 10;
+}
+
 // itens: array de { categoria:'moldura'|'vidro'|'chapa'|'espelho', nome, preco }
 // opcoes (opcional): { objetoAlto:true } soma a pintura da chapa; { vidroDuplo:true } conta o
 //   vidro 2× e ignora a chapa (quadro de 2 vidros); { paspatur:true, paspaturPrecoM2:N } soma
@@ -94,7 +99,7 @@ function calcularOrcamento(larguraCm, alturaCm, itens, opcoes) {
       consumo = area * dobra; // materiais: baixa pela área (×2 se vidro duplo)
     }
 
-    var valor = bruto;
+    var valor = _arredondarPraCima(bruto);
     linhas.push({
       categoria: it.categoria,
       item: it.nome,
@@ -109,7 +114,7 @@ function calcularOrcamento(larguraCm, alturaCm, itens, opcoes) {
 
   // Paspatur (importado): material à parte, cobrado pela ÁREA do quadro final.
   if (opcoes.paspatur && Number(opcoes.paspaturPrecoM2) > 0) {
-    var pasValor = area * Number(opcoes.paspaturPrecoM2);
+    var pasValor = _arredondarPraCima(area * Number(opcoes.paspaturPrecoM2));
     linhas.push({
       categoria: 'paspatur', item: 'Paspatur',
       quantidade: Number(area.toFixed(3)), unidade: 'm²',

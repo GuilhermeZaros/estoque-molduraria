@@ -72,6 +72,13 @@ export function trocarTipo(q, tipo, pacote) {
   return { ...q, tipo };
 }
 
+export function mudarQuadro(q, campos) {
+  const novo = { ...q, ...campos };
+  if (campos.vidro_duplo) return { ...novo, paspatur: '', borda_outra: false, objeto_alto: false };
+  if ('paspatur' in campos && lerNumero(campos.paspatur) !== 0) return { ...novo, vidro_duplo: false };
+  return novo;
+}
+
 const NOMES_TIPO = { quadro: 'Quadro', reforma: 'Reforma', objeto: 'Objeto' };
 
 export function rotuloQuadro(q) {
