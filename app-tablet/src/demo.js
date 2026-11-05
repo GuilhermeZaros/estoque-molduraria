@@ -11,6 +11,12 @@ const material = (codigo, nome, categoria, preco) => ({
   codigo, nome, categoria, marca: '', preco, estoque: 10, unidade: 'm²', disponivel: true
 });
 
+const fotoDemo = (texto, fundo) => 'data:image/svg+xml;utf8,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480"><rect width="640" height="480" fill="' + fundo + '"/>' +
+  '<rect x="70" y="60" width="500" height="360" fill="none" stroke="#c9a227" stroke-width="40"/>' +
+  '<text x="320" y="255" font-family="sans-serif" font-size="46" text-anchor="middle" fill="#13294b">' + texto + '</text></svg>'
+);
+
 const quadroDemo = (mudar) => ({
   tipo: 'quadro', largura_cm: 0, altura_cm: 0, margem_cm: 0, quantidade: 1, paspatur_cm: 0, moldura: '',
   vidro: '', chapa: '', espelho: '', vidro_duplo: false, objeto_alto: false, valor_calculado: 0, consumo_m: 0, servicos: [],
@@ -70,7 +76,8 @@ export const PACOTE_DEMO = {
     ordemDemo({
       id: 'OS-014', ref_app: 'demo-os-14', cliente: 'Carla Mendes', telefone: '11955554444',
       descricao: '50 x 70, moldura Ouro velho, Vidro antirreflexo, Chapa Eucatex', prazo: '31/10/2026', valor: 385,
-      data_criacao: '2026-10-24T14:00:00.000Z'
+      data_criacao: '2026-10-24T14:00:00.000Z',
+      fotos: [fotoDemo('20 x 30', '#e3e8f1'), fotoDemo('30 x 40', '#f3e9c6'), fotoDemo('Tela 50 x 70', '#e6f4ed')]
     }),
     ordemDemo({
       id: 'OS-015', ref_app: 'demo-os-15', cliente: 'Paulo Lima', telefone: '11944443333',

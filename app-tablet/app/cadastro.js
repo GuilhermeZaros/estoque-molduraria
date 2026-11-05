@@ -5,7 +5,7 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useEstado, central } from '../src/estado';
 import { nomeCasinha, normalizarCasinha, validarNovaMoldura } from '../src/gerado/nucleo';
-import { prepararFoto } from '../src/foto';
+import { prepararFoto, primeiraFoto } from '../src/foto';
 import { totalMetros } from '../src/varas';
 import { Botao } from '../src/componentes/Botao';
 import { Campo } from '../src/componentes/Campo';
@@ -14,12 +14,6 @@ import { cores, tamanho } from '../src/tema';
 
 const MARCAS = ['Moldurarte', 'Artmold', 'Molduras Aguiar', 'Ruberti'];
 const VAZIO = { codigo: '', nome: '', marca: '', perfil_cm: '', preco_m: '', estilo: '', cor: '' };
-
-function primeiraFoto(resultado) {
-  const lista = Array.isArray(resultado) ? resultado : [resultado];
-  const achado = lista.find((r) => r && !r.canceled && r.assets && r.assets.length);
-  return achado ? achado.assets[0] : null;
-}
 
 export default function Cadastro() {
   const { casinha: param } = useLocalSearchParams();

@@ -68,7 +68,7 @@ const mesmaFoto = (a, b) => (a.ref ? a.ref === b.ref : a.url === b.url);
 export function operacoesDasFotos(antes, depois, alvo, cliente) {
   const tiradas = antes.filter((a) => !depois.some((d) => mesmaFoto(a, d))).map((f) => ({
     acao: 'tirarFotoOrdem',
-    dados: { ...alvo, cliente, foto_url: /^https?:/i.test(f.url) ? f.url : '', foto_ref: f.ref },
+    dados: { ...alvo, cliente, foto_url: f.url, foto_ref: f.ref },
     extra: null
   }));
   const novas = depois.filter((d) => d.nova && !antes.some((a) => mesmaFoto(a, d))).map((f) => ({

@@ -138,7 +138,7 @@ test('salvar as fotos tira primeiro as apagadas e depois manda as novas', () => 
   const alvo = { id: 'OS-014', ref_app: 'r' };
   expect(operacoesDasFotos(antes, depois, alvo, 'Carla')).toEqual([
     { acao: 'tirarFotoOrdem', dados: { ...alvo, cliente: 'Carla', foto_url: 'https://d/1', foto_ref: '' }, extra: null },
-    { acao: 'tirarFotoOrdem', dados: { ...alvo, cliente: 'Carla', foto_url: '', foto_ref: 'b' }, extra: null },
+    { acao: 'tirarFotoOrdem', dados: { ...alvo, cliente: 'Carla', foto_url: 'file:///b.jpg', foto_ref: 'b' }, extra: null },
     { acao: 'fotoOrdem', dados: { ...alvo, cliente: 'Carla', foto_ref: 'n1' }, extra: { foto_uri: 'file:///n1.jpg' } }
   ]);
   expect(operacoesDasFotos(antes, antes, alvo, 'Carla')).toEqual([]);

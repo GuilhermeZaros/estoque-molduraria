@@ -5,9 +5,10 @@ import { useEstado, central, api } from '../../src/estado';
 import { formatarReais, dataCurta } from '../../src/formato';
 import {
   resumoOficina, ordenarProducao, textoPrazo, prazoVencido, textoAviso, chaveDaOrdem, alvoDaOrdem, mesesRecentes,
-  emAndamento, contarAtrasadas
+  emAndamento, contarAtrasadas, fotosDaOrdem
 } from '../../src/oficina';
 import { Botao } from '../../src/componentes/Botao';
+import { MiniaturasOrdem } from '../../src/componentes/FotosOrdem';
 import { Dialogo } from '../../src/componentes/Dialogo';
 import { GrupoPilulas } from '../../src/componentes/Pilula';
 import { BarraSync } from '../../src/componentes/BarraSync';
@@ -28,6 +29,7 @@ function CartaoOrdem({ o, acoes, mostrarStatus }) {
       <Text style={[s.numero, !o.id && s.semNumero]}>
         {(o.id || 'Ainda não chegou na planilha') + (mostrarStatus ? ' · ' + (STATUS[o.status] || o.status) : '')}
       </Text>
+      <MiniaturasOrdem fotos={fotosDaOrdem(o)} cliente={cliente} />
       {o.descricao ? <Text style={s.descricao}>{o.descricao}</Text> : null}
       {emAndamento(o) ? <Text style={[s.prazo, atrasada && s.atrasada]}>{textoPrazo(o.prazo)}</Text> : null}
       {o.status === 'pronto' ? <Text style={s.prazo}>Ficou pronto {dataCurta(o.data_pronto)}</Text> : null}

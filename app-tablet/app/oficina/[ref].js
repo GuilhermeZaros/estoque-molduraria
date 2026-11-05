@@ -3,8 +3,11 @@ import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import * as Crypto from 'expo-crypto';
 import { useEstado, central } from '../../src/estado';
-import { PRAZOS, prazoDe, ordemVazia, deOrdem, validarOrdem, dadosDaOrdem, chaveDaOrdem, alvoDaOrdem } from '../../src/oficina';
+import {
+  PRAZOS, prazoDe, ordemVazia, deOrdem, validarOrdem, dadosDaOrdem, chaveDaOrdem, alvoDaOrdem, fotosDaOrdem, operacoesDasFotos
+} from '../../src/oficina';
 import { Cartao } from '../../src/componentes/Cartao';
+import { CartaoFotos } from '../../src/componentes/FotosOrdem';
 import { Campo } from '../../src/componentes/Campo';
 import { Botao } from '../../src/componentes/Botao';
 import { Pilula } from '../../src/componentes/Pilula';
@@ -17,6 +20,7 @@ export default function EditorOrdem() {
   const ordem = !nova && visivel ? (visivel.oficina || []).find((o) => chaveDaOrdem(o) === String(ref)) : null;
   const [f, setF] = useState(() => (ordem ? deOrdem(ordem) : ordemVazia()));
   const [erro, setErro] = useState('');
+  const [salvando, setSalvando] = useState(false);
   if (!visivel) return null;
   if (!nova && !ordem) {
     return (
@@ -31,14 +35,24 @@ export default function EditorOrdem() {
     setErro('');
     setF((a) => ({ ...a, ...campos }));
   };
-  const salvar = () => {
+  const mudarFotos = (mudarLista) => {
+    setErro('');
+    setF((a) => ({ ...a, fotos: mudarLista(a.fotos) }));
+  };
+  const salvar = async () => {
+    if (salvando) return;
     const problema = validarOrdem(f);
     if (problema) {
       setErro(problema);
       return;
     }
-    if (nova) central.registrar('criarOrdem', dadosDaOrdem(f, { ref_app: Crypto.randomUUID() }));
-    else central.registrar('editarOrdem', dadosDaOrdem(f, alvoDaOrdem(ordem)));
+    setSalvando(true);
+    const alvo = nova ? { ref_app: Crypto.randomUUID() } : alvoDaOrdem(ordem);
+    const dados = dadosDaOrdem(f, alvo);
+    await central.registrar(nova ? 'criarOrdem' : 'editarOrdem', dados);
+    for (const o of operacoesDasFotos(nova ? [] : fotosDaOrdem(ordem), f.fotos, alvo, dados.cliente)) {
+      await central.registrar(o.acao, o.dados, o.extra);
+    }
     router.back();
   };
   const titulo = nova ? 'Nova ordem de serviço' : 'Ordem ' + (ordem.id || 'nova');
@@ -57,6 +71,7 @@ export default function EditorOrdem() {
           dica="A Julia usa esse número pra avisar quando ficar pronto."
         />
       </Cartao>
+      <CartaoFotos fotos={f.fotos} aoMudar={mudarFotos} />
       <Cartao titulo="SERVIÇO">
         <Campo
           rotulo="O que é pra fazer"
@@ -99,7 +114,7 @@ export default function EditorOrdem() {
         />
       </Cartao>
       {erro ? <Text style={s.erro} accessibilityLiveRegion="polite">{erro}</Text> : null}
-      <Botao grande icone="content-save-outline" titulo={nova ? 'Criar ordem' : 'Salvar'} variante="ouro" onPress={salvar} />
+      <Botao grande icone="content-save-outline" titulo={nova ? 'Criar ordem' : 'Salvar'} variante="ouro" onPress={salvar} desativado={salvando} />
       <Botao titulo="Voltar sem salvar" variante="contorno" onPress={() => router.back()} />
     </ScrollView>
   );
