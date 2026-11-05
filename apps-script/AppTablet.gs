@@ -44,7 +44,6 @@ function appSync() {
     molduras: a[ABAS.MOLDURAS].map(function (x) { return _molduraParaApp(x); }),
     materiais: _produtosDe(a).filter(function (p) { return p.categoria !== 'moldura'; }),
     paspatur_m2: _precoPaspaturDe(a[ABAS.AVULSOS]),
-    silicone_m2: _precoSiliconeDe(a[ABAS.AVULSOS]),
     taxa_pintura_chapa: TAXA_PINTURA_CHAPA,
     casinhas_contadas: a[ABAS_APP.CASINHAS]
       .filter(function (c) { return c.Contada_em; })

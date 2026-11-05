@@ -202,8 +202,7 @@ export function calcularQuadro(pacote, q) {
     objetoAlto: !!q.objeto_alto,
     vidroDuplo: !!q.vidro_duplo,
     paspatur: borda.paspatur,
-    paspaturPrecoM2: borda.paspatur ? Number(pacote.paspatur_m2) || 0 : 0,
-    siliconePrecoM2: q.vidro_duplo ? Number(pacote.silicone_m2) || 0 : 0
+    paspaturPrecoM2: borda.paspatur ? Number(pacote.paspatur_m2) || 0 : 0
   });
   return {
     ok: true, tipo: q.tipo, largura: temMedida ? largura : 0, altura: temMedida ? altura : 0, externa, moldura,

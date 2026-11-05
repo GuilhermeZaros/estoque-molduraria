@@ -104,26 +104,38 @@ test('calcularOrcamento: total com pintura continua redondo', () => {
   assert.equal(orc.valor_total, 43.3);
 });
 
-test('calcularOrcamento: 2 vidros cobram o silicone pela área do quadro', () => {
+test('calcularOrcamento: silicone dos 2 vidros custa R$ 12,50 o metro', () => {
+  assert.equal(ctx.SILICONE_POR_METRO, 12.5);
+});
+
+test('calcularOrcamento: 2 vidros de 50 x 50 cobram 2 m de silicone, R$ 25', () => {
+  const orc = ctx.calcularOrcamento(50, 50, [
+    { categoria: 'vidro', nome: 'Vidro Simples 2mm', preco: 180 }
+  ], { vidroDuplo: true });
+  assert.deepEqual(Array.from(orc.itens, (i) => i.categoria), ['vidro', 'silicone']);
+  assert.equal(orc.itens[0].valor, 90);
+  assert.equal(orc.itens[1].item, 'Silicone');
+  assert.equal(orc.itens[1].quantidade, 2);
+  assert.equal(orc.itens[1].unidade, 'm');
+  assert.equal(orc.itens[1].valor, 25);
+  assert.equal(orc.valor_total, 115);
+});
+
+test('calcularOrcamento: silicone pelo perímetro sobe pros 10 centavos de cima', () => {
   const orc = ctx.calcularOrcamento(27, 36, [
     { categoria: 'vidro', nome: 'Vidro Simples 2mm', preco: 180 }
-  ], { vidroDuplo: true, siliconePrecoM2: 10 });
-  assert.deepEqual(Array.from(orc.itens, (i) => i.categoria), ['vidro', 'silicone']);
-  assert.equal(orc.itens[0].valor, 35);
-  assert.equal(orc.itens[1].item, 'Silicone');
-  assert.equal(orc.itens[1].quantidade, 0.097);
-  assert.equal(orc.itens[1].unidade, 'm²');
-  assert.equal(orc.itens[1].valor, 1);
-  assert.equal(orc.valor_total, 36);
+  ], { vidroDuplo: true });
+  assert.equal(orc.itens[1].quantidade, 1.26);
+  assert.equal(orc.itens[1].valor, 15.8);
+  assert.equal(orc.valor_total, 50.8);
 });
 
 test('calcularOrcamento: sem 2 vidros não tem silicone', () => {
   const orc = ctx.calcularOrcamento(27, 36, [
     { categoria: 'vidro', nome: 'Vidro Simples 2mm', preco: 180 }
-  ], { siliconePrecoM2: 10 });
+  ]);
   assert.deepEqual(Array.from(orc.itens, (i) => i.categoria), ['vidro']);
-  const semPreco = ctx.calcularOrcamento(27, 36, [{ categoria: 'vidro', nome: 'V', preco: 180 }], { vidroDuplo: true });
-  assert.deepEqual(Array.from(semPreco.itens, (i) => i.categoria), ['vidro']);
+  assert.deepEqual(Array.from(ctx.calcularOrcamento(0, 0, [], { vidroDuplo: true }).itens), []);
 });
 
 test('consumoMolduraM: bate com a Calculadora de Molduras — 90x60 perfil 2cm = 328,9cm', () => {
@@ -229,16 +241,17 @@ test('_montarValoresQuadro: partes zeradas com valor cobrado jogam tudo na últi
   assert.deepEqual(ctx._montarValoresQuadro([0], 0, 0, 0).valores, [0]);
 });
 
-test('calcularOrcamento: vidroDuplo conta vidro 2x e ignora chapa', () => {
+test('calcularOrcamento: vidroDuplo conta vidro 2x, ignora chapa e soma o silicone', () => {
   // 30x40 -> area 0.12 m2 ; perim 1.4 m
   const orc = ctx.calcularOrcamento(30, 40, [
     { categoria: 'moldura', nome: 'M', preco: 100 },
     { categoria: 'vidro', nome: 'V', preco: 180 },
     { categoria: 'chapa', nome: 'C', preco: 100 }
   ], { vidroDuplo: true });
-  assert.equal(orc.itens.length, 2);          // chapa ignorada
-  assert.equal(orc.itens[1].valor, 43.2);     // 0.12 * 180 * 2
-  assert.equal(orc.valor_total, 183.2);       // 140 + 43.2
+  assert.deepEqual(Array.from(orc.itens, (i) => i.categoria), ['moldura', 'vidro', 'silicone']);
+  assert.equal(orc.itens[1].valor, 43.2);
+  assert.equal(orc.itens[2].valor, 17.5);
+  assert.equal(orc.valor_total, 200.7);
 });
 
 test('calcularOrcamento: paspatur soma area x preco numa linha propria', () => {

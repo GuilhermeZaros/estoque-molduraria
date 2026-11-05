@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { BORDAS_PASPATUR, TIPOS_QUADRO, moldurasDoOrcamento, materiaisDe, servicoVazio } from '../orcamento';
 import { formatarReais, formatarNumero } from '../formato';
-import { nomeCasinha, TAXA_PINTURA_CHAPA } from '../gerado/nucleo';
+import { nomeCasinha, TAXA_PINTURA_CHAPA, SILICONE_POR_METRO } from '../gerado/nucleo';
 import { Cartao } from './Cartao';
 import { Campo } from './Campo';
 import { GrupoPilulas } from './Pilula';
@@ -164,7 +164,7 @@ export function EditorQuadro({ q, n, total, pacote, r, aviso, aoMudar, aoTrocarT
         {q.vidro && !objeto ? (
           <Interruptor
             titulo="2 vidros (sem fundo)"
-            dica="Pra quadro que mostra os dois lados. Leva silicone e não leva paspatur."
+            dica={'Pra quadro que mostra os dois lados. Leva silicone (' + formatarReais(SILICONE_POR_METRO) + ' o metro) e não leva paspatur.'}
             valor={q.vidro_duplo}
             aoMudar={(v) => aoMudar({ vidro_duplo: v })}
           />

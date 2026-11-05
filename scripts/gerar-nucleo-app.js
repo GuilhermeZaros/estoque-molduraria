@@ -7,7 +7,7 @@ export const DESTINO = path.join(raiz, 'app-tablet', 'src', 'gerado', 'nucleo.js
 
 const PECAS = {
   'Calculo.gs': ['KERF_M', 'VARA_PADRAO_M', 'perimetroM', 'areaM2', 'consumoMolduraM', 'TAXA_PINTURA_CHAPA',
-    '_arredondarPraCima', 'calcularOrcamento'],
+    'SILICONE_POR_METRO', '_arredondarPraCima', 'calcularOrcamento'],
   'Catalogo.gs': ['_ehDisponivel'],
   'AppNucleo.gs': ['LADOS_CORREDOR', '_casinhasDoDeposito', '_normalizarCasinha', '_casinhaValida',
     '_nomeCasinha', '_corEstoque', '_metros', '_abaterFaltas', '_validarNovaMoldura', '_medidaExterna',

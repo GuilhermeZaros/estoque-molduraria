@@ -61,6 +61,8 @@ function _distribuirValor(valoresCalculados, valorTotalCalculado, valorCobrado) 
 // Taxa fixa da pintura da chapa, marcada no orçamento. Independe de tamanho e cor.
 var TAXA_PINTURA_CHAPA = 30;
 
+var SILICONE_POR_METRO = 12.5;
+
 function _arredondarPraCima(valor) {
   var centavos = Math.round(Number(valor) * 100);
   return Math.ceil(centavos / 10) / 10;
@@ -124,13 +126,13 @@ function calcularOrcamento(larguraCm, alturaCm, itens, opcoes) {
     total += pasValor;
   }
 
-  if (opcoes.vidroDuplo && Number(opcoes.siliconePrecoM2) > 0) {
-    var silValor = _arredondarPraCima(area * Number(opcoes.siliconePrecoM2));
+  if (opcoes.vidroDuplo && perim > 0) {
+    var silValor = _arredondarPraCima(perim * SILICONE_POR_METRO);
     linhas.push({
       categoria: 'silicone', item: 'Silicone',
-      quantidade: Number(area.toFixed(3)), unidade: 'm²',
-      calculo: 'área ' + area.toFixed(3) + 'm² x R$ ' + opcoes.siliconePrecoM2 + '/m²',
-      valor: silValor, consumo: Number(area.toFixed(3))
+      quantidade: Number(perim.toFixed(3)), unidade: 'm',
+      calculo: 'perímetro ' + perim.toFixed(2) + 'm x R$ ' + SILICONE_POR_METRO + '/m',
+      valor: silValor, consumo: Number(perim.toFixed(3))
     });
     total += silValor;
   }
