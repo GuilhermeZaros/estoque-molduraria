@@ -7,6 +7,8 @@ const DESCRICOES = {
   salvarOrcamento: (d) => 'orçamento de ' + (d.cliente || 'cliente sem nome'),
   fecharVenda: (d) => 'venda de ' + (d.cliente || 'cliente sem nome'),
   descartarOrcamento: (d) => 'descartar orçamento de ' + (d.cliente || 'cliente sem nome'),
+  fotoOrdem: (d) => 'foto da ordem de ' + (d.cliente || 'cliente sem nome'),
+  tirarFotoOrdem: (d) => 'tirar foto da ordem de ' + (d.cliente || 'cliente sem nome'),
   zerarNaoEncontradas: (d) => 'zerar ' + (d.codigos || []).length + ' molduras não achadas'
 };
 

@@ -71,3 +71,9 @@ test('descreve as ações do orçamento e do inventário', () => {
   expect(descreverOperacao({ acao: 'zerarNaoEncontradas', dados: { codigos: ['1', '2'] } })).toBe('zerar 2 molduras não achadas');
   expect(descreverOperacao({ acao: 'descartarOrcamento', dados: { cliente: 'Maria' } })).toBe('descartar orçamento de Maria');
 });
+
+test('descreverOperacao conta as fotos da oficina pelo nome do cliente', () => {
+  expect(descreverOperacao({ acao: 'fotoOrdem', dados: { cliente: 'Carla' } })).toBe('foto da ordem de Carla');
+  expect(descreverOperacao({ acao: 'tirarFotoOrdem', dados: { cliente: 'Carla' } })).toBe('tirar foto da ordem de Carla');
+  expect(descreverOperacao({ acao: 'fotoOrdem', dados: {} })).toBe('foto da ordem de cliente sem nome');
+});

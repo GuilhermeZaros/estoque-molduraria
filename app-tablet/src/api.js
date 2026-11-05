@@ -5,7 +5,9 @@ function erroDoServidor(erro) {
   return { tipo: TEMPORARIO.test(erro) ? 'temporario' : 'recusado', erro };
 }
 
-export function criarApi({ url, token, fetch: buscar = (...args) => globalThis.fetch(...args), esperaMs = 45000 }) {
+const SEM_FOTO = 'A foto não está mais no tablet. Tire de novo.';
+
+export function criarApi({ url, token, fetch: buscar = (...args) => globalThis.fetch(...args), esperaMs = 45000, lerFoto }) {
   async function chamar(endereco, opcoes) {
     if (!url) return { tipo: 'temporario', erro: 'Falta o endereço da planilha no app.' };
     const controle = new AbortController();
@@ -51,10 +53,19 @@ export function criarApi({ url, token, fetch: buscar = (...args) => globalThis.f
       return ler('appFinanceiro', { pin, mes, tipo, categoria, periodo });
     },
     async enviar(op) {
+      let dados = op.dados;
+      if (op.acao === 'fotoOrdem') {
+        try {
+          dados = { ...dados, foto_base64: await lerFoto(op.extra && op.extra.foto_uri), foto_tipo: 'image/jpeg' };
+        } catch (e) {
+          return { tipo: 'recusado', erro: SEM_FOTO };
+        }
+        if (!dados.foto_base64) return { tipo: 'recusado', erro: SEM_FOTO };
+      }
       const r = await chamar(url, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ token, id_op: op.id_op, acao: op.acao, dados: op.dados })
+        body: JSON.stringify({ token, id_op: op.id_op, acao: op.acao, dados })
       });
       if (r.tipo !== 'ok') return r;
       return { tipo: 'ok', resultado: r.dados.resultado, repetida: r.dados.repetida };

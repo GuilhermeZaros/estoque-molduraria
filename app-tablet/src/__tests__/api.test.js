@@ -87,3 +87,30 @@ test('senha errada do financeiro volta como recusada com a mensagem da planilha'
   const api = criarApi({ url: 'https://exemplo/exec', token: 't', fetch: async () => resposta({ ok: false, erro: 'Senha errada.' }) });
   expect(await api.buscarFinanceiro({ pin: '000000' })).toEqual({ tipo: 'recusado', erro: 'Senha errada.' });
 });
+
+test('foto da ordem lê o arquivo do tablet na hora de enviar', async () => {
+  let corpo;
+  const lidos = [];
+  const api = criarApi({
+    url: 'https://exemplo/exec',
+    token: 't',
+    lerFoto: async (uri) => { lidos.push(uri); return 'QkFTRTY0'; },
+    fetch: async (u, o) => {
+      corpo = JSON.parse(o.body);
+      return resposta({ ok: true, dados: { repetida: false, resultado: { foto_url: 'https://d/2' } } });
+    }
+  });
+  const op = { id_op: 'f1', acao: 'fotoOrdem', dados: { id: 'OS-014', foto_ref: 'a' }, extra: { foto_uri: 'file:///a.jpg' } };
+  expect(await api.enviar(op)).toEqual({ tipo: 'ok', resultado: { foto_url: 'https://d/2' }, repetida: false });
+  expect(lidos).toEqual(['file:///a.jpg']);
+  expect(corpo.dados).toEqual({ id: 'OS-014', foto_ref: 'a', foto_base64: 'QkFTRTY0', foto_tipo: 'image/jpeg' });
+  expect(op.dados).toEqual({ id: 'OS-014', foto_ref: 'a' });
+});
+
+test('foto que sumiu do tablet é recusada sem chamar a planilha', async () => {
+  const buscar = jest.fn();
+  const api = criarApi({ url: 'https://exemplo/exec', token: 't', fetch: buscar, lerFoto: async () => { throw new Error('sumiu'); } });
+  const op = { id_op: 'f2', acao: 'fotoOrdem', dados: { id: 'OS-014', foto_ref: 'a' }, extra: { foto_uri: 'file:///x.jpg' } };
+  expect(await api.enviar(op)).toEqual({ tipo: 'recusado', erro: 'A foto não está mais no tablet. Tire de novo.' });
+  expect(buscar).not.toHaveBeenCalled();
+});

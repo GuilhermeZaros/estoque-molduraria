@@ -8,3 +8,9 @@ export async function prepararFoto(asset) {
   const salva = await imagem.saveAsync({ format: SaveFormat.JPEG, compress: 0.7, base64: true });
   return { uri: salva.uri, base64: salva.base64 };
 }
+
+export async function lerFotoBase64(uri) {
+  const imagem = await ImageManipulator.manipulate(uri).renderAsync();
+  const salva = await imagem.saveAsync({ format: SaveFormat.JPEG, compress: 0.85, base64: true });
+  return salva.base64;
+}

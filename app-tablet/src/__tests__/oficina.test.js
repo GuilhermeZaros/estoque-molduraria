@@ -1,6 +1,7 @@
 import {
   prazoDe, lerData, prazoVencido, deOrdem, validarOrdem, dadosDaOrdem, descricaoDosQuadros, resumoOficina,
-  chaveDaOrdem, alvoDaOrdem, mesesRecentes, textoPrazo, ordenarProducao, textoAviso
+  chaveDaOrdem, alvoDaOrdem, mesesRecentes, textoPrazo, ordenarProducao, textoAviso, fotosDaOrdem, operacoesDasFotos,
+  ordemVazia, LIMITE_FOTOS
 } from '../oficina';
 
 const hoje = new Date(2026, 10, 28, 10, 0);
@@ -40,7 +41,7 @@ test('dados da ordem levam o alvo e o valor em número', () => {
 
 test('editar ordem preenche o formulário com o valor em texto', () => {
   expect(deOrdem({ cliente: 'Rita', valor: 120.5, prazo: '30/11/2026' })).toEqual({
-    cliente: 'Rita', telefone: '', descricao: '', prazo: '30/11/2026', valor: '120,5'
+    cliente: 'Rita', telefone: '', descricao: '', prazo: '30/11/2026', valor: '120,5', fotos: []
   });
   expect(deOrdem({ cliente: 'Rita', valor: 0 }).valor).toBe('');
 });
@@ -119,4 +120,26 @@ test('aviso da Julia diz se avisou, se falhou ou se falta o WhatsApp', () => {
   expect(textoAviso({ aviso: 'falha', telefone: '1' })).toEqual({ texto: 'A Julia não conseguiu avisar. Ligue pro cliente.', alerta: true });
   expect(textoAviso({ aviso: '', telefone: '' }).alerta).toBe(true);
   expect(textoAviso({ aviso: '', telefone: '11999998888' }).texto).toMatch(/vai avisar/);
+});
+
+test('fotos da ordem aceitam o link da planilha e a foto que ainda está no tablet', () => {
+  expect(fotosDaOrdem({ fotos: ['https://d/1', { ref: 'a', url: 'file:///a.jpg' }] })).toEqual([
+    { ref: '', url: 'https://d/1' }, { ref: 'a', url: 'file:///a.jpg' }
+  ]);
+  expect(fotosDaOrdem({})).toEqual([]);
+  expect(LIMITE_FOTOS).toBe(5);
+  expect(ordemVazia().fotos).toEqual([]);
+  expect(deOrdem({ cliente: 'Carla', fotos: ['https://d/1'] }).fotos).toEqual([{ ref: '', url: 'https://d/1' }]);
+});
+
+test('salvar as fotos tira primeiro as apagadas e depois manda as novas', () => {
+  const antes = [{ ref: '', url: 'https://d/1' }, { ref: 'b', url: 'file:///b.jpg' }, { ref: '', url: 'https://d/3' }];
+  const depois = [{ ref: '', url: 'https://d/3' }, { ref: 'n1', url: 'file:///n1.jpg', nova: true }];
+  const alvo = { id: 'OS-014', ref_app: 'r' };
+  expect(operacoesDasFotos(antes, depois, alvo, 'Carla')).toEqual([
+    { acao: 'tirarFotoOrdem', dados: { ...alvo, cliente: 'Carla', foto_url: 'https://d/1', foto_ref: '' }, extra: null },
+    { acao: 'tirarFotoOrdem', dados: { ...alvo, cliente: 'Carla', foto_url: '', foto_ref: 'b' }, extra: null },
+    { acao: 'fotoOrdem', dados: { ...alvo, cliente: 'Carla', foto_ref: 'n1' }, extra: { foto_uri: 'file:///n1.jpg' } }
+  ]);
+  expect(operacoesDasFotos(antes, antes, alvo, 'Carla')).toEqual([]);
 });

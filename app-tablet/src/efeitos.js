@@ -2,6 +2,7 @@ import {
   abaterFaltas, normalizarCasinha, planejarBaixaMoldura, validarNovaMoldura, quadrosDoPedido, consumoPorMoldura, resumoQuadros,
   servicosDoQuadro
 } from './gerado/nucleo';
+import { fotosDaOrdem } from './oficina';
 
 function trocarMoldura(pacote, codigo, mudar) {
   return {
@@ -149,7 +150,8 @@ function criarOrdem(pacote, d, r, criadaEm) {
     status: 'em_producao',
     aviso: '',
     data_criacao: criadaEm || '',
-    data_pronto: ''
+    data_pronto: '',
+    fotos: []
   };
   const resto = (pacote.oficina || []).filter((o) => !(d.ref_app && o.ref_app === d.ref_app));
   return { ...pacote, oficina: [ordem, ...resto] };
@@ -165,6 +167,16 @@ function editarOrdem(pacote, d) {
     cliente: d.cliente || '', telefone: d.telefone || '', descricao: d.descricao || '', prazo: d.prazo || '',
     valor: Number(d.valor) || 0
   }));
+}
+
+function porFoto(pacote, d, resultado, extra) {
+  const foto = { ref: d.foto_ref || '', url: (resultado && resultado.foto_url) || (extra && extra.foto_uri) || '' };
+  return mudarOrdem(pacote, d, (o) => ({ fotos: [...fotosDaOrdem(o).filter((f) => !foto.ref || f.ref !== foto.ref), foto] }));
+}
+
+function tirarFoto(pacote, d) {
+  const bate = (f) => (!!d.foto_ref && f.ref === d.foto_ref) || (!!d.foto_url && f.url === d.foto_url);
+  return mudarOrdem(pacote, d, (o) => ({ fotos: fotosDaOrdem(o).filter((f) => !bate(f)) }));
 }
 
 function entregarOrdem(pacote, d) {
@@ -214,6 +226,8 @@ export function aplicarOperacao(pacote, op, resultado) {
     case 'marcarAcabamento': return mudarOrdem(pacote, d, (o) => (o.status === 'em_producao' ? { status: 'acabamento' } : {}));
     case 'marcarPronto': return mudarOrdem(pacote, d, () => ({ status: 'pronto', aviso: '', data_pronto: op.criada_em || '' }));
     case 'marcarEntregue': return entregarOrdem(pacote, d);
+    case 'fotoOrdem': return porFoto(pacote, d, resultado, op.extra);
+    case 'tirarFotoOrdem': return tirarFoto(pacote, d);
     default: return pacote;
   }
 }

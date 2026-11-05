@@ -57,8 +57,30 @@ export function textoAviso(o) {
   return { texto: 'A Julia vai avisar o cliente no WhatsApp.', alerta: false };
 }
 
+export const LIMITE_FOTOS = 5;
+
+export function fotosDaOrdem(o) {
+  return ((o && o.fotos) || []).map((f) => (typeof f === 'string' ? { ref: '', url: f } : { ref: f.ref || '', url: f.url || '' }));
+}
+
+const mesmaFoto = (a, b) => (a.ref ? a.ref === b.ref : a.url === b.url);
+
+export function operacoesDasFotos(antes, depois, alvo, cliente) {
+  const tiradas = antes.filter((a) => !depois.some((d) => mesmaFoto(a, d))).map((f) => ({
+    acao: 'tirarFotoOrdem',
+    dados: { ...alvo, cliente, foto_url: /^https?:/i.test(f.url) ? f.url : '', foto_ref: f.ref },
+    extra: null
+  }));
+  const novas = depois.filter((d) => d.nova && !antes.some((a) => mesmaFoto(a, d))).map((f) => ({
+    acao: 'fotoOrdem',
+    dados: { ...alvo, cliente, foto_ref: f.ref },
+    extra: { foto_uri: f.url }
+  }));
+  return [...tiradas, ...novas];
+}
+
 export function ordemVazia() {
-  return { cliente: '', telefone: '', descricao: '', prazo: '', valor: '' };
+  return { cliente: '', telefone: '', descricao: '', prazo: '', valor: '', fotos: [] };
 }
 
 export function deOrdem(o) {
@@ -67,7 +89,8 @@ export function deOrdem(o) {
     telefone: o.telefone || '',
     descricao: o.descricao || '',
     prazo: o.prazo || '',
-    valor: Number(o.valor) > 0 ? formatarNumero(o.valor) : ''
+    valor: Number(o.valor) > 0 ? formatarNumero(o.valor) : '',
+    fotos: fotosDaOrdem(o)
   };
 }
 

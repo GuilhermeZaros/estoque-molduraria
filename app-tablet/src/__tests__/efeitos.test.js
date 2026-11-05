@@ -229,3 +229,27 @@ test('lançamentos do financeiro não mexem no pacote', () => {
   expect(aplicarOperacao(comOficina, opEm('lancarGasto', { valor: 10 }))).toBe(comOficina);
   expect(aplicarOperacao(comOficina, opEm('ajustarSaldos', { conta_empresa: 10 }))).toBe(comOficina);
 });
+
+const comFotos = { ...comOficina, oficina: [{ ...comOficina.oficina[0], fotos: ['https://d/1'] }, comOficina.oficina[1]] };
+
+test('ordem nova começa sem fotos e editar não mexe nas fotos', () => {
+  const p = aplicarOperacao(comOficina, opEm('criarOrdem', { ref_app: 'os-9', cliente: 'Ana' }));
+  expect(p.oficina[0].fotos).toEqual([]);
+  expect(aplicarOperacao(comFotos, opEm('editarOrdem', { id: 'OS-001', cliente: 'Rita Lima' })).oficina[0].fotos).toEqual(['https://d/1']);
+});
+
+test('foto da ordem aparece do tablet e depois com o link da planilha, sem repetir', () => {
+  const foto = op('fotoOrdem', { id: 'OS-001', foto_ref: 'a' }, { foto_uri: 'file:///a.jpg' });
+  const local = aplicarOperacao(comFotos, foto);
+  expect(local.oficina[0].fotos).toEqual([{ ref: '', url: 'https://d/1' }, { ref: 'a', url: 'file:///a.jpg' }]);
+  const servidor = aplicarOperacao(local, foto, { id: 'OS-001', foto_ref: 'a', foto_url: 'https://d/2' });
+  expect(servidor.oficina[0].fotos).toEqual([{ ref: '', url: 'https://d/1' }, { ref: 'a', url: 'https://d/2' }]);
+});
+
+test('tirar foto da ordem pelo ref ou pelo link', () => {
+  const p = { ...comOficina, oficina: [{ ...comOficina.oficina[0], fotos: ['https://d/1', { ref: 'a', url: 'file:///a.jpg' }] }] };
+  expect(aplicarOperacao(p, op('tirarFotoOrdem', { id: 'OS-001', foto_url: 'https://d/1', foto_ref: '' })).oficina[0].fotos)
+    .toEqual([{ ref: 'a', url: 'file:///a.jpg' }]);
+  expect(aplicarOperacao(p, op('tirarFotoOrdem', { ref_app: 'os-1', foto_url: '', foto_ref: 'a' })).oficina[0].fotos)
+    .toEqual([{ ref: '', url: 'https://d/1' }]);
+});
