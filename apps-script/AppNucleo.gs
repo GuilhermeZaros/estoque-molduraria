@@ -203,7 +203,8 @@ function _quadroParaApp(x) {
     objeto_alto: _ehDisponivel(x.Objeto_alto),
     valor_calculado: Number(x.Valor_calculado) || 0,
     consumo_m: Number(x.Consumo_m) || 0,
-    servicos: _lerServicos(x.Servicos)
+    servicos: _lerServicos(x.Servicos),
+    descricao: String(x.Descricao || '')
   };
 }
 

@@ -37,18 +37,34 @@ function _isoOuTexto(v) {
   return String(v == null ? '' : v);
 }
 
-function _ordemParaApp(o) {
+function _quadrosDaOrdem(o, quadrosPorRef) {
+  var ref = String(o.Ref_app || '');
+  if (ref.indexOf('orc-') !== 0 || !quadrosPorRef) return [];
+  return (quadrosPorRef[ref.slice(4)] || []).map(function (x) { return _quadroParaApp(x); });
+}
+
+function _ordemParaApp(o, quadrosPorRef) {
   return {
     id: String(o.ID || ''), ref_app: String(o.Ref_app || ''), cliente: String(o.Cliente || ''),
     telefone: String(o.Telefone || ''), descricao: String(o.Descricao || ''), prazo: _prazoParaTexto(o.Prazo),
     valor: Number(o.Valor) || 0, status: String(o.Status || ''), aviso: String(o.Aviso || ''),
     data_criacao: _isoOuTexto(o.Data_criacao), data_pronto: _isoOuTexto(o.Data_pronto),
-    data_entrega: _isoOuTexto(o.Data_entrega), fotos: _fotosDaLinha(o.Fotos)
+    data_entrega: _isoOuTexto(o.Data_entrega), fotos: _fotosDaLinha(o.Fotos),
+    quadros: _quadrosDaOrdem(o, quadrosPorRef)
   };
 }
 
 function _fotosDaLinha(v) {
-  return String(v == null ? '' : v).split(/\s+/).filter(function (f) { return f; });
+  var fotos = [];
+  String(v == null ? '' : v).split(/\r?\n/).forEach(function (linha) {
+    var m = linha.trim().match(/^(?:(\d+)\s+)?(\S+)$/);
+    if (m) fotos.push({ url: m[2], quadro: m[1] ? Number(m[1]) : 0 });
+  });
+  return fotos;
+}
+
+function _linhaDasFotos(fotos) {
+  return fotos.map(function (f) { return (f.quadro ? f.quadro + ' ' : '') + f.url; }).join('\n');
 }
 
 // Date -> "dd/mm/aaaa hh:mm" (string). Regra de ouro: nada de Date no retorno do google.script.run.

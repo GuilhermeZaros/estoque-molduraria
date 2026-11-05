@@ -300,7 +300,7 @@ test('appSync: abertos levam os quadros; orçamento antigo vira 1 quadro', () =>
   assert.deepEqual(antigo.quadros, [{
     tipo: 'quadro', tamanho: '', largura_cm: 30, altura_cm: 40, margem_cm: 0, quantidade: 2, paspatur_cm: 5,
     moldura: 'M1', vidro: 'V1', chapa: '', espelho: '', vidro_duplo: false, objeto_alto: false,
-    valor_calculado: 300, consumo_m: 4, servicos: []
+    valor_calculado: 300, consumo_m: 4, servicos: [], descricao: ''
   }]);
   const novo = abertos.find((o) => o.ref_app === 'ref-00000001');
   assert.equal(novo.id, 'ORC-0002');
@@ -791,7 +791,7 @@ test('fotoOrdem: salva na pasta da oficina, acrescenta o link e acha a ordem nov
   const r2 = js(ctx.appExecutar({
     id_op: 'op-00000202', acao: 'fotoOrdem', dados: { id: 'OS-001', foto_ref: 'b2', foto_base64: 'BBB' }
   }));
-  assert.deepEqual(r1.resultado, { id: 'OS-001', foto_ref: 'a1', foto_url: LINK('F1') });
+  assert.deepEqual(r1.resultado, { id: 'OS-001', foto_ref: 'a1', foto_url: LINK('F1'), quadro: 0 });
   assert.equal(r2.resultado.foto_url, LINK('F2'));
   assert.deepEqual(drive.arquivos.map((a) => a.nome), ['oficina-a1.jpg', 'oficina-b2.jpg']);
   assert.ok(drive.arquivos.every((a) => a.compartilhado));
@@ -843,8 +843,59 @@ test('appSync e appOficinaHistorico: fotos vêm em lista', () => {
     Oficina: [ordem({ Fotos: LINK('F1') + '\n' + LINK('F2') }), ordem({ ID: 'OS-002', Ref_app: '', Fotos: '' })]
   });
   const s = js(ctx.appSync());
-  assert.deepEqual(s.oficina.map((o) => o.fotos), [[], [LINK('F1'), LINK('F2')]]);
-  assert.deepEqual(js(ctx.appOficinaHistorico('2026-11')).ordens[1].fotos, [LINK('F1'), LINK('F2')]);
+  assert.deepEqual(s.oficina.map((o) => o.fotos), [[], [{ url: LINK('F1'), quadro: 0 }, { url: LINK('F2'), quadro: 0 }]]);
+  assert.deepEqual(js(ctx.appOficinaHistorico('2026-11')).ordens[1].fotos.map((f) => f.url), [LINK('F1'), LINK('F2')]);
+});
+
+test('descrição de cada quadro vai pra planilha e volta no orçamento aberto', () => {
+  const { ctx, dados } = montar({ Molduras: [moldura(2.7)], Vidros: [vidro] });
+  ctx.appExecutar({
+    id_op: 'op-00000300', acao: 'salvarOrcamento',
+    dados: pedidoOrc({ quadros: [{ largura_cm: 90, altura_cm: 60, quantidade: 1, moldura: 'M1', vidro: 'V1', descricao: '  Foto da formatura  ' }] })
+  });
+  assert.equal(dados.Orcamento_quadros[0].Descricao, 'Foto da formatura');
+  assert.equal(js(ctx.appSync()).orcamentos_abertos[0].quadros[0].descricao, 'Foto da formatura');
+});
+
+test('appSync e histórico: ordem do orçamento traz os quadros dele; ordem à mão vem sem quadros', () => {
+  const { ctx } = montar({
+    Molduras: [],
+    Orcamento_quadros: [
+      { Orcamento: 'ORC-0007', Ref_app: 'r7', N: 2, Tipo: 'quadro', Largura_cm: 30, Altura_cm: 40, Quantidade: 1, Moldura: 'M2', Vidro_duplo: true, Margem_cm: 3, Descricao: 'Certificado' },
+      { Orcamento: 'ORC-0007', Ref_app: 'r7', N: 1, Tipo: 'quadro', Largura_cm: 20, Altura_cm: 30, Quantidade: 2, Moldura: 'M1', Vidro: 'V1', Descricao: 'Formatura' },
+      { Orcamento: 'ORC-0008', Ref_app: 'r8', N: 1, Tipo: 'quadro', Largura_cm: 50, Altura_cm: 50, Quantidade: 1 }
+    ],
+    Oficina: [ordem({ Ref_app: 'orc-r7' }), ordem({ ID: 'OS-002', Ref_app: 'os-ref-2' })]
+  });
+  const s = js(ctx.appSync());
+  const doOrcamento = s.oficina.find((o) => o.id === 'OS-001');
+  assert.deepEqual(doOrcamento.quadros.map((q) => [q.largura_cm, q.quantidade, q.descricao]), [[20, 2, 'Formatura'], [30, 1, 'Certificado']]);
+  assert.equal(doOrcamento.quadros[1].vidro_duplo, true);
+  assert.equal(doOrcamento.quadros[1].margem_cm, 3);
+  assert.deepEqual(s.oficina.find((o) => o.id === 'OS-002').quadros, []);
+  assert.equal(js(ctx.appOficinaHistorico('2026-11')).ordens.find((o) => o.id === 'OS-001').quadros.length, 2);
+});
+
+test('fotoOrdem por quadro: grava o número, limita 5 em cada quadro e tirar mantém o número das outras', () => {
+  const cinco = [1, 2, 3, 4, 5].map((n) => '2 ' + LINK('X' + n)).join('\n');
+  const { ctx, dados } = montar({ Oficina: [ordem({ Fotos: LINK('G1') + '\n' + cinco })] });
+  driveFalso(ctx);
+  assert.throws(
+    () => ctx.appExecutar({ id_op: 'op-00000310', acao: 'fotoOrdem', dados: { id: 'OS-001', foto_ref: 'q2', foto_base64: 'X', quadro: 2 } }),
+    /quadro 2 já tem 5 fotos/
+  );
+  const r = js(ctx.appExecutar({ id_op: 'op-00000311', acao: 'fotoOrdem', dados: { id: 'OS-001', foto_ref: 'q1', foto_base64: 'X', quadro: 1 } }));
+  assert.deepEqual(r.resultado, { id: 'OS-001', foto_ref: 'q1', foto_url: LINK('F1'), quadro: 1 });
+  ctx.appExecutar({ id_op: 'op-00000312', acao: 'tirarFotoOrdem', dados: { id: 'OS-001', foto_url: LINK('X3') } });
+  const linhas = dados.Oficina[0].Fotos.split('\n');
+  assert.equal(linhas.length, 6);
+  assert.equal(linhas[0], LINK('G1'));
+  assert.ok(!linhas.includes('2 ' + LINK('X3')));
+  assert.equal(linhas[2], '2 ' + LINK('X2'));
+  assert.equal(linhas[5], '1 ' + LINK('F1'));
+  const fotos = js(ctx.appSync()).oficina[0].fotos;
+  assert.deepEqual(fotos[0], { url: LINK('G1'), quadro: 0 });
+  assert.deepEqual(fotos[5], { url: LINK('F1'), quadro: 1 });
 });
 
 function servicosFalsos(ctx, senha) {

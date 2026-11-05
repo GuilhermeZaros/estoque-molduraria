@@ -58,7 +58,7 @@ function appSync() {
     oficina: a[ABAS_FIN.OFICINA]
       .filter(function (o) { return o.ID && ['em_producao', 'acabamento', 'pronto'].indexOf(String(o.Status)) >= 0; })
       .reverse()
-      .map(function (o) { return _ordemParaApp(o); })
+      .map(function (o) { return _ordemParaApp(o, quadros); })
   };
 }
 
@@ -82,10 +82,11 @@ function appFinanceiro(p) {
 
 function appOficinaHistorico(mes) {
   var alvo = String(mes || '');
+  var quadros = _quadrosPorRef(_lerAbaApp(ABAS_APP.QUADROS));
   var ordens = _lerAbaApp(ABAS_FIN.OFICINA)
     .filter(function (o) { return o.ID && _mesDaOrdem(o.Data_criacao) === alvo; })
     .reverse()
-    .map(function (o) { return _ordemParaApp(o); });
+    .map(function (o) { return _ordemParaApp(o, quadros); });
   var total = 0;
   var entregues = 0;
   ordens.forEach(function (o) { total += o.valor; if (o.status === 'entregue') entregues += 1; });
@@ -211,7 +212,8 @@ function _linhaDoQuadro(id, ref, q, c, n) {
     Chapa: duplo ? '' : String(q.chapa || ''), Espelho: String(q.espelho || ''),
     Vidro_duplo: duplo, Objeto_alto: _ehDisponivel(q.objeto_alto),
     Valor_calculado: c.valor_total, Consumo_m: c.consumo_moldura_m,
-    Servicos: c.servicos.length ? JSON.stringify(c.servicos) : ''
+    Servicos: c.servicos.length ? JSON.stringify(c.servicos) : '',
+    Descricao: String(q.descricao || '').trim()
   };
 }
 
@@ -533,16 +535,20 @@ function _appFotoOrdem(d) {
   var ref = String(d.foto_ref || '');
   if (!ref) throw new Error('Foto sem identificação.');
   if (!d.foto_base64) throw new Error('A foto chegou vazia. Tire de novo.');
+  var quadro = Math.max(0, Math.round(Number(d.quadro) || 0));
   var fotos = _fotosDaLinha(o.Fotos);
-  if (fotos.length >= LIMITE_FOTOS_ORDEM) throw new Error('A ordem já tem ' + LIMITE_FOTOS_ORDEM + ' fotos.');
+  var doQuadro = fotos.filter(function (f) { return f.quadro === quadro; });
+  if (doQuadro.length >= LIMITE_FOTOS_ORDEM) {
+    throw new Error((quadro ? 'O quadro ' + quadro : 'A ordem') + ' já tem ' + LIMITE_FOTOS_ORDEM + ' fotos.');
+  }
   var mime = String(d.foto_tipo || 'image/jpeg');
   var blob = Utilities.newBlob(Utilities.base64Decode(String(d.foto_base64)), mime, _nomeFotoOrdem(ref));
   var arquivo = _pastaFotosOficina().createFile(blob);
   arquivo.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   var url = _linkDaFoto(arquivo);
-  fotos.push(url);
-  atualizarCampos(ABAS_FIN.OFICINA, o._linha, { Fotos: fotos.join('\n') });
-  return { id: String(o.ID), foto_ref: ref, foto_url: url };
+  fotos.push({ url: url, quadro: quadro });
+  atualizarCampos(ABAS_FIN.OFICINA, o._linha, { Fotos: _linhaDasFotos(fotos) });
+  return { id: String(o.ID), foto_ref: ref, foto_url: url, quadro: quadro };
 }
 
 function _linkPeloNome(ref) {
@@ -556,8 +562,9 @@ function _appTirarFotoOrdem(d) {
   var fotos = _fotosDaLinha(o.Fotos);
   var url = String(d.foto_url || '');
   if (!/^https?:/i.test(url)) url = _linkPeloNome(String(d.foto_ref || ''));
-  if (!url || fotos.indexOf(url) < 0) return { id: String(o.ID), foto_url: '' };
-  atualizarCampos(ABAS_FIN.OFICINA, o._linha, { Fotos: fotos.filter(function (f) { return f !== url; }).join('\n') });
+  var tem = fotos.some(function (f) { return f.url === url; });
+  if (!url || !tem) return { id: String(o.ID), foto_url: '' };
+  atualizarCampos(ABAS_FIN.OFICINA, o._linha, { Fotos: _linhaDasFotos(fotos.filter(function (f) { return f.url !== url; })) });
   var id = url.match(/[?&]id=([^&]+)/);
   if (id) {
     try { DriveApp.getFileById(id[1]).setTrashed(true); } catch (e) {}
