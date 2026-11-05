@@ -88,11 +88,13 @@ var ABAS_APP = {
   ORCAMENTOS: 'Orcamentos',
   QUADROS: 'Orcamento_quadros',
   COMPRAS: 'Compras',
-  OPERACOES: 'AppOperacoes'
+  OPERACOES: 'AppOperacoes',
+  LOJA: 'Loja'
 };
 
 var CABECALHOS_APP = {
   Casinhas:     ['Codigo', 'Contada_em', 'Contada_por'],
+  Loja:         ['Campo', 'Valor'],
   Orcamentos:   ['ID', 'Ref_app', 'Data_criacao', 'Atendente', 'Cliente', 'Telefone',
                  'Largura_cm', 'Altura_cm', 'Quantidade', 'Paspatur_cm',
                  'Moldura', 'Vidro', 'Chapa', 'Espelho', 'Vidro_duplo', 'Objeto_alto',

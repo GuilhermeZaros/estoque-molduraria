@@ -217,6 +217,18 @@ function _lerServicos(texto) {
   }
 }
 
+var NOME_PADRAO_LOJA = 'Vera Molduras';
+
+function _campoDaLoja(c) {
+  return String(c == null ? '' : c).trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function _lojaDe(linhas) {
+  var v = {};
+  (linhas || []).forEach(function (l) { v[_campoDaLoja(l.Campo)] = String(l.Valor == null ? '' : l.Valor).trim(); });
+  return { nome: v.nome || NOME_PADRAO_LOJA, telefone: v.telefone || '', endereco: v.endereco || '' };
+}
+
 function _quadrosPorRef(linhas) {
   var por = {};
   (linhas || []).forEach(function (l) {

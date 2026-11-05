@@ -898,6 +898,22 @@ test('fotoOrdem por quadro: grava o número, limita 5 em cada quadro e tirar man
   assert.deepEqual(fotos[5], { url: LINK('F1'), quadro: 1 });
 });
 
+test('appSync: aba Loja nasce com o nome da loja e devolve telefone e endereço preenchidos', () => {
+  const { ctx, dados } = montar({});
+  assert.deepEqual(js(ctx.appSync()).loja, { nome: 'Vera Molduras', telefone: '', endereco: '' });
+  assert.deepEqual(dados.Loja.map((l) => [l.Campo, l.Valor]), [['Nome', 'Vera Molduras'], ['Telefone', ''], ['Endereço', '']]);
+  ctx.appSync();
+  assert.equal(dados.Loja.length, 3);
+  const outra = montar({ Loja: [
+    { Campo: ' nome ', Valor: ' Vera Molduras e Decoração ' },
+    { Campo: 'TELEFONE', Valor: '(11) 4000-0000' },
+    { Campo: 'Endereco', Valor: 'Rua A, 10' }
+  ] });
+  assert.deepEqual(js(outra.ctx.appSync()).loja, { nome: 'Vera Molduras e Decoração', telefone: '(11) 4000-0000', endereco: 'Rua A, 10' });
+  assert.equal(outra.dados.Loja.length, 3);
+  assert.deepEqual(js(montar({ Loja: [{ Campo: 'Nome', Valor: '' }] }).ctx.appSync()).loja.nome, 'Vera Molduras');
+});
+
 function servicosFalsos(ctx, senha) {
   const props = {};
   const cache = {};

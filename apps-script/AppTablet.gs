@@ -35,9 +35,21 @@ function _lerAbaApp(nome) {
   return abaExiste(nome) ? lerAba(nome) : [];
 }
 
+function _garantirAbaLoja() {
+  if (abaExiste(ABAS_APP.LOJA)) return;
+  comLock(function () {
+    if (abaExiste(ABAS_APP.LOJA)) return;
+    garantirColunas(ABAS_APP.LOJA, CABECALHOS_APP.Loja);
+    [['Nome', NOME_PADRAO_LOJA], ['Telefone', ''], ['Endereço', '']].forEach(function (c) {
+      anexarLinha(ABAS_APP.LOJA, { Campo: c[0], Valor: c[1] });
+    });
+  });
+}
+
 function appSync() {
+  _garantirAbaLoja();
   var a = lerAbas([ABAS.MOLDURAS, ABAS.VIDROS, ABAS.CHAPAS, ABAS.ESPELHOS, ABAS.AVULSOS, ABAS_APP.QUADROS,
-    ABAS_APP.CASINHAS, ABAS_APP.ORCAMENTOS, ABAS_APP.COMPRAS, ABAS_FIN.USUARIOS, ABAS_FIN.OFICINA]);
+    ABAS_APP.CASINHAS, ABAS_APP.ORCAMENTOS, ABAS_APP.COMPRAS, ABAS_FIN.USUARIOS, ABAS_FIN.OFICINA, ABAS_APP.LOJA]);
   var quadros = _quadrosPorRef(a[ABAS_APP.QUADROS]);
   return {
     gerado_em: new Date().toISOString(),
@@ -55,6 +67,7 @@ function appSync() {
       .filter(function (c) { return String(c.Status) === 'pendente'; })
       .map(function (c) { return _compraParaApp(c); }),
     atendentes: _atendentesAtivos(a[ABAS_FIN.USUARIOS]),
+    loja: _lojaDe(a[ABAS_APP.LOJA]),
     oficina: a[ABAS_FIN.OFICINA]
       .filter(function (o) { return o.ID && ['em_producao', 'acabamento', 'pronto'].indexOf(String(o.Status)) >= 0; })
       .reverse()
