@@ -29,7 +29,7 @@ function tituloQuadro(q, varios) {
   return t;
 }
 
-function linhasDoQuadro(q, varios, ajustado) {
+export function linhasDoQuadro(q, varios, ajustado) {
   const novo = q.tipo === 'reforma' ? ' novo' : '';
   const linhas = [tituloQuadro(q, varios)];
   if (q.moldura) linhas.push((novo ? 'Moldura nova' : 'Moldura') + ': ' + q.moldura);

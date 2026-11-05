@@ -75,6 +75,7 @@ export const PACOTE_DEMO = {
     metros_faltando: 1.5, orcamento_id: 'ORC-0001', cliente: 'Cliente de teste'
   }],
   atendentes: [],
+  loja: { nome: 'Vera Molduras', telefone: '(11) 0000-0000', endereco: 'Rua de exemplo, 100' },
   oficina: [
     ordemDemo({
       id: 'OS-014', ref_app: 'orc-demo-orcamento-0001', cliente: 'Carla Mendes', telefone: '11955554444',

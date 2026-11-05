@@ -60,7 +60,7 @@ export function DetalheQuadro({ r, vidroDuplo }) {
   );
 }
 
-export function ResumoOrcamento({ rr, desativado, aoFechar, aoSalvar, aoWhatsApp }) {
+export function ResumoOrcamento({ rr, desativado, aoFechar, aoSalvar, aoWhatsApp, children }) {
   const pronto = !!rr && rr.ok;
   const ajustado = pronto && Math.abs(rr.valor_final - rr.valor_total) >= 0.005;
   const pecas = pronto ? rr.quantidade : 0;
@@ -86,6 +86,7 @@ export function ResumoOrcamento({ rr, desativado, aoFechar, aoSalvar, aoWhatsApp
         <Botao grande icone="cash-register" titulo="Fechou a venda" variante="ouro" desativado={desativado || !pronto} onPress={aoFechar} />
         <Botao icone="content-save-outline" titulo="Salvar orçamento" desativado={desativado || !pronto} onPress={aoSalvar} />
         <Botao icone="whatsapp" titulo="Mandar no WhatsApp" variante="contorno" desativado={desativado || !pronto} onPress={aoWhatsApp} />
+        {children}
       </View>
     </View>
   );

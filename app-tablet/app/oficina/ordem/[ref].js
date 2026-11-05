@@ -8,9 +8,12 @@ import {
 } from '../../../src/oficina';
 import { ordemLembrada } from '../../../src/ordemAberta';
 import { numeroWhatsApp, linkWhatsApp } from '../../../src/whatsapp';
+import { papelOrdem, fotosParaOPapel } from '../../../src/impressao';
+import { fotoParaPapel } from '../../../src/foto';
 import { BlocoFotos, useCameraDaOrdem } from '../../../src/componentes/FotosOrdem';
 import { Cartao } from '../../../src/componentes/Cartao';
 import { Botao } from '../../../src/componentes/Botao';
+import { BotaoImprimir } from '../../../src/componentes/Imprimir';
 import { cores, tamanho } from '../../../src/tema';
 
 function Detalhe({ d }) {
@@ -79,6 +82,7 @@ export default function OrdemAberta() {
     );
   };
   const semQuadro = fotosDoQuadro(o, 0);
+  const papel = async (formato) => papelOrdem(visivel, o, formato, visivel.loja, await fotosParaOPapel(o, formato, fotoParaPapel));
 
   return (
     <ScrollView contentContainerStyle={s.tela}>
@@ -95,29 +99,33 @@ export default function OrdemAberta() {
         {o.status === 'pronto' ? <Text style={s.prazo}>Ficou pronto {dataCurta(o.data_pronto)}</Text> : null}
         {o.status === 'entregue' && o.data_entrega ? <Text style={s.prazo}>Entregue {dataCurta(o.data_entrega)}</Text> : null}
         {quadros.length && o.descricao ? <Text style={s.resumo}>{o.descricao}</Text> : null}
-        {numero || ativa ? (
-          <View style={s.acoes}>
-            {numero ? (
-              <Botao
-                icone="whatsapp"
-                titulo="WhatsApp"
-                variante="contorno"
-                rotulo={'Abrir o WhatsApp de ' + cliente}
-                onPress={() => Linking.openURL(linkWhatsApp(numero, '')).catch(() => null)}
-                estilo={s.acao}
-              />
-            ) : null}
-            {ativa ? (
-              <Botao
-                icone="pencil-outline"
-                titulo="Editar"
-                variante="contorno"
-                onPress={() => router.push('/oficina/' + encodeURIComponent(chave))}
-                estilo={s.acao}
-              />
-            ) : null}
-          </View>
-        ) : null}
+        <View style={s.acoes}>
+          {numero ? (
+            <Botao
+              icone="whatsapp"
+              titulo="WhatsApp"
+              variante="contorno"
+              rotulo={'Abrir o WhatsApp de ' + cliente}
+              onPress={() => Linking.openURL(linkWhatsApp(numero, '')).catch(() => null)}
+              estilo={s.acao}
+            />
+          ) : null}
+          {ativa ? (
+            <Botao
+              icone="pencil-outline"
+              titulo="Editar"
+              variante="contorno"
+              onPress={() => router.push('/oficina/' + encodeURIComponent(chave))}
+              estilo={s.acao}
+            />
+          ) : null}
+          <BotaoImprimir
+            montar={papel}
+            rotulo={'Imprimir a ordem de ' + cliente}
+            dica="Na folha A4 vai a primeira foto de cada quadro. Depois escolha a impressora ou Salvar como PDF."
+            estilo={s.acao}
+          />
+        </View>
       </View>
 
       {!ativa ? <Text style={s.aviso}>Essa ordem já saiu da oficina. Aqui é só pra ver.</Text> : null}

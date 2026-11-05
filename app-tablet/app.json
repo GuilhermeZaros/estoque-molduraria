@@ -2,7 +2,7 @@
   "expo": {
     "name": "Vera Molduras",
     "slug": "vera-tablet",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "scheme": "veratablet",
     "orientation": "default",
     "icon": "./assets/icon.png",

@@ -8,6 +8,7 @@ import {
   dadosDoTexto, rotuloQuadro
 } from '../../src/orcamento';
 import { numeroWhatsApp, linkWhatsApp, textoOrcamento } from '../../src/whatsapp';
+import { papelOrcamento } from '../../src/impressao';
 import { formatarReais } from '../../src/formato';
 import { PRAZOS, prazoDe, descricaoDosQuadros } from '../../src/oficina';
 import { formatarMetros } from '../../src/varas';
@@ -21,6 +22,7 @@ import { Dialogo } from '../../src/componentes/Dialogo';
 import { Interruptor } from '../../src/componentes/Interruptor';
 import { GrupoPilulas } from '../../src/componentes/Pilula';
 import { BarraSync } from '../../src/componentes/BarraSync';
+import { BotaoImprimir } from '../../src/componentes/Imprimir';
 import { cores, tamanho } from '../../src/tema';
 
 function efeitoNaMoldura(a) {
@@ -139,6 +141,11 @@ export default function EditorOrcamento() {
       setErro('O orçamento foi salvo, mas o WhatsApp não abriu neste tablet.');
     }
   };
+  const papel = (formato) => {
+    central.registrar('salvarOrcamento', dados());
+    const texto = dadosDoTexto(visivel, f, rr);
+    return papelOrcamento({ ...texto, numero: aberto ? aberto.id : '', telefone: f.telefone, quando: new Date() }, formato, visivel.loja);
+  };
   const descartar = () => {
     central.registrar('descartarOrcamento', { ref_app: f.ref_app, cliente: String(f.cliente || '').trim() });
     setDesistir(false);
@@ -186,7 +193,7 @@ export default function EditorOrcamento() {
         <Campo rotulo="WhatsApp com DDD" valor={f.telefone} aoMudar={(v) => mudar({ telefone: v })} teclado="phone-pad" placeholder="11 98888 7777" />
       </Cartao>
 
-      <Cartao titulo="VALOR E OBSERVAÇÃO">
+      <Cartao titulo="VALOR">
         <Campo
           rotulo="Valor passado pro cliente (R$)"
           valor={f.valor_final}
@@ -195,11 +202,17 @@ export default function EditorOrcamento() {
           placeholder={rr && rr.ok ? formatarReais(rr.valor_total).replace('R$ ', '') : ''}
           dica="Deixe em branco pra usar o total calculado."
         />
-        <Campo rotulo="Observação" valor={f.obs} aoMudar={(v) => mudar({ obs: v })} autoCapitalize="sentences" multilinha />
       </Cartao>
 
       <Cartao titulo="RESUMO">
-        <ResumoOrcamento rr={rr} aoFechar={() => { setOficina(true); setPrazo(7); setConfirmar(true); }} aoSalvar={salvar} aoWhatsApp={mandar} />
+        <ResumoOrcamento rr={rr} aoFechar={() => { setOficina(true); setPrazo(7); setConfirmar(true); }} aoSalvar={salvar} aoWhatsApp={mandar}>
+          <BotaoImprimir
+            desativado={!rr || !rr.ok}
+            montar={papel}
+            rotulo={'Imprimir o orçamento de ' + cliente}
+            dica="O orçamento fica salvo. Depois escolha a impressora ou Salvar como PDF."
+          />
+        </ResumoOrcamento>
         {erro ? <Text style={s.erro} accessibilityLiveRegion="polite">{erro}</Text> : null}
         {mensagem ? <Text style={s.ok} accessibilityLiveRegion="polite">{mensagem}</Text> : null}
         {aberto ? (
