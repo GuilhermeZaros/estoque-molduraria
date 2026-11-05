@@ -104,30 +104,11 @@ export function EditorQuadro({ q, n, total, pacote, r, aviso, aoMudar, aoTrocarT
           ) : null}
         </Cartao>
       ) : (
-        <>
-          <Cartao titulo={reforma ? 'MEDIDA' : 'MEDIDA DA FOTO'}>
-            {medida}
-            {reforma ? <Text style={s.nota}>Só precisa se for trocar moldura, vidro, fundo, espelho ou paspatur.</Text> : null}
-            <Quantidade valor={q.quantidade} aoMudar={(v) => aoMudar({ quantidade: v })} />
-          </Cartao>
-          <Cartao titulo={'PASPATUR' + novo}>
-            <GrupoPilulas
-              opcoes={BORDAS}
-              valor={q.borda_outra ? null : q.paspatur}
-              aoMudar={(v) => aoMudar({ borda_outra: false, paspatur: v })}
-            />
-            <Campo
-              rotulo="Outra borda (cm)"
-              valor={q.borda_outra ? q.paspatur : ''}
-              aoMudar={(v) => aoMudar({ borda_outra: v !== '', paspatur: v })}
-              teclado="decimal-pad"
-            />
-            {r && r.ok && r.borda > 0 ? (
-              <Text style={s.nota}>Com o paspatur o quadro fica {formatarNumero(r.externa.largura)} x {formatarNumero(r.externa.altura)} cm.</Text>
-            ) : null}
-            {q.vidro_duplo ? <Text style={s.nota}>Com 2 vidros não vai paspatur. Escolher um paspatur tira os 2 vidros.</Text> : null}
-          </Cartao>
-        </>
+        <Cartao titulo={reforma ? 'MEDIDA' : 'MEDIDA DA FOTO'}>
+          {medida}
+          {reforma ? <Text style={s.nota}>Só precisa se for trocar moldura, vidro, fundo, paspatur ou espelho.</Text> : null}
+          <Quantidade valor={q.quantidade} aoMudar={(v) => aoMudar({ quantidade: v })} />
+        </Cartao>
       )}
 
       <Cartao titulo={reforma ? 'MOLDURA NOVA' : 'MOLDURA'}>
@@ -200,6 +181,25 @@ export function EditorQuadro({ q, n, total, pacote, r, aviso, aoMudar, aoTrocarT
             valor={q.objeto_alto}
             aoMudar={(v) => aoMudar({ objeto_alto: v })}
           />
+        </Cartao>
+      ) : null}
+
+      {!objeto && !q.vidro_duplo ? (
+        <Cartao titulo={'PASPATUR' + novo}>
+          <GrupoPilulas
+            opcoes={BORDAS}
+            valor={q.borda_outra ? null : q.paspatur}
+            aoMudar={(v) => aoMudar({ borda_outra: false, paspatur: v })}
+          />
+          <Campo
+            rotulo="Outra borda (cm)"
+            valor={q.borda_outra ? q.paspatur : ''}
+            aoMudar={(v) => aoMudar({ borda_outra: v !== '', paspatur: v })}
+            teclado="decimal-pad"
+          />
+          {r && r.ok && r.borda > 0 ? (
+            <Text style={s.nota}>Com o paspatur o quadro fica {formatarNumero(r.externa.largura)} x {formatarNumero(r.externa.altura)} cm.</Text>
+          ) : null}
         </Cartao>
       ) : null}
 
