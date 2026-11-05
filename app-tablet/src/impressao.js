@@ -1,6 +1,6 @@
 import { formatarReais, momentoDe } from './formato';
 import { linhasDoQuadro } from './whatsapp';
-import { lerData, textoData, tituloDoQuadro, detalhesDoQuadro, fotosDoQuadro } from './oficina';
+import { lerData, textoData, tituloDoQuadro, detalhesDoQuadro, fotosDoQuadro, acrescimoDoQuadro } from './oficina';
 
 export const FORMATOS = [
   { valor: 'a4', titulo: 'Folha A4', largura: 595, altura: 842 },
@@ -64,10 +64,11 @@ function modeloOrdem(pacote, o, fotos) {
     ? quadros.map((q, i) => ({
       titulo: tituloDoQuadro(q, i, quadros.length),
       descricao: limpo(q.descricao),
+      acrescimo: acrescimoDoQuadro(q),
       detalhes: detalhesDoQuadro(pacote, q),
       foto: (fotos && fotos[i + 1]) || ''
     }))
-    : [{ titulo: 'Serviço', descricao: limpo(o.descricao) || 'Sem descrição.', detalhes: [], foto: (fotos && fotos[0]) || '' }];
+    : [{ titulo: 'Serviço', descricao: limpo(o.descricao) || 'Sem descrição.', acrescimo: null, detalhes: [], foto: (fotos && fotos[0]) || '' }];
   return {
     tipo: 'ORDEM DE SERVIÇO',
     titulo: 'Ordem',
@@ -119,6 +120,10 @@ body { font-family: Helvetica, Arial, sans-serif; color: #1f2933; font-size: 10.
 .cab h2 { margin: 0; font-size: 13pt; color: #13294b; }
 .pronto { flex: none; display: flex; align-items: center; gap: 5pt; font-size: 10pt; font-weight: bold; }
 .caixa { display: inline-block; width: 13pt; height: 13pt; border: 1.5pt solid #1f2933; border-radius: 2pt; }
+.cresce { border: 2.5pt solid #b91c1c; border-left-width: 8pt; border-radius: 4pt; padding: 6pt 10pt; margin-bottom: 9pt; color: #991b1b; }
+.cresce .rot { color: #b91c1c; letter-spacing: 1.5pt; }
+.cresce b { display: block; font-size: 14pt; color: #1f2933; }
+.cresce small { font-size: 10pt; color: #1f2933; }
 .lado { display: flex; gap: 12pt; align-items: flex-start; }
 .foto { flex: none; width: 130pt; max-height: 175pt; object-fit: cover; border-radius: 4pt; border: 1pt solid #d8d3c4; }
 .info { flex: 1; min-width: 0; }
@@ -151,6 +156,9 @@ hr { border: 0; border-top: 1pt dashed #000; margin: 5pt 0; }
 .prazo { border: 1.5pt solid #000; padding: 3pt; margin: 5pt 0 2pt; text-align: center; font-size: 1.45em; font-weight: bold; }
 .desc { border: 1pt solid #000; padding: 3pt 4pt; margin: 3pt 0; font-weight: bold; white-space: pre-wrap; }
 .caixa { display: inline-block; width: 1em; height: 1em; border: 1pt solid #000; vertical-align: -0.15em; margin-right: 3pt; }
+.cresce { border: 2.5pt solid #000; padding: 3pt 4pt; margin: 4pt 0; }
+.cresce .rot { font-weight: bold; letter-spacing: 1pt; text-align: center; }
+.cresce b { display: block; font-size: 1.2em; }
 `;
 
 const pagina = (titulo, css, corpo) => '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>' + esc(titulo)
@@ -194,7 +202,10 @@ function ordemA4(m, loja) {
   const prazo = '<div class="prazo"><span class="rot">PRAZO</span>'
     + (m.prazo ? '<b>' + m.prazo.data + '</b><small>' + m.prazo.dia + '</small>' : '<b>Sem prazo</b>') + '</div>';
   const blocos = m.blocos.map((b) => '<section class="quadro"><div class="cab"><h2>' + esc(b.titulo) + '</h2>'
-    + '<div class="pronto"><span class="caixa"></span>pronto</div></div><div class="lado">'
+    + '<div class="pronto"><span class="caixa"></span>pronto</div></div>'
+    + (b.acrescimo ? '<div class="cresce"><span class="rot">O QUADRO CRESCE</span><b>' + esc(b.acrescimo.cortar) + '</b><small>'
+      + esc(b.acrescimo.conta) + '</small></div>' : '')
+    + '<div class="lado">'
     + (b.foto ? '<img class="foto" src="' + esc(b.foto) + '" alt="" onerror="this.remove()">' : '')
     + '<div class="info">'
     + (b.descricao ? '<div class="descricao"><span class="rot">Descrição</span><p>' + esc(b.descricao) + '</p></div>' : '')
@@ -261,6 +272,11 @@ function ordemCupom(m, loja, f) {
     c.sep();
     c.linha(b.titulo, 'b');
     c.bruto('<div><span class="caixa"></span>pronto</div>', 1);
+    if (b.acrescimo) {
+      c.bruto('<div class="cresce"><div class="rot">O QUADRO CRESCE</div><b>' + esc(b.acrescimo.cortar) + '</b><div>'
+        + esc(b.acrescimo.conta) + '</div></div>', 1.5 + Math.ceil((b.acrescimo.cortar.length * 1.2) / f.colunas) * 1.2
+        + Math.ceil(b.acrescimo.conta.length / f.colunas));
+    }
     c.linha(b.descricao, 'desc', 1, 0.6);
     b.detalhes.forEach((d) => {
       c.linha(d.rotulo + ': ' + d.valor);

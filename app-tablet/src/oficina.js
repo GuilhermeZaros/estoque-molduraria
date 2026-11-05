@@ -1,6 +1,6 @@
 import { lerValor, formatarNumero } from './formato';
 import { rotuloQuadro, nomeMaterial } from './orcamento';
-import { nomeCasinha } from './gerado/nucleo';
+import { nomeCasinha, bordaDoQuadro, medidaExterna } from './gerado/nucleo';
 
 export const PRAZOS = [
   { dias: 0, titulo: 'Hoje' },
@@ -100,6 +100,31 @@ function linhaDaMoldura(pacote, codigo) {
   if (!m) return linha('Moldura', codigo);
   const casinha = m.local ? nomeCasinha(m.local) : '';
   return linha('Moldura', m.nome + ' (' + codigo + ')', casinha ? 'Fica em: ' + casinha : 'Ainda sem casinha');
+}
+
+const medidaCm = (l, a) => formatarNumero(l) + ' x ' + formatarNumero(a) + ' cm';
+const juntar = (lista) => (lista.length > 1 ? lista.slice(0, -1).join(', ') + ' e ' + lista[lista.length - 1] : lista[0]);
+
+export function acrescimoDoQuadro(q) {
+  const l = Number(q.largura_cm) || 0;
+  const a = Number(q.altura_cm) || 0;
+  const borda = bordaDoQuadro(q);
+  if (!(borda.cm > 0) || !(l > 0) || !(a > 0)) return null;
+  const objeto = q.tipo === 'objeto' || q.tipo === 'camiseta';
+  const final = medidaExterna(l, a, borda.cm);
+  const cm = formatarNumero(borda.cm) + ' cm';
+  const pecas = [
+    q.moldura && 'a moldura',
+    q.vidro && (q.vidro_duplo ? 'os 2 vidros' : 'o vidro'),
+    q.chapa && !q.vidro_duplo && 'a chapa',
+    q.espelho && 'o espelho',
+    borda.paspatur && 'o paspatur'
+  ].filter(Boolean);
+  return {
+    cortar: (pecas.length ? 'Cortar ' + juntar(pecas) + ' em ' : 'O quadro fica ') + medidaCm(final.largura, final.altura),
+    conta: (objeto ? 'Objeto ' : 'Foto ') + medidaCm(l, a) + ' + '
+      + (borda.paspatur ? 'paspatur de ' + cm + ' de cada lado' : 'borda de ' + cm + (objeto ? ' em volta' : ' de cada lado'))
+  };
 }
 
 export function detalhesDoQuadro(pacote, q) {

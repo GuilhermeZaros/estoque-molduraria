@@ -121,6 +121,18 @@ test('ordem em A4: número, cliente, prazo, quadros com foto, descrição, casin
   expect(p.html).not.toContain('R$ 30,00');
 });
 
+test('quadro com paspatur: aviso de que o quadro cresce, no A4 e no cupom', () => {
+  const o = ordem({ quadros: [quadroSalvo({ moldura: 'D-101', vidro: 'VID-001', paspatur_cm: 5 }), quadroSalvo({ moldura: 'D-110' })] });
+  for (const formato of ['a4', 'cupom80']) {
+    const p = papelOrdem(pacote, o, formato, loja, {});
+    expect(p.html.match(/class="cresce"/g)).toHaveLength(1);
+    expect(p.html).toContain('O QUADRO CRESCE');
+    expect(p.html).toContain('Cortar a moldura, o vidro e o paspatur em 30 x 40 cm');
+    expect(p.html).toContain('Foto 20 x 30 cm + paspatur de 5 cm de cada lado');
+  }
+  expect(papelOrdem(pacote, ordem(), 'a4', loja, {}).html).not.toContain('class="cresce"');
+});
+
 test('ordem feita à mão: bloco Serviço com a descrição e a foto da ordem', () => {
   const p = papelOrdem(pacote, ordem({ quadros: [], descricao: 'Trocar o vidro <quebrado>' }), 'a4', semContato, { 0: 'https://x/foto.jpg' });
   expect(p.html).toContain('Serviço');

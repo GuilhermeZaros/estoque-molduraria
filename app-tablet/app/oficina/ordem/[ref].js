@@ -4,7 +4,7 @@ import { useEstado, central } from '../../../src/estado';
 import { formatarReais, dataCurta } from '../../../src/formato';
 import {
   STATUS_ORDEM, chaveDaOrdem, emAndamento, prazoVencido, textoPrazo, fotosDoQuadro, tituloDoQuadro, detalhesDoQuadro,
-  dadosDaFoto, dadosDeTirarFoto
+  dadosDaFoto, dadosDeTirarFoto, acrescimoDoQuadro
 } from '../../../src/oficina';
 import { ordemLembrada } from '../../../src/ordemAberta';
 import { numeroWhatsApp, linkWhatsApp } from '../../../src/whatsapp';
@@ -14,7 +14,8 @@ import { BlocoFotos, useCameraDaOrdem } from '../../../src/componentes/FotosOrde
 import { Cartao } from '../../../src/componentes/Cartao';
 import { Botao } from '../../../src/componentes/Botao';
 import { BotaoImprimir } from '../../../src/componentes/Imprimir';
-import { cores, tamanho } from '../../../src/tema';
+import { Icone } from '../../../src/componentes/Icone';
+import { AVISO, cores, tamanho } from '../../../src/tema';
 
 function Detalhe({ d }) {
   return (
@@ -28,10 +29,24 @@ function Detalhe({ d }) {
   );
 }
 
-function BlocoQuadro({ titulo, descricao, detalhes, fotos }) {
+function QuadroCresce({ a }) {
+  return (
+    <View style={s.cresce}>
+      <Icone nome="arrow-expand-all" tamanho={34} cor={AVISO.vermelho.borda} />
+      <View style={s.cresceTextos}>
+        <Text style={s.cresceRotulo}>O QUADRO CRESCE</Text>
+        <Text style={s.cresceCortar}>{a.cortar}</Text>
+        <Text style={s.cresceConta}>{a.conta}</Text>
+      </View>
+    </View>
+  );
+}
+
+function BlocoQuadro({ titulo, acrescimo, descricao, detalhes, fotos }) {
   return (
     <Cartao>
       <Text style={s.tituloQuadro} accessibilityRole="header">{titulo}</Text>
+      {acrescimo ? <QuadroCresce a={acrescimo} /> : null}
       {fotos}
       {descricao ? (
         <View style={s.descricao}>
@@ -136,6 +151,7 @@ export default function OrdemAberta() {
           <BlocoQuadro
             key={i}
             titulo={titulo}
+            acrescimo={acrescimoDoQuadro(q)}
             descricao={q.descricao}
             detalhes={detalhesDoQuadro(visivel, q)}
             fotos={blocoDeFotos(i + 1, titulo, true)}
@@ -175,6 +191,14 @@ const s = StyleSheet.create({
   acao: { flexGrow: 1, flexBasis: 180 },
   aviso: { fontSize: tamanho.texto, color: cores.apagado, fontWeight: '600' },
   tituloQuadro: { fontSize: 24, fontWeight: '800', color: cores.marinho },
+  cresce: {
+    flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: tamanho.raio,
+    backgroundColor: AVISO.vermelho.fundo, borderWidth: 2, borderColor: AVISO.vermelho.borda, borderLeftWidth: 8
+  },
+  cresceTextos: { flex: 1, gap: 2 },
+  cresceRotulo: { fontSize: tamanho.pequeno, fontWeight: '800', letterSpacing: 1, color: AVISO.vermelho.texto },
+  cresceCortar: { fontSize: 22, fontWeight: '800', color: cores.tinta },
+  cresceConta: { fontSize: tamanho.pequeno, fontWeight: '600', color: AVISO.vermelho.texto },
   descricao: {
     gap: 4, padding: 14, borderRadius: tamanho.raio, backgroundColor: cores.ouroClaro,
     borderLeftWidth: 5, borderLeftColor: cores.ouro

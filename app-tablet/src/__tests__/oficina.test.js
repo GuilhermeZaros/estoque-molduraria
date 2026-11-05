@@ -1,7 +1,7 @@
 import {
   prazoDe, lerData, prazoVencido, deOrdem, validarOrdem, dadosDaOrdem, descricaoDosQuadros, resumoOficina,
   chaveDaOrdem, alvoDaOrdem, mesesRecentes, textoPrazo, ordenarProducao, textoAviso, fotosDaOrdem, fotosDoQuadro,
-  ordemVazia, LIMITE_FOTOS, tituloDoQuadro, detalhesDoQuadro, dadosDaFoto, dadosDeTirarFoto
+  ordemVazia, LIMITE_FOTOS, tituloDoQuadro, detalhesDoQuadro, dadosDaFoto, dadosDeTirarFoto, acrescimoDoQuadro
 } from '../oficina';
 import { nomeCasinha } from '../gerado/nucleo';
 
@@ -183,6 +183,29 @@ test('detalhes do quadro: o que vai, onde está a moldura e o que não vai', () 
   expect(detalhesDoQuadro(pacoteOficina, quadroSalvo({ tipo: 'reforma' })).map((d) => [d.rotulo, d.valor, d.nao])).toEqual([
     ['Moldura', 'Não vai', true], ['Vidro', 'Não vai', true], ['Chapa', 'Não vai', true], ['Paspatur', 'Não vai', true]
   ]);
+});
+
+test('quadro que cresce: paspatur, borda nos 2 vidros e borda em volta do objeto', () => {
+  expect(acrescimoDoQuadro(quadroSalvo({ largura_cm: 20, altura_cm: 30, paspatur_cm: 5, moldura: 'D-104', vidro: 'VID-001', chapa: 'CHA-001' }))).toEqual({
+    cortar: 'Cortar a moldura, o vidro, a chapa e o paspatur em 30 x 40 cm',
+    conta: 'Foto 20 x 30 cm + paspatur de 5 cm de cada lado'
+  });
+  expect(acrescimoDoQuadro(quadroSalvo({ largura_cm: 20.5, altura_cm: 30, vidro_duplo: true, margem_cm: 3, paspatur_cm: 5, moldura: 'D-104', vidro: 'VID-001', chapa: 'CHA-001' }))).toEqual({
+    cortar: 'Cortar a moldura e os 2 vidros em 26,5 x 36 cm',
+    conta: 'Foto 20,5 x 30 cm + borda de 3 cm de cada lado'
+  });
+  expect(acrescimoDoQuadro(quadroSalvo({ tipo: 'objeto', largura_cm: 52, altura_cm: 72, margem_cm: 4, moldura: 'D-104' }))).toEqual({
+    cortar: 'Cortar a moldura em 60 x 80 cm',
+    conta: 'Objeto 52 x 72 cm + borda de 4 cm em volta'
+  });
+  expect(acrescimoDoQuadro(quadroSalvo({ tipo: 'reforma', largura_cm: 40, altura_cm: 60, paspatur_cm: 3 }))).toEqual({
+    cortar: 'Cortar o paspatur em 46 x 66 cm',
+    conta: 'Foto 40 x 60 cm + paspatur de 3 cm de cada lado'
+  });
+  expect(acrescimoDoQuadro(quadroSalvo({ tipo: 'objeto', largura_cm: 52, altura_cm: 72, margem_cm: 4 })).cortar).toBe('O quadro fica 60 x 80 cm');
+  expect(acrescimoDoQuadro(quadroSalvo({ moldura: 'D-104' }))).toBeNull();
+  expect(acrescimoDoQuadro(quadroSalvo({ margem_cm: 4 }))).toBeNull();
+  expect(acrescimoDoQuadro(quadroSalvo({ largura_cm: 0, paspatur_cm: 5 }))).toBeNull();
 });
 
 test('detalhes do quadro: 2 vidros com a borda, objeto com a borda em volta e moldura sem casinha', () => {
