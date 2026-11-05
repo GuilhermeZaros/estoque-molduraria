@@ -4,10 +4,9 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import * as Crypto from 'expo-crypto';
 import { useEstado, central } from '../../src/estado';
 import {
-  PRAZOS, prazoDe, ordemVazia, deOrdem, validarOrdem, dadosDaOrdem, chaveDaOrdem, alvoDaOrdem, fotosDaOrdem, operacoesDasFotos
+  PRAZOS, prazoDe, ordemVazia, deOrdem, validarOrdem, dadosDaOrdem, chaveDaOrdem, alvoDaOrdem
 } from '../../src/oficina';
 import { Cartao } from '../../src/componentes/Cartao';
-import { CartaoFotos } from '../../src/componentes/FotosOrdem';
 import { Campo } from '../../src/componentes/Campo';
 import { Botao } from '../../src/componentes/Botao';
 import { Pilula } from '../../src/componentes/Pilula';
@@ -35,10 +34,6 @@ export default function EditorOrdem() {
     setErro('');
     setF((a) => ({ ...a, ...campos }));
   };
-  const mudarFotos = (mudarLista) => {
-    setErro('');
-    setF((a) => ({ ...a, fotos: mudarLista(a.fotos) }));
-  };
   const salvar = async () => {
     if (salvando) return;
     const problema = validarOrdem(f);
@@ -48,12 +43,9 @@ export default function EditorOrdem() {
     }
     setSalvando(true);
     const alvo = nova ? { ref_app: Crypto.randomUUID() } : alvoDaOrdem(ordem);
-    const dados = dadosDaOrdem(f, alvo);
-    await central.registrar(nova ? 'criarOrdem' : 'editarOrdem', dados);
-    for (const o of operacoesDasFotos(nova ? [] : fotosDaOrdem(ordem), f.fotos, alvo, dados.cliente)) {
-      await central.registrar(o.acao, o.dados, o.extra);
-    }
-    router.back();
+    await central.registrar(nova ? 'criarOrdem' : 'editarOrdem', dadosDaOrdem(f, alvo));
+    if (nova) router.replace('/oficina/ordem/' + encodeURIComponent(alvo.ref_app));
+    else router.back();
   };
   const titulo = nova ? 'Nova ordem de serviço' : 'Ordem ' + (ordem.id || 'nova');
 
@@ -71,7 +63,6 @@ export default function EditorOrdem() {
           dica="A Julia usa esse número pra avisar quando ficar pronto."
         />
       </Cartao>
-      <CartaoFotos fotos={f.fotos} aoMudar={mudarFotos} />
       <Cartao titulo="SERVIÇO">
         <Campo
           rotulo="O que é pra fazer"

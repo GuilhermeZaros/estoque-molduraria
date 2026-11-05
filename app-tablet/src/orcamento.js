@@ -47,7 +47,8 @@ export function servicoVazio() {
 export function quadroVazio(tipo = 'quadro', pacote) {
   const q = {
     chave: novaChave(), tipo, largura: '', altura: '', margem: '', margem_outra: false, quantidade: 1, paspatur: '',
-    borda_outra: false, moldura: '', vidro: '', chapa: '', espelho: '', vidro_duplo: false, objeto_alto: false, servicos: []
+    borda_outra: false, moldura: '', vidro: '', chapa: '', espelho: '', vidro_duplo: false, objeto_alto: false, servicos: [],
+    descricao: ''
   };
   if (tipo !== 'objeto') return q;
   return {
@@ -120,7 +121,8 @@ function deQuadroSalvo(x) {
     espelho: String(x.espelho || ''),
     vidro_duplo: !!x.vidro_duplo,
     objeto_alto: !!x.objeto_alto,
-    servicos: servicosDoQuadro(x.servicos).map((s) => ({ ...servicoVazio(), descricao: s.descricao, valor: numeroOuVazio(s.valor) }))
+    servicos: servicosDoQuadro(x.servicos).map((s) => ({ ...servicoVazio(), descricao: s.descricao, valor: numeroOuVazio(s.valor) })),
+    descricao: String(x.descricao || '')
   };
 }
 
@@ -294,7 +296,8 @@ function quadroParaApi(q, r) {
     objeto_alto: !!q.objeto_alto,
     valor_calculado: r.calc.valor_total,
     consumo_m: r.calc.consumo_moldura_m,
-    servicos: r.calc.servicos
+    servicos: r.calc.servicos,
+    descricao: String(q.descricao || '').trim()
   };
 }
 

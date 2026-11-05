@@ -1,8 +1,9 @@
 import {
   prazoDe, lerData, prazoVencido, deOrdem, validarOrdem, dadosDaOrdem, descricaoDosQuadros, resumoOficina,
-  chaveDaOrdem, alvoDaOrdem, mesesRecentes, textoPrazo, ordenarProducao, textoAviso, fotosDaOrdem, operacoesDasFotos,
-  ordemVazia, LIMITE_FOTOS
+  chaveDaOrdem, alvoDaOrdem, mesesRecentes, textoPrazo, ordenarProducao, textoAviso, fotosDaOrdem, fotosDoQuadro,
+  ordemVazia, LIMITE_FOTOS, tituloDoQuadro, detalhesDoQuadro, dadosDaFoto, dadosDeTirarFoto
 } from '../oficina';
+import { nomeCasinha } from '../gerado/nucleo';
 
 const hoje = new Date(2026, 10, 28, 10, 0);
 
@@ -41,7 +42,7 @@ test('dados da ordem levam o alvo e o valor em número', () => {
 
 test('editar ordem preenche o formulário com o valor em texto', () => {
   expect(deOrdem({ cliente: 'Rita', valor: 120.5, prazo: '30/11/2026' })).toEqual({
-    cliente: 'Rita', telefone: '', descricao: '', prazo: '30/11/2026', valor: '120,5', fotos: []
+    cliente: 'Rita', telefone: '', descricao: '', prazo: '30/11/2026', valor: '120,5'
   });
   expect(deOrdem({ cliente: 'Rita', valor: 0 }).valor).toBe('');
 });
@@ -122,24 +123,78 @@ test('aviso da Julia diz se avisou, se falhou ou se falta o WhatsApp', () => {
   expect(textoAviso({ aviso: '', telefone: '11999998888' }).texto).toMatch(/vai avisar/);
 });
 
-test('fotos da ordem aceitam o link da planilha e a foto que ainda está no tablet', () => {
-  expect(fotosDaOrdem({ fotos: ['https://d/1', { ref: 'a', url: 'file:///a.jpg' }] })).toEqual([
-    { ref: '', url: 'https://d/1' }, { ref: 'a', url: 'file:///a.jpg' }
+test('fotos da ordem: link antigo vem sem quadro e a foto de um quadro guarda o número', () => {
+  expect(fotosDaOrdem({ fotos: ['https://d/1', { ref: 'a', url: 'file:///a.jpg', quadro: 2 }, { url: 'https://d/3', quadro: 1 }] })).toEqual([
+    { ref: '', url: 'https://d/1', quadro: 0 }, { ref: 'a', url: 'file:///a.jpg', quadro: 2 }, { ref: '', url: 'https://d/3', quadro: 1 }
   ]);
   expect(fotosDaOrdem({})).toEqual([]);
   expect(LIMITE_FOTOS).toBe(5);
-  expect(ordemVazia().fotos).toEqual([]);
-  expect(deOrdem({ cliente: 'Carla', fotos: ['https://d/1'] }).fotos).toEqual([{ ref: '', url: 'https://d/1' }]);
+  const o = { fotos: [{ url: 'https://d/1', quadro: 0 }, { url: 'https://d/2', quadro: 2 }, { url: 'https://d/3', quadro: 2 }] };
+  expect(fotosDoQuadro(o, 2).map((f) => f.url)).toEqual(['https://d/2', 'https://d/3']);
+  expect(fotosDoQuadro(o, 0).map((f) => f.url)).toEqual(['https://d/1']);
+  expect(fotosDoQuadro(o, 1)).toEqual([]);
 });
 
-test('salvar as fotos tira primeiro as apagadas e depois manda as novas', () => {
-  const antes = [{ ref: '', url: 'https://d/1' }, { ref: 'b', url: 'file:///b.jpg' }, { ref: '', url: 'https://d/3' }];
-  const depois = [{ ref: '', url: 'https://d/3' }, { ref: 'n1', url: 'file:///n1.jpg', nova: true }];
-  const alvo = { id: 'OS-014', ref_app: 'r' };
-  expect(operacoesDasFotos(antes, depois, alvo, 'Carla')).toEqual([
-    { acao: 'tirarFotoOrdem', dados: { ...alvo, cliente: 'Carla', foto_url: 'https://d/1', foto_ref: '' }, extra: null },
-    { acao: 'tirarFotoOrdem', dados: { ...alvo, cliente: 'Carla', foto_url: 'file:///b.jpg', foto_ref: 'b' }, extra: null },
-    { acao: 'fotoOrdem', dados: { ...alvo, cliente: 'Carla', foto_ref: 'n1' }, extra: { foto_uri: 'file:///n1.jpg' } }
+test('formulário da ordem não leva mais as fotos', () => {
+  expect(ordemVazia()).toEqual({ cliente: '', telefone: '', descricao: '', prazo: '', valor: '' });
+  expect(deOrdem({ cliente: 'Carla', fotos: ['https://d/1'] })).not.toHaveProperty('fotos');
+});
+
+test('foto tirada na ordem aberta vai com o número do quadro; tirar manda o link e o ref', () => {
+  const o = { id: 'OS-014', ref_app: 'r', cliente: 'Carla' };
+  expect(dadosDaFoto(o, 2, 'n1')).toEqual({ id: 'OS-014', ref_app: 'r', cliente: 'Carla', foto_ref: 'n1', quadro: 2 });
+  expect(dadosDaFoto({ ref_app: 'r2', cliente: 'Ana' }, 0, 'n2')).toEqual({ ref_app: 'r2', cliente: 'Ana', foto_ref: 'n2', quadro: 0 });
+  expect(dadosDeTirarFoto(o, { ref: 'b', url: 'file:///b.jpg', quadro: 2 }))
+    .toEqual({ id: 'OS-014', ref_app: 'r', cliente: 'Carla', foto_url: 'file:///b.jpg', foto_ref: 'b' });
+});
+
+test('título de cada quadro na ordem aberta', () => {
+  const q = (mudar) => ({ tipo: 'quadro', largura_cm: 0, altura_cm: 0, quantidade: 1, ...mudar });
+  expect(tituloDoQuadro(q({ largura_cm: 20, altura_cm: 30 }), 0, 2)).toBe('Quadro 1 de 2: 20 x 30');
+  expect(tituloDoQuadro(q({ largura_cm: 20.5, altura_cm: 30, quantidade: 2 }), 1, 3)).toBe('Quadro 2 de 3: 2x 20,5 x 30');
+  expect(tituloDoQuadro(q({ tipo: 'reforma', largura_cm: 40, altura_cm: 60 }), 1, 3)).toBe('Quadro 2 de 3: Reforma 40 x 60');
+  expect(tituloDoQuadro(q({ tipo: 'reforma' }), 0, 1)).toBe('Quadro 1 de 1: Reforma');
+  expect(tituloDoQuadro(q({ tipo: 'objeto', largura_cm: 52, altura_cm: 72 }), 2, 3)).toBe('Quadro 3 de 3: Objeto 52 x 72');
+  expect(tituloDoQuadro(q({ tipo: 'camiseta', largura_cm: 52, altura_cm: 72 }), 0, 1)).toBe('Quadro 1 de 1: Objeto 52 x 72');
+  expect(tituloDoQuadro(q(), 0, 1)).toBe('Quadro 1 de 1');
+});
+
+const pacoteOficina = {
+  molduras: [{ codigo: 'D-104', nome: 'Rústica natural', local: 'CR1-F3' }, { codigo: 'D-109', nome: 'Madeira escura', local: '' }],
+  materiais: [{ codigo: 'VID-001', nome: 'Vidro simples' }, { codigo: 'CHA-001', nome: 'Chapa Eucatex' }, { codigo: 'ESP-001', nome: 'Espelho 3 mm' }]
+};
+const quadroSalvo = (mudar) => ({
+  tipo: 'quadro', largura_cm: 30, altura_cm: 40, margem_cm: 0, quantidade: 1, paspatur_cm: 0, moldura: '', vidro: '', chapa: '',
+  espelho: '', vidro_duplo: false, objeto_alto: false, servicos: [], descricao: '', ...mudar
+});
+
+test('detalhes do quadro: o que vai, onde está a moldura e o que não vai', () => {
+  expect(detalhesDoQuadro(pacoteOficina, quadroSalvo({
+    moldura: 'D-104', vidro: 'VID-001', chapa: 'CHA-001', objeto_alto: true, paspatur_cm: 5, espelho: 'ESP-001',
+    servicos: [{ descricao: 'Limpar vidros', valor: 30 }, { descricao: 'Trocar gancho', valor: 10 }]
+  }))).toEqual([
+    { rotulo: 'Moldura', valor: 'Rústica natural (D-104)', detalhe: 'Fica em: ' + nomeCasinha('CR1-F3'), nao: false },
+    { rotulo: 'Vidro', valor: 'Vidro simples', detalhe: '', nao: false },
+    { rotulo: 'Chapa', valor: 'Chapa Eucatex, com pintura', detalhe: '', nao: false },
+    { rotulo: 'Paspatur', valor: '5 cm', detalhe: '', nao: false },
+    { rotulo: 'Espelho', valor: 'Espelho 3 mm', detalhe: '', nao: false },
+    { rotulo: 'Serviços', valor: 'Limpar vidros, Trocar gancho', detalhe: '', nao: false }
   ]);
-  expect(operacoesDasFotos(antes, antes, alvo, 'Carla')).toEqual([]);
+  expect(detalhesDoQuadro(pacoteOficina, quadroSalvo({ tipo: 'reforma' })).map((d) => [d.rotulo, d.valor, d.nao])).toEqual([
+    ['Moldura', 'Não vai', true], ['Vidro', 'Não vai', true], ['Chapa', 'Não vai', true], ['Paspatur', 'Não vai', true]
+  ]);
+});
+
+test('detalhes do quadro: 2 vidros com a borda, objeto com a borda em volta e moldura sem casinha', () => {
+  const duplo = detalhesDoQuadro(pacoteOficina, quadroSalvo({ moldura: 'D-109', vidro: 'VID-001', vidro_duplo: true, margem_cm: 3 }));
+  expect(duplo[0]).toEqual({ rotulo: 'Moldura', valor: 'Madeira escura (D-109)', detalhe: 'Ainda sem casinha', nao: false });
+  expect(duplo.slice(1).map((d) => [d.rotulo, d.valor])).toEqual([
+    ['Vidro', 'Vidro simples (2 vidros, borda 3 cm)'], ['Chapa', 'Não vai'], ['Paspatur', 'Não vai']
+  ]);
+  expect(detalhesDoQuadro(pacoteOficina, quadroSalvo({ vidro: 'VID-001', vidro_duplo: true }))[1].valor).toBe('Vidro simples (2 vidros)');
+  const objeto = detalhesDoQuadro(pacoteOficina, quadroSalvo({ tipo: 'objeto', moldura: 'X-1', vidro: 'VID-001', chapa: 'CHA-001', margem_cm: 4.5, objeto_alto: true }));
+  expect(objeto.map((d) => [d.rotulo, d.valor])).toEqual([
+    ['Moldura', 'X-1'], ['Vidro', 'Vidro simples'], ['Chapa', 'Chapa Eucatex, com pintura'], ['Borda em volta do objeto', '4,5 cm']
+  ]);
+  expect(objeto[0].detalhe).toBe('');
 });

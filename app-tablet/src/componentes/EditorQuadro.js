@@ -211,6 +211,18 @@ export function EditorQuadro({ q, n, total, pacote, r, aviso, aoMudar, aoTrocarT
 
       <Servicos servicos={q.servicos || []} aoMudar={(lista) => aoMudar({ servicos: lista })} />
 
+      <Cartao titulo="DESCRIÇÃO PRA OFICINA">
+        <Campo
+          rotulo="O que a oficina precisa saber deste quadro"
+          valor={q.descricao || ''}
+          aoMudar={(v) => aoMudar({ descricao: v })}
+          autoCapitalize="sentences"
+          multilinha
+          placeholder="Ex.: foto da formatura, pendurar na vertical"
+          dica="Só aparece na oficina. Não vai na mensagem do cliente."
+        />
+      </Cartao>
+
       <Cartao titulo="VALOR DESTE QUADRO">
         <DetalheQuadro r={r} vidroDuplo={q.vidro_duplo} />
       </Cartao>

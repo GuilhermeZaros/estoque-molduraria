@@ -151,7 +151,8 @@ function criarOrdem(pacote, d, r, criadaEm) {
     aviso: '',
     data_criacao: criadaEm || '',
     data_pronto: '',
-    fotos: []
+    fotos: [],
+    quadros: d.quadros || []
   };
   const resto = (pacote.oficina || []).filter((o) => !(d.ref_app && o.ref_app === d.ref_app));
   return { ...pacote, oficina: [ordem, ...resto] };
@@ -170,7 +171,11 @@ function editarOrdem(pacote, d) {
 }
 
 function porFoto(pacote, d, resultado, extra) {
-  const foto = { ref: d.foto_ref || '', url: (resultado && resultado.foto_url) || (extra && extra.foto_uri) || '' };
+  const foto = {
+    ref: d.foto_ref || '',
+    url: (resultado && resultado.foto_url) || (extra && extra.foto_uri) || '',
+    quadro: Number(d.quadro) || 0
+  };
   return mudarOrdem(pacote, d, (o) => ({ fotos: [...fotosDaOrdem(o).filter((f) => !foto.ref || f.ref !== foto.ref), foto] }));
 }
 
@@ -193,7 +198,8 @@ function ordemDaVenda(pacote, d, r, criadaEm) {
     telefone: d.telefone || '',
     descricao: d.oficina.descricao || '',
     prazo: d.oficina.prazo || '',
-    valor
+    valor,
+    quadros: d.quadros || []
   }, r && r.ordem_id ? { id: r.ordem_id } : null, criadaEm);
 }
 

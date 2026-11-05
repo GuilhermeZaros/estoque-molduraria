@@ -214,11 +214,13 @@ test('cliente buscou tira a ordem da lista ativa', () => {
 
 test('fechar venda com oficina cria a ordem com o valor final e sem oficina não cria', () => {
   const d = {
-    ref_app: 'ref-0000-0009', cliente: 'Maria', telefone: '11988887777', valor_final: 0, valor_calculado: 330, quadros: [],
+    ref_app: 'ref-0000-0009', cliente: 'Maria', telefone: '11988887777', valor_final: 0, valor_calculado: 330,
+    quadros: [{ tipo: 'quadro', largura_cm: 30, altura_cm: 40, quantidade: 1, descricao: 'Foto do casamento' }],
     oficina: { prazo: '10/11/2026', descricao: '30 x 40' }
   };
   const p = aplicarOperacao(comOficina, opEm('fecharVenda', d));
   expect(p.oficina[0]).toMatchObject({ ref_app: 'orc-ref-0000-0009', cliente: 'Maria', valor: 330, prazo: '10/11/2026', status: 'em_producao' });
+  expect(p.oficina[0].quadros).toEqual(d.quadros);
   const q = aplicarOperacao(comOficina, opEm('fecharVenda', d), { id: 'ORC-0009', valor_final: 300, molduras: [], ordem_id: 'OS-010' });
   expect(q.oficina[0]).toMatchObject({ id: 'OS-010', valor: 300 });
   const { oficina, ...semOficina } = d;
@@ -235,21 +237,29 @@ const comFotos = { ...comOficina, oficina: [{ ...comOficina.oficina[0], fotos: [
 test('ordem nova começa sem fotos e editar não mexe nas fotos', () => {
   const p = aplicarOperacao(comOficina, opEm('criarOrdem', { ref_app: 'os-9', cliente: 'Ana' }));
   expect(p.oficina[0].fotos).toEqual([]);
+  expect(p.oficina[0].quadros).toEqual([]);
   expect(aplicarOperacao(comFotos, opEm('editarOrdem', { id: 'OS-001', cliente: 'Rita Lima' })).oficina[0].fotos).toEqual(['https://d/1']);
 });
 
 test('foto da ordem aparece do tablet e depois com o link da planilha, sem repetir', () => {
   const foto = op('fotoOrdem', { id: 'OS-001', foto_ref: 'a' }, { foto_uri: 'file:///a.jpg' });
   const local = aplicarOperacao(comFotos, foto);
-  expect(local.oficina[0].fotos).toEqual([{ ref: '', url: 'https://d/1' }, { ref: 'a', url: 'file:///a.jpg' }]);
-  const servidor = aplicarOperacao(local, foto, { id: 'OS-001', foto_ref: 'a', foto_url: 'https://d/2' });
-  expect(servidor.oficina[0].fotos).toEqual([{ ref: '', url: 'https://d/1' }, { ref: 'a', url: 'https://d/2' }]);
+  expect(local.oficina[0].fotos).toEqual([{ ref: '', url: 'https://d/1', quadro: 0 }, { ref: 'a', url: 'file:///a.jpg', quadro: 0 }]);
+  const servidor = aplicarOperacao(local, foto, { id: 'OS-001', foto_ref: 'a', foto_url: 'https://d/2', quadro: 0 });
+  expect(servidor.oficina[0].fotos).toEqual([{ ref: '', url: 'https://d/1', quadro: 0 }, { ref: 'a', url: 'https://d/2', quadro: 0 }]);
+});
+
+test('foto de um quadro fica com o número dele', () => {
+  const foto = op('fotoOrdem', { id: 'OS-001', foto_ref: 'b', quadro: 2 }, { foto_uri: 'file:///b.jpg' });
+  expect(aplicarOperacao(comFotos, foto).oficina[0].fotos[1]).toEqual({ ref: 'b', url: 'file:///b.jpg', quadro: 2 });
+  expect(aplicarOperacao(comFotos, foto, { id: 'OS-001', foto_ref: 'b', foto_url: 'https://d/9', quadro: 2 }).oficina[0].fotos[1])
+    .toEqual({ ref: 'b', url: 'https://d/9', quadro: 2 });
 });
 
 test('tirar foto da ordem pelo ref ou pelo link', () => {
   const p = { ...comOficina, oficina: [{ ...comOficina.oficina[0], fotos: ['https://d/1', { ref: 'a', url: 'file:///a.jpg' }] }] };
   expect(aplicarOperacao(p, op('tirarFotoOrdem', { id: 'OS-001', foto_url: 'https://d/1', foto_ref: '' })).oficina[0].fotos)
-    .toEqual([{ ref: 'a', url: 'file:///a.jpg' }]);
+    .toEqual([{ ref: 'a', url: 'file:///a.jpg', quadro: 0 }]);
   expect(aplicarOperacao(p, op('tirarFotoOrdem', { ref_app: 'os-1', foto_url: '', foto_ref: 'a' })).oficina[0].fotos)
-    .toEqual([{ ref: '', url: 'https://d/1' }]);
+    .toEqual([{ ref: '', url: 'https://d/1', quadro: 0 }]);
 });

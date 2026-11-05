@@ -20,7 +20,7 @@ const fotoDemo = (texto, fundo) => 'data:image/svg+xml;utf8,' + encodeURICompone
 const quadroDemo = (mudar) => ({
   tipo: 'quadro', largura_cm: 0, altura_cm: 0, margem_cm: 0, quantidade: 1, paspatur_cm: 0, moldura: '',
   vidro: '', chapa: '', espelho: '', vidro_duplo: false, objeto_alto: false, valor_calculado: 0, consumo_m: 0, servicos: [],
-  ...mudar
+  descricao: '', ...mudar
 });
 
 export const PACOTE_DEMO = {
@@ -56,7 +56,10 @@ export const PACOTE_DEMO = {
     cliente: 'João Pereira', telefone: '11977776666', quantidade: 4, valor_calculado: 475.2, valor_final: 475.2,
     consumo_m: 5.804, status: 'aberto', obs: '', resumo: '2x 20 x 30; reforma 40 x 60 (Limpar vidros); objeto 52 x 72',
     quadros: [
-      quadroDemo({ largura_cm: 20, altura_cm: 30, quantidade: 2, moldura: 'D-101', vidro: 'VID-001', chapa: 'CHA-001', valor_calculado: 88.4, consumo_m: 2.578 }),
+      quadroDemo({
+        largura_cm: 20, altura_cm: 30, quantidade: 2, moldura: 'D-101', vidro: 'VID-001', chapa: 'CHA-001', valor_calculado: 88.4,
+        consumo_m: 2.578, descricao: 'Fotos dos netos, uma em cada quadro.'
+      }),
       quadroDemo({
         tipo: 'reforma', largura_cm: 40, altura_cm: 60, vidro: 'VID-001', valor_calculado: 73.2,
         servicos: [{ descricao: 'Limpar vidros', valor: 30 }]
@@ -74,10 +77,29 @@ export const PACOTE_DEMO = {
   atendentes: [],
   oficina: [
     ordemDemo({
-      id: 'OS-014', ref_app: 'demo-os-14', cliente: 'Carla Mendes', telefone: '11955554444',
-      descricao: '50 x 70, moldura Ouro velho, Vidro antirreflexo, Chapa Eucatex', prazo: '31/10/2026', valor: 385,
+      id: 'OS-014', ref_app: 'orc-demo-orcamento-0001', cliente: 'Carla Mendes', telefone: '11955554444',
+      descricao: '20 x 30, 30 x 40 com paspatur e tela 50 x 70', prazo: '31/10/2026', valor: 385,
       data_criacao: '2026-10-24T14:00:00.000Z',
-      fotos: [fotoDemo('20 x 30', '#e3e8f1'), fotoDemo('30 x 40', '#f3e9c6'), fotoDemo('Tela 50 x 70', '#e6f4ed')]
+      fotos: [
+        { url: fotoDemo('20 x 30', '#e3e8f1'), quadro: 1 },
+        { url: fotoDemo('30 x 40', '#f3e9c6'), quadro: 2 },
+        { url: fotoDemo('Tela 50 x 70', '#e6f4ed'), quadro: 3 }
+      ],
+      quadros: [
+        quadroDemo({
+          largura_cm: 20, altura_cm: 30, moldura: 'D-101', vidro: 'VID-001', chapa: 'CHA-001', valor_calculado: 62,
+          descricao: 'Foto da formatura da filha. Pendurar na vertical.'
+        }),
+        quadroDemo({
+          largura_cm: 30, altura_cm: 40, paspatur_cm: 5, moldura: 'D-103', vidro: 'VID-002', chapa: 'CHA-001', objeto_alto: true,
+          valor_calculado: 148, descricao: 'Certificado do curso. Paspatur branco, centralizar bem.'
+        }),
+        quadroDemo({
+          largura_cm: 50, altura_cm: 70, moldura: 'D-110', valor_calculado: 175,
+          servicos: [{ descricao: 'Esticar a tela', valor: 0 }],
+          descricao: 'Tela pintada pela cliente. Sem vidro, só a moldura.'
+        })
+      ]
     }),
     ordemDemo({
       id: 'OS-015', ref_app: 'demo-os-15', cliente: 'Paulo Lima', telefone: '11944443333',
@@ -101,7 +123,7 @@ const HISTORICO_DEMO = [
 function ordemDemo(mudar) {
   return {
     id: '', ref_app: '', cliente: '', telefone: '', descricao: '', prazo: '', valor: 0, status: 'em_producao', aviso: '',
-    data_criacao: '', data_pronto: '', data_entrega: '', ...mudar
+    data_criacao: '', data_pronto: '', data_entrega: '', fotos: [], quadros: [], ...mudar
   };
 }
 

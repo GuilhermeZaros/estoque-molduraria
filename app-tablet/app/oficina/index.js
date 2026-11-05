@@ -5,36 +5,45 @@ import { useEstado, central, api } from '../../src/estado';
 import { formatarReais, dataCurta } from '../../src/formato';
 import {
   resumoOficina, ordenarProducao, textoPrazo, prazoVencido, textoAviso, chaveDaOrdem, alvoDaOrdem, mesesRecentes,
-  emAndamento, contarAtrasadas, fotosDaOrdem
+  emAndamento, contarAtrasadas, fotosDaOrdem, STATUS_ORDEM
 } from '../../src/oficina';
+import { lembrarOrdem } from '../../src/ordemAberta';
 import { Botao } from '../../src/componentes/Botao';
+import { Icone } from '../../src/componentes/Icone';
 import { MiniaturasOrdem } from '../../src/componentes/FotosOrdem';
 import { Dialogo } from '../../src/componentes/Dialogo';
 import { GrupoPilulas } from '../../src/componentes/Pilula';
 import { BarraSync } from '../../src/componentes/BarraSync';
 import { cores, tamanho } from '../../src/tema';
 
-const STATUS = { em_producao: 'Em produção', acabamento: 'Falta acabamento', pronto: 'Pronto', entregue: 'Entregue' };
+const abrirOrdem = (o) => router.push('/oficina/ordem/' + encodeURIComponent(chaveDaOrdem(o)));
 
-function CartaoOrdem({ o, acoes, mostrarStatus }) {
+function CartaoOrdem({ o, acoes, mostrarStatus, aoAbrir }) {
   const atrasada = emAndamento(o) && prazoVencido(o.prazo);
   const aviso = o.status === 'pronto' ? textoAviso(o) : null;
   const cliente = String(o.cliente || '').trim() || 'Cliente sem nome';
   return (
     <View style={[s.cartao, o.status === 'acabamento' && s.cartaoAcabamento, atrasada && s.cartaoAtrasado, o.status === 'pronto' && s.cartaoPronto]}>
-      <View style={s.topo}>
-        <Text style={s.cliente} numberOfLines={1}>{cliente}</Text>
-        {Number(o.valor) > 0 ? <Text style={s.valor}>{formatarReais(o.valor)}</Text> : null}
-      </View>
-      <Text style={[s.numero, !o.id && s.semNumero]}>
-        {(o.id || 'Ainda não chegou na planilha') + (mostrarStatus ? ' · ' + (STATUS[o.status] || o.status) : '')}
-      </Text>
-      <MiniaturasOrdem fotos={fotosDaOrdem(o)} cliente={cliente} />
-      {o.descricao ? <Text style={s.descricao}>{o.descricao}</Text> : null}
-      {emAndamento(o) ? <Text style={[s.prazo, atrasada && s.atrasada]}>{textoPrazo(o.prazo)}</Text> : null}
-      {o.status === 'pronto' ? <Text style={s.prazo}>Ficou pronto {dataCurta(o.data_pronto)}</Text> : null}
-      {o.status === 'entregue' && o.data_entrega ? <Text style={s.prazo}>Entregue {dataCurta(o.data_entrega)}</Text> : null}
-      {aviso ? <Text style={[s.aviso, aviso.alerta && s.atrasada]}>{aviso.texto}</Text> : null}
+      <Pressable
+        onPress={aoAbrir || (() => abrirOrdem(o))}
+        accessibilityRole="button"
+        accessibilityHint="Abre a ordem com as fotos e os detalhes de cada quadro"
+        style={({ pressed }) => [s.abrir, pressed && s.apertado]}>
+        <View style={s.topo}>
+          <Text style={s.cliente} numberOfLines={1}>{cliente}</Text>
+          {Number(o.valor) > 0 ? <Text style={s.valor}>{formatarReais(o.valor)}</Text> : null}
+          <Icone nome="chevron-right" tamanho={30} cor={cores.marinho} />
+        </View>
+        <Text style={[s.numero, !o.id && s.semNumero]}>
+          {(o.id || 'Ainda não chegou na planilha') + (mostrarStatus ? ' · ' + (STATUS_ORDEM[o.status] || o.status) : '')}
+        </Text>
+        <MiniaturasOrdem fotos={fotosDaOrdem(o)} />
+        {o.descricao ? <Text style={s.descricao}>{o.descricao}</Text> : null}
+        {emAndamento(o) ? <Text style={[s.prazo, atrasada && s.atrasada]}>{textoPrazo(o.prazo)}</Text> : null}
+        {o.status === 'pronto' ? <Text style={s.prazo}>Ficou pronto {dataCurta(o.data_pronto)}</Text> : null}
+        {o.status === 'entregue' && o.data_entrega ? <Text style={s.prazo}>Entregue {dataCurta(o.data_entrega)}</Text> : null}
+        {aviso ? <Text style={[s.aviso, aviso.alerta && s.atrasada]}>{aviso.texto}</Text> : null}
+      </Pressable>
       {acoes ? <View style={s.acoes}>{acoes}</View> : null}
     </View>
   );
@@ -68,7 +77,14 @@ function Historico() {
             {d.resumo.entregues === 1 ? '1 entregue' : d.resumo.entregues + ' entregues'}
           </Text>
           <View style={s.lista}>
-            {d.ordens.map((o) => <CartaoOrdem key={o.id || o.ref_app} o={o} mostrarStatus />)}
+            {d.ordens.map((o) => (
+              <CartaoOrdem
+                key={o.id || o.ref_app}
+                o={o}
+                mostrarStatus
+                aoAbrir={() => { lembrarOrdem(o); abrirOrdem(o); }}
+              />
+            ))}
           </View>
           {!d.ordens.length ? <Text style={s.vazio}>Nenhuma ordem criada nesse mês.</Text> : null}
         </>
@@ -228,7 +244,9 @@ const s = StyleSheet.create({
   cartaoAcabamento: { borderLeftColor: cores.ouro },
   cartaoAtrasado: { borderLeftColor: cores.vermelho },
   cartaoPronto: { borderLeftColor: '#047857' },
-  topo: { flexDirection: 'row', alignItems: 'baseline', gap: 12 },
+  abrir: { gap: 6, borderRadius: 12 },
+  apertado: { opacity: 0.7 },
+  topo: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   cliente: { flex: 1, fontSize: 22, fontWeight: '800', color: cores.marinho },
   valor: { fontSize: 22, fontWeight: '800', color: cores.tinta },
   numero: { fontSize: tamanho.pequeno, fontWeight: '700', color: cores.ouroTexto },

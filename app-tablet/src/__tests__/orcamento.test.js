@@ -295,19 +295,31 @@ test('dados pra planilha: um item por quadro, chapa some com 2 vidros, objeto le
     {
       tipo: 'quadro', largura_cm: 40, altura_cm: 50, margem_cm: 0, quantidade: 1, paspatur_cm: 0,
       moldura: 'M1', vidro: 'VID-001', chapa: '', espelho: '', vidro_duplo: true, objeto_alto: false,
-      valor_calculado: rr.quadros[0].calc.valor_total, consumo_m: rr.quadros[0].calc.consumo_moldura_m, servicos: []
+      valor_calculado: rr.quadros[0].calc.valor_total, consumo_m: rr.quadros[0].calc.consumo_moldura_m, servicos: [], descricao: ''
     },
     {
       tipo: 'objeto', largura_cm: 52, altura_cm: 72, margem_cm: 4, quantidade: 1, paspatur_cm: 0,
       moldura: 'M1', vidro: 'VID-001', chapa: 'CHA-001', espelho: '', vidro_duplo: false, objeto_alto: true,
-      valor_calculado: 243.6, consumo_m: rr.quadros[1].calc.consumo_moldura_m, servicos: []
+      valor_calculado: 243.6, consumo_m: rr.quadros[1].calc.consumo_moldura_m, servicos: [], descricao: ''
     },
     {
       tipo: 'reforma', largura_cm: 0, altura_cm: 0, margem_cm: 0, quantidade: 1, paspatur_cm: 0,
       moldura: '', vidro: '', chapa: '', espelho: '', vidro_duplo: false, objeto_alto: false,
-      valor_calculado: 30, consumo_m: 0, servicos: [{ descricao: 'Limpar vidros', valor: 30 }]
+      valor_calculado: 30, consumo_m: 0, servicos: [{ descricao: 'Limpar vidros', valor: 30 }], descricao: ''
     }
   ]);
+});
+
+test('cada quadro tem a sua descrição pra oficina, que não entra na mensagem do WhatsApp', () => {
+  expect(quadroVazio('quadro').descricao).toBe('');
+  expect(quadroVazio('objeto', pacote).descricao).toBe('');
+  const f = deAberto({ ref_app: 'r', quadros: [{ tipo: 'quadro', largura_cm: 30, altura_cm: 40, quantidade: 1, descricao: 'Foto da formatura' }] });
+  expect(f.quadros[0].descricao).toBe('Foto da formatura');
+  expect(deAberto({ ref_app: 'r', quadros: [{ tipo: 'quadro', largura_cm: 30, altura_cm: 40, quantidade: 1 }] }).quadros[0].descricao).toBe('');
+  const g = pedido([quadro({ moldura: 'M1', descricao: '  Pendurar na vertical  ' })]);
+  const rr = calcularPedido(pacote, g);
+  expect(dadosParaApi(g, rr).quadros[0].descricao).toBe('Pendurar na vertical');
+  expect(JSON.stringify(dadosDoTexto(pacote, g, rr))).not.toMatch(/Pendurar/);
 });
 
 test('abrir um orçamento salvo devolve os quadros preenchidos', () => {

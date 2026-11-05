@@ -1,5 +1,6 @@
 import { lerValor, formatarNumero } from './formato';
 import { rotuloQuadro, nomeMaterial } from './orcamento';
+import { nomeCasinha } from './gerado/nucleo';
 
 export const PRAZOS = [
   { dias: 0, titulo: 'Hoje' },
@@ -57,30 +58,73 @@ export function textoAviso(o) {
   return { texto: 'A Julia vai avisar o cliente no WhatsApp.', alerta: false };
 }
 
+export const STATUS_ORDEM = { em_producao: 'Em produção', acabamento: 'Falta acabamento', pronto: 'Pronto', entregue: 'Entregue' };
+
 export const LIMITE_FOTOS = 5;
 
 export function fotosDaOrdem(o) {
-  return ((o && o.fotos) || []).map((f) => (typeof f === 'string' ? { ref: '', url: f } : { ref: f.ref || '', url: f.url || '' }));
+  return ((o && o.fotos) || []).map((f) => (typeof f === 'string'
+    ? { ref: '', url: f, quadro: 0 }
+    : { ref: f.ref || '', url: f.url || '', quadro: Number(f.quadro) || 0 }));
 }
 
-const mesmaFoto = (a, b) => (a.ref ? a.ref === b.ref : a.url === b.url);
+export function fotosDoQuadro(o, n) {
+  return fotosDaOrdem(o).filter((f) => f.quadro === n);
+}
 
-export function operacoesDasFotos(antes, depois, alvo, cliente) {
-  const tiradas = antes.filter((a) => !depois.some((d) => mesmaFoto(a, d))).map((f) => ({
-    acao: 'tirarFotoOrdem',
-    dados: { ...alvo, cliente, foto_url: f.url, foto_ref: f.ref },
-    extra: null
-  }));
-  const novas = depois.filter((d) => d.nova && !antes.some((a) => mesmaFoto(a, d))).map((f) => ({
-    acao: 'fotoOrdem',
-    dados: { ...alvo, cliente, foto_ref: f.ref },
-    extra: { foto_uri: f.url }
-  }));
-  return [...tiradas, ...novas];
+export function dadosDaFoto(o, quadro, ref) {
+  return { ...alvoDaOrdem(o), cliente: o.cliente || '', foto_ref: ref, quadro };
+}
+
+export function dadosDeTirarFoto(o, f) {
+  return { ...alvoDaOrdem(o), cliente: o.cliente || '', foto_url: f.url, foto_ref: f.ref };
+}
+
+const TIPOS_DA_OFICINA = { reforma: 'Reforma', objeto: 'Objeto', camiseta: 'Objeto' };
+
+export function tituloDoQuadro(q, i, total) {
+  const l = Number(q.largura_cm) || 0;
+  const a = Number(q.altura_cm) || 0;
+  const medida = l > 0 && a > 0 ? formatarNumero(l) + ' x ' + formatarNumero(a) : '';
+  const tipo = TIPOS_DA_OFICINA[q.tipo] || '';
+  const qtd = Number(q.quantidade) > 1 ? q.quantidade + 'x ' : '';
+  const nome = qtd + [tipo, medida].filter(Boolean).join(' ');
+  return 'Quadro ' + (i + 1) + ' de ' + total + (nome ? ': ' + nome : '');
+}
+
+const linha = (rotulo, valor, detalhe = '') => ({ rotulo, valor: valor || 'Não vai', detalhe, nao: !valor });
+
+function linhaDaMoldura(pacote, codigo) {
+  if (!codigo) return linha('Moldura', '');
+  const m = (pacote.molduras || []).find((x) => x.codigo === codigo);
+  if (!m) return linha('Moldura', codigo);
+  const casinha = m.local ? nomeCasinha(m.local) : '';
+  return linha('Moldura', m.nome + ' (' + codigo + ')', casinha ? 'Fica em: ' + casinha : 'Ainda sem casinha');
+}
+
+export function detalhesDoQuadro(pacote, q) {
+  const nome = (codigo) => (codigo ? nomeMaterial(pacote, codigo) || codigo : '');
+  const objeto = q.tipo === 'objeto' || q.tipo === 'camiseta';
+  const margem = Number(q.margem_cm) || 0;
+  const vidro = nome(q.vidro);
+  const duplo = vidro && q.vidro_duplo ? ' (2 vidros' + (margem > 0 ? ', borda ' + formatarNumero(margem) + ' cm' : '') + ')' : '';
+  const chapa = q.vidro_duplo ? '' : nome(q.chapa);
+  const linhas = [
+    linhaDaMoldura(pacote, q.moldura),
+    linha('Vidro', vidro ? vidro + duplo : ''),
+    linha('Chapa', chapa ? chapa + (q.objeto_alto ? ', com pintura' : '') : ''),
+    objeto
+      ? linha('Borda em volta do objeto', margem > 0 ? formatarNumero(margem) + ' cm' : '')
+      : linha('Paspatur', Number(q.paspatur_cm) > 0 ? formatarNumero(Number(q.paspatur_cm)) + ' cm' : '')
+  ];
+  if (q.espelho) linhas.push(linha('Espelho', nome(q.espelho)));
+  const servicos = (q.servicos || []).map((s) => String(s.descricao || '').trim()).filter(Boolean);
+  if (servicos.length) linhas.push(linha('Serviços', servicos.join(', ')));
+  return linhas;
 }
 
 export function ordemVazia() {
-  return { cliente: '', telefone: '', descricao: '', prazo: '', valor: '', fotos: [] };
+  return { cliente: '', telefone: '', descricao: '', prazo: '', valor: '' };
 }
 
 export function deOrdem(o) {
@@ -89,8 +133,7 @@ export function deOrdem(o) {
     telefone: o.telefone || '',
     descricao: o.descricao || '',
     prazo: o.prazo || '',
-    valor: Number(o.valor) > 0 ? formatarNumero(o.valor) : '',
-    fotos: fotosDaOrdem(o)
+    valor: Number(o.valor) > 0 ? formatarNumero(o.valor) : ''
   };
 }
 
