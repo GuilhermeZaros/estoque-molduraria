@@ -24,9 +24,45 @@ var TAXA_PINTURA_CHAPA = 30;
 
 var SILICONE_POR_METRO = 12.5;
 
+var PRECO_CHASSI_M = 18.9;
+
 function _arredondarPraCima(valor) {
   var centavos = Math.round(Number(valor) * 100);
   return Math.ceil(centavos / 10) / 10;
+}
+
+function travasDoChassi(larguraCm, alturaCm) {
+  var l = Number(larguraCm) || 0;
+  var a = Number(alturaCm) || 0;
+  var maior = Math.max(l, a);
+  return {
+    quantidade: maior >= 150 ? 2 : maior >= 100 ? 1 : 0,
+    comprimento_m: Number((Math.min(l, a) / 100).toFixed(4))
+  };
+}
+
+function _metrosDaConta(m) {
+  return Number(m).toFixed(2).replace('.', ',') + ' m';
+}
+
+function _linhaDoChassi(larguraCm, alturaCm, precoM) {
+  var perim = perimetroM(larguraCm, alturaCm);
+  var travas = travasDoChassi(larguraCm, alturaCm);
+  var metros = Number((perim + travas.quantidade * travas.comprimento_m).toFixed(4));
+  var conta = 'perímetro ' + _metrosDaConta(perim);
+  if (travas.quantidade) {
+    conta += ' + ' + travas.quantidade + (travas.quantidade > 1 ? ' travas' : ' trava') + ' de ' +
+      _metrosDaConta(travas.comprimento_m) + ' = ' + _metrosDaConta(metros);
+  }
+  return {
+    categoria: 'chassi', item: 'Chassi',
+    quantidade: Number(metros.toFixed(3)), unidade: 'm',
+    calculo: conta + ' x R$ ' + Number(precoM).toFixed(2).replace('.', ',') + '/m',
+    valor: _arredondarPraCima(metros * Number(precoM)),
+    consumo: Number(metros.toFixed(3)),
+    travas: travas.quantidade,
+    trava_m: Number(travas.comprimento_m.toFixed(3))
+  };
 }
 
 function calcularOrcamento(larguraCm, alturaCm, itens, opcoes) {
@@ -35,6 +71,12 @@ function calcularOrcamento(larguraCm, alturaCm, itens, opcoes) {
   var area = areaM2(larguraCm, alturaCm);
   var linhas = [];
   var total = 0;
+
+  if (Number(opcoes.chassiPrecoM) > 0 && perim > 0) {
+    var chassi = _linhaDoChassi(larguraCm, alturaCm, opcoes.chassiPrecoM);
+    linhas.push(chassi);
+    total += chassi.valor;
+  }
 
   for (var i = 0; i < itens.length; i++) {
     var it = itens[i];
@@ -238,6 +280,10 @@ function _ehObjeto(q) {
   return t === 'objeto' || t === 'camiseta';
 }
 
+function _ehTela(q) {
+  return String((q && q.tipo) || '') === 'tela';
+}
+
 function _planejarBaixaMoldura(estoqueM, consumoM) {
   var est = Math.max(0, Number(estoqueM) || 0);
   var cons = Math.max(0, Number(consumoM) || 0);
@@ -256,6 +302,7 @@ function _quadrosDoPedido(d) {
 }
 
 function _bordaDoQuadro(q) {
+  if (_ehTela(q)) return { cm: 0, paspatur: false };
   if (_ehObjeto(q) || _ehDisponivel(q.vidro_duplo)) return { cm: Math.max(0, Number(q.margem_cm) || 0), paspatur: false };
   var p = Math.max(0, Number(q.paspatur_cm) || 0);
   return { cm: p, paspatur: p > 0 };
@@ -287,6 +334,7 @@ function _resumoQuadros(quadros) {
     if (tipo === 'camiseta') txt = 'camiseta ' + (q.tamanho ? q.tamanho : medida);
     if (tipo === 'objeto') txt = 'objeto' + (medida ? ' ' + medida : '');
     if (tipo === 'reforma') txt = 'reforma' + (medida ? ' ' + medida : '');
+    if (tipo === 'tela') txt = 'tela' + (medida ? ' ' + medida : '');
     var nomes = _servicosDoQuadro(q.servicos).map(function (s) { return s.descricao; }).filter(function (d) { return d; });
     if (nomes.length) txt += ' (' + nomes.join(', ') + ')';
     return (qtd > 1 ? qtd + 'x ' : '') + txt;
@@ -301,7 +349,11 @@ export {
   consumoMolduraM,
   TAXA_PINTURA_CHAPA,
   SILICONE_POR_METRO,
+  PRECO_CHASSI_M,
   _arredondarPraCima as arredondarPraCima,
+  travasDoChassi,
+  _metrosDaConta as metrosDaConta,
+  _linhaDoChassi as linhaDoChassi,
   calcularOrcamento,
   _ehDisponivel as ehDisponivel,
   LADOS_CORREDOR,
@@ -317,6 +369,7 @@ export {
   _servicosDoQuadro as servicosDoQuadro,
   _totaisOrcamentoApp as totaisOrcamentoApp,
   _ehObjeto as ehObjeto,
+  _ehTela as ehTela,
   _planejarBaixaMoldura as planejarBaixaMoldura,
   _quadrosDoPedido as quadrosDoPedido,
   _bordaDoQuadro as bordaDoQuadro,

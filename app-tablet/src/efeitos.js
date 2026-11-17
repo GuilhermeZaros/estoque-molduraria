@@ -59,7 +59,7 @@ function cadastro(pacote, d, r, extra) {
 
 function quadroSalvo(q) {
   return {
-    tipo: q.tipo === 'reforma' || q.tipo === 'objeto' ? q.tipo : 'quadro',
+    tipo: q.tipo === 'reforma' || q.tipo === 'objeto' || q.tipo === 'tela' ? q.tipo : 'quadro',
     largura_cm: Number(q.largura_cm) || 0,
     altura_cm: Number(q.altura_cm) || 0,
     margem_cm: Number(q.margem_cm) || 0,

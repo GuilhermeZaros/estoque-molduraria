@@ -6,6 +6,8 @@ import { AVISO, cores, tamanho } from '../tema';
 
 function materiais(pacote, q, r) {
   const partes = [];
+  const chassi = q.tipo === 'tela' && r && r.ok ? r.calc.itens.find((it) => it.categoria === 'chassi') : null;
+  if (chassi) partes.push(chassi.travas ? 'chassi com ' + (chassi.travas > 1 ? chassi.travas + ' travas' : '1 trava') : 'chassi sem trava');
   const moldura = q.moldura ? pacote.molduras.find((m) => m.codigo === q.moldura) : null;
   if (moldura) partes.push(moldura.nome);
   if (r && r.ok && r.borda > 0) partes.push('paspatur ' + formatarNumero(r.borda) + ' cm');
@@ -57,6 +59,7 @@ export function ListaQuadros({ quadros, rr, avisos, sel, pacote, aoEscolher, aoA
         <Botao icone="plus" titulo="Quadro" rotulo="Adicionar quadro" variante="contorno" onPress={() => aoAdicionar('quadro')} estilo={s.mais} />
         <Botao icone="plus" titulo="Reforma" rotulo="Adicionar reforma" variante="contorno" onPress={() => aoAdicionar('reforma')} estilo={s.mais} />
         <Botao icone="plus" titulo="Objeto" rotulo="Adicionar objeto" variante="contorno" onPress={() => aoAdicionar('objeto')} estilo={s.mais} />
+        <Botao icone="plus" titulo="Tela" rotulo="Adicionar tela" variante="contorno" onPress={() => aoAdicionar('tela')} estilo={s.mais} />
       </View>
     </View>
   );

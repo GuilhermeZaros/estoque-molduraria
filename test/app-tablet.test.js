@@ -901,16 +901,21 @@ test('fotoOrdem por quadro: grava o número, limita 5 em cada quadro e tirar man
 test('appSync: aba Loja nasce com o nome da loja e devolve telefone e endereço preenchidos', () => {
   const { ctx, dados } = montar({});
   assert.deepEqual(js(ctx.appSync()).loja, { nome: 'Vera Molduras', telefone: '', endereco: '' });
-  assert.deepEqual(dados.Loja.map((l) => [l.Campo, l.Valor]), [['Nome', 'Vera Molduras'], ['Telefone', ''], ['Endereço', '']]);
+  assert.deepEqual(dados.Loja.map((l) => [l.Campo, l.Valor]), [
+    ['Nome', 'Vera Molduras'], ['Telefone', ''], ['Endereço', ''], ['Chassi (R$ por metro)', 18.9]
+  ]);
   ctx.appSync();
-  assert.equal(dados.Loja.length, 3);
+  assert.equal(dados.Loja.length, 4);
   const outra = montar({ Loja: [
     { Campo: ' nome ', Valor: ' Vera Molduras e Decoração ' },
     { Campo: 'TELEFONE', Valor: '(11) 4000-0000' },
     { Campo: 'Endereco', Valor: 'Rua A, 10' }
   ] });
   assert.deepEqual(js(outra.ctx.appSync()).loja, { nome: 'Vera Molduras e Decoração', telefone: '(11) 4000-0000', endereco: 'Rua A, 10' });
-  assert.equal(outra.dados.Loja.length, 3);
+  assert.equal(outra.dados.Loja.length, 4);
+  assert.deepEqual(outra.dados.Loja[3], { Campo: 'Chassi (R$ por metro)', Valor: 18.9 });
+  outra.ctx.appSync();
+  assert.equal(outra.dados.Loja.length, 4);
   assert.deepEqual(js(montar({ Loja: [{ Campo: 'Nome', Valor: '' }] }).ctx.appSync()).loja.nome, 'Vera Molduras');
 });
 
@@ -1034,4 +1039,66 @@ test('definirSenhaFinanceiro: recusa senha que não tem 6 números ou não confe
   ctx.definirSenhaFinanceiro();
   assert.match(diferente.alertas[0], /não são iguais/);
   assert.equal(props.FINANCEIRO_PIN, undefined);
+});
+
+const tela = (extra = {}) => ({ tipo: 'tela', largura_cm: 150, altura_cm: 70, quantidade: 1, ...extra });
+
+test('appSync: preço do chassi vem da aba Loja; vazio ou errado volta pros R$ 18,90', () => {
+  const preco = (valor) => js(montar({ Loja: [{ Campo: 'Chassi (R$ por metro)', Valor: valor }] }).ctx.appSync()).chassi_m;
+  assert.equal(js(montar({}).ctx.appSync()).chassi_m, 18.9);
+  assert.equal(preco('20,00'), 20);
+  assert.equal(preco('R$ 21,5'), 21.5);
+  assert.equal(preco(19.9), 19.9);
+  assert.equal(preco(''), 18.9);
+  assert.equal(preco('abc'), 18.9);
+});
+
+test('tela: chassi com as travas e moldura opcional; vidro, fundo, paspatur e espelho não entram', () => {
+  const { ctx } = montar({
+    Molduras: [moldura(27)], Vidros: [vidro], Chapas: [chapa], Loja: [{ Campo: 'Chassi (R$ por metro)', Valor: 20 }]
+  });
+  const so = js(ctx._calcularOrcamentoApp(tela()));
+  assert.deepEqual(so.itens.map((i) => [i.categoria, i.valor]), [['chassi', 116]]);
+  assert.equal(so.itens[0].calculo, 'perímetro 4,40 m + 2 travas de 0,70 m = 5,80 m x R$ 20,00/m');
+  assert.equal(so.consumo_moldura_m, 0);
+  const com = js(ctx._calcularOrcamentoApp(tela({
+    quantidade: 2, moldura: 'M1', vidro: 'V1', chapa: 'C1', espelho: 'E9', paspatur_cm: 5, margem_cm: 3,
+    vidro_duplo: true, objeto_alto: true, servicos: [{ descricao: 'Esticar com cuidado', valor: 10 }]
+  })));
+  assert.deepEqual(com.itens.map((i) => i.categoria), ['chassi', 'moldura']);
+  assert.equal(com.itens[1].valor, 255.2);
+  assert.equal(com.valor_unitario, 371.2);
+  assert.equal(com.valor_total, 752.4);
+  assert.equal(com.consumo_moldura_m, 9.652);
+  assert.equal(com.pintura_chapa, 0);
+  assert.throws(() => ctx._calcularOrcamentoApp(tela({ largura_cm: 0 })), /largura e altura/);
+});
+
+test('salvarOrcamento: tela grava só medida, moldura e serviços na linha do quadro', () => {
+  const { ctx, dados } = montar({ Molduras: [moldura(27)], Vidros: [vidro], Chapas: [chapa] });
+  const r = js(ctx.appExecutar({
+    id_op: 'op-00000090', acao: 'salvarOrcamento',
+    dados: pedidoVarios([tela({ moldura: 'M1', vidro: 'V1', chapa: 'C1', paspatur_cm: 5, objeto_alto: true }), tela({ largura_cm: 80, altura_cm: 60 })])
+  }));
+  assert.equal(r.resultado.valor_calculado, Number((109.7 + 255.2 + 53).toFixed(2)));
+  const q = dados.Orcamento_quadros;
+  assert.deepEqual(q.map((x) => x.Tipo), ['tela', 'tela']);
+  assert.deepEqual([q[0].Moldura, q[0].Vidro, q[0].Chapa, q[0].Espelho, q[0].Paspatur_cm, q[0].Margem_cm, q[0].Objeto_alto, q[0].Vidro_duplo],
+    ['M1', '', '', '', 0, 0, false, false]);
+  assert.equal(dados.Orcamentos[0].Quadros, 'tela 150 x 70; tela 80 x 60');
+  const aberto = js(ctx.appSync()).orcamentos_abertos[0];
+  assert.deepEqual(aberto.quadros.map((x) => x.tipo), ['tela', 'tela']);
+});
+
+test('fecharVenda: tela registra o chassi com as travas, sem baixa, e baixa a moldura', () => {
+  const { ctx, dados } = montar({ Molduras: [moldura(27)] });
+  ctx.appExecutar({ id_op: 'op-00000091', acao: 'fecharVenda', dados: pedidoVarios([tela({ quantidade: 2, moldura: 'M1' })]) });
+  const vendas = dados.Historico.filter((h) => h.Tipo_movimentacao === 'venda');
+  assert.deepEqual(vendas.map((h) => [h.Categoria, h.Produto, h.Quantidade, h.Unidade]), [
+    ['chassi', 'Chassi', 11.6, 'm'], ['moldura', 'Madeira lisa 3cm', 9.652, 'm']
+  ]);
+  assert.equal(vendas[0].Observacoes, 'Orçamento ORC-0001 (app); perímetro 4,40 m + 2 travas de 0,70 m = 5,80 m x R$ 18,90/m; sem baixa de estoque');
+  assert.equal(vendas[0].Codigo, '');
+  assert.equal(Number((vendas[0].Valor + vendas[1].Valor).toFixed(2)), Number(((109.7 + 255.2) * 2).toFixed(2)));
+  assert.equal(dados.Molduras[0].Estoque_atual_m, Number((27 - 9.652).toFixed(3)));
 });

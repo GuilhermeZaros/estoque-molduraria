@@ -143,13 +143,15 @@ function orcamentoPorCodigos(args) {
       perfilCm: cat === 'moldura' ? (Number(d.Largura_perfil_cm) || 0) : 0
     });
   }
-  if (itens.length === 0) throw new Error('Informe pelo menos um item (moldura, vidro, chapa ou espelho).');
+  var chassi = Number(args.chassiPrecoM) > 0 ? Number(args.chassiPrecoM) : 0;
+  if (itens.length === 0 && !chassi) throw new Error('Informe pelo menos um item (moldura, vidro, chapa ou espelho).');
   var paspatur = _ehDisponivel(args.paspatur);
   return calcularOrcamento(largura, altura, itens, {
     objetoAlto: _ehDisponivel(args.objetoAlto),
     vidroDuplo: _ehDisponivel(args.vidroDuplo),
     paspatur: paspatur,
-    paspaturPrecoM2: paspatur ? _precoPaspatur() : 0
+    paspaturPrecoM2: paspatur ? _precoPaspatur() : 0,
+    chassiPrecoM: chassi
   });
 }
 

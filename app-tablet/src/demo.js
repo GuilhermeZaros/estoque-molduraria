@@ -44,6 +44,7 @@ export const PACOTE_DEMO = {
     material('ESP-001', 'Espelho 3 mm', 'espelho', 330)
   ],
   paspatur_m2: 330,
+  chassi_m: 18.9,
   taxa_pintura_chapa: 30,
   casinhas_contadas: ['CR1-E1', 'CR1-E2', 'CR1-F3', 'CR1-D5', 'CR3-D1', 'PR1-2'],
   orcamentos_abertos: [{
@@ -79,12 +80,12 @@ export const PACOTE_DEMO = {
   oficina: [
     ordemDemo({
       id: 'OS-014', ref_app: 'orc-demo-orcamento-0001', cliente: 'Carla Mendes', telefone: '11955554444',
-      descricao: '20 x 30, 30 x 40 com paspatur e tela 50 x 70', prazo: '31/10/2026', valor: 385,
+      descricao: '20 x 30, 30 x 40 com paspatur e tela 110 x 70', prazo: '31/10/2026', valor: 385,
       data_criacao: '2026-10-24T14:00:00.000Z',
       fotos: [
         { url: fotoDemo('20 x 30', '#e3e8f1'), quadro: 1 },
         { url: fotoDemo('30 x 40', '#f3e9c6'), quadro: 2 },
-        { url: fotoDemo('Tela 50 x 70', '#e6f4ed'), quadro: 3 }
+        { url: fotoDemo('Tela 110 x 70', '#e6f4ed'), quadro: 3 }
       ],
       quadros: [
         quadroDemo({
@@ -96,9 +97,8 @@ export const PACOTE_DEMO = {
           valor_calculado: 148, descricao: 'Certificado do curso. Paspatur branco, centralizar bem.'
         }),
         quadroDemo({
-          largura_cm: 50, altura_cm: 70, moldura: 'D-110', valor_calculado: 175,
-          servicos: [{ descricao: 'Esticar a tela', valor: 0 }],
-          descricao: 'Tela pintada pela cliente. Sem vidro, só a moldura.'
+          tipo: 'tela', largura_cm: 110, altura_cm: 70, moldura: 'D-110', valor_calculado: 175,
+          descricao: 'Tela pintada pela cliente. Esticar e emoldurar, sem vidro.'
         })
       ]
     }),

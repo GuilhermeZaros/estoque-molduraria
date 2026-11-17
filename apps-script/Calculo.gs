@@ -63,9 +63,45 @@ var TAXA_PINTURA_CHAPA = 30;
 
 var SILICONE_POR_METRO = 12.5;
 
+var PRECO_CHASSI_M = 18.9;
+
 function _arredondarPraCima(valor) {
   var centavos = Math.round(Number(valor) * 100);
   return Math.ceil(centavos / 10) / 10;
+}
+
+function travasDoChassi(larguraCm, alturaCm) {
+  var l = Number(larguraCm) || 0;
+  var a = Number(alturaCm) || 0;
+  var maior = Math.max(l, a);
+  return {
+    quantidade: maior >= 150 ? 2 : maior >= 100 ? 1 : 0,
+    comprimento_m: Number((Math.min(l, a) / 100).toFixed(4))
+  };
+}
+
+function _metrosDaConta(m) {
+  return Number(m).toFixed(2).replace('.', ',') + ' m';
+}
+
+function _linhaDoChassi(larguraCm, alturaCm, precoM) {
+  var perim = perimetroM(larguraCm, alturaCm);
+  var travas = travasDoChassi(larguraCm, alturaCm);
+  var metros = Number((perim + travas.quantidade * travas.comprimento_m).toFixed(4));
+  var conta = 'perímetro ' + _metrosDaConta(perim);
+  if (travas.quantidade) {
+    conta += ' + ' + travas.quantidade + (travas.quantidade > 1 ? ' travas' : ' trava') + ' de ' +
+      _metrosDaConta(travas.comprimento_m) + ' = ' + _metrosDaConta(metros);
+  }
+  return {
+    categoria: 'chassi', item: 'Chassi',
+    quantidade: Number(metros.toFixed(3)), unidade: 'm',
+    calculo: conta + ' x R$ ' + Number(precoM).toFixed(2).replace('.', ',') + '/m',
+    valor: _arredondarPraCima(metros * Number(precoM)),
+    consumo: Number(metros.toFixed(3)),
+    travas: travas.quantidade,
+    trava_m: Number(travas.comprimento_m.toFixed(3))
+  };
 }
 
 // itens: array de { categoria:'moldura'|'vidro'|'chapa'|'espelho', nome, preco }
@@ -79,6 +115,12 @@ function calcularOrcamento(larguraCm, alturaCm, itens, opcoes) {
   var area = areaM2(larguraCm, alturaCm);
   var linhas = [];
   var total = 0;
+
+  if (Number(opcoes.chassiPrecoM) > 0 && perim > 0) {
+    var chassi = _linhaDoChassi(larguraCm, alturaCm, opcoes.chassiPrecoM);
+    linhas.push(chassi);
+    total += chassi.valor;
+  }
 
   for (var i = 0; i < itens.length; i++) {
     var it = itens[i];

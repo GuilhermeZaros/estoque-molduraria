@@ -221,3 +221,27 @@ test('detalhes do quadro: 2 vidros com a borda, objeto com a borda em volta e mo
   ]);
   expect(objeto[0].detalhe).toBe('');
 });
+
+test('tela na oficina: título, chassi com as travas, moldura e serviços; sem vidro, chapa nem paspatur', () => {
+  const t = quadroSalvo({ tipo: 'tela', largura_cm: 150, altura_cm: 70, moldura: 'D-104', servicos: [{ descricao: 'Verniz', valor: 20 }] });
+  expect(tituloDoQuadro(t, 0, 2)).toBe('Quadro 1 de 2: Tela 150 x 70');
+  expect(detalhesDoQuadro(pacoteOficina, t)).toEqual([
+    { rotulo: 'Chassi', valor: '150 x 70 cm, com 2 travas de 70 cm', detalhe: '', nao: false },
+    { rotulo: 'Moldura', valor: 'Rústica natural (D-104)', detalhe: 'Fica em: ' + nomeCasinha('CR1-F3'), nao: false },
+    { rotulo: 'Serviços', valor: 'Verniz', detalhe: '', nao: false }
+  ]);
+  expect(detalhesDoQuadro(pacoteOficina, quadroSalvo({ tipo: 'tela', largura_cm: 70, altura_cm: 110 }))).toEqual([
+    { rotulo: 'Chassi', valor: '70 x 110 cm, com 1 trava de 70 cm', detalhe: '', nao: false },
+    { rotulo: 'Moldura', valor: 'Não vai', detalhe: '', nao: true }
+  ]);
+  expect(detalhesDoQuadro(pacoteOficina, quadroSalvo({ tipo: 'tela', largura_cm: 80, altura_cm: 60 }))[0].valor).toBe('80 x 60 cm, sem trava');
+  expect(acrescimoDoQuadro(quadroSalvo({ tipo: 'tela', largura_cm: 80, altura_cm: 60, paspatur_cm: 5, moldura: 'D-104' }))).toBeNull();
+});
+
+test('descrição da ordem: tela leva o chassi com as travas e a moldura', () => {
+  const pacote = { molduras: [{ codigo: 'D-104', nome: 'Rústica natural' }], materiais: [] };
+  expect(descricaoDosQuadros(pacote, [
+    { tipo: 'tela', largura: '150', altura: '70', quantidade: 2, moldura: 'D-104', servicos: [] },
+    { tipo: 'tela', largura: '80', altura: '60', quantidade: 1, servicos: [] }
+  ])).toBe('2x Tela 150 x 70, chassi com 2 travas, moldura Rústica natural; Tela 80 x 60, chassi sem trava');
+});

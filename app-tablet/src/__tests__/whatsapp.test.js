@@ -137,3 +137,25 @@ test('reforma sem medida e serviço sem descrição', () => {
     'Total: R$ 45,00'
   ].join('\n'));
 });
+
+test('tela: título, chassi com as travas e a moldura; várias telas iguais', () => {
+  const tela = (mudar) => q({ tipo: 'tela', largura: 150, altura: 70, externa: { largura: 150, altura: 70 }, travas: 2, ...mudar });
+  expect(textoOrcamento({
+    cliente: 'Ana', ajustado: false, total: 241.7, quadros: [tela({ moldura: 'Preta lisa', valor_total: 241.7 })]
+  })).toBe([
+    'Olá, Ana! Segue o orçamento da Vera Molduras:',
+    'Tela de 150 x 70 cm',
+    'Esticada no chassi, com 2 travas',
+    'Moldura: Preta lisa',
+    'Total: R$ 241,70'
+  ].join('\n'));
+  const duas = textoOrcamento({
+    cliente: 'Ana', ajustado: false, total: 159,
+    quadros: [
+      tela({ largura: 80, altura: 60, travas: 0, quantidade: 2, valor_total: 106, valor_unitario: 53 }),
+      tela({ largura: 110, travas: 1, valor_total: 53 })
+    ]
+  });
+  expect(duas).toContain('1) 2 telas de 80 x 60 cm\nEsticada no chassi\nValor: R$ 106,00');
+  expect(duas).toContain('2) Tela de 110 x 70 cm\nEsticada no chassi, com 1 trava\n');
+});

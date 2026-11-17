@@ -1,6 +1,6 @@
 import {
   calcularOrcamento, medidaExterna, totaisOrcamentoApp, planejarBaixaMoldura, nomeCasinha, VARA_PADRAO_M,
-  quadrosDoPedido, bordaDoQuadro, consumoPorMoldura, servicosDoQuadro
+  quadrosDoPedido, bordaDoQuadro, consumoPorMoldura, servicosDoQuadro, travasDoChassi, PRECO_CHASSI_M
 } from './gerado/nucleo';
 import { formatarMetros } from './varas';
 import { formatarNumero, lerNumero, momentoDe } from './formato';
@@ -11,7 +11,8 @@ export const MARGEM_OBJETO_CM = 4;
 export const TIPOS_QUADRO = [
   { valor: 'quadro', titulo: 'Quadro' },
   { valor: 'reforma', titulo: 'Reforma' },
-  { valor: 'objeto', titulo: 'Objeto' }
+  { valor: 'objeto', titulo: 'Objeto' },
+  { valor: 'tela', titulo: 'Tela' }
 ];
 const MATERIAIS = ['vidro', 'chapa', 'espelho'];
 
@@ -61,8 +62,14 @@ export function duplicarQuadro(q) {
   return { ...q, chave: novaChave(), servicos: (q.servicos || []).map((s) => ({ ...s, chave: novaChave() })) };
 }
 
+const SO_A_MOLDURA = {
+  vidro: '', chapa: '', espelho: '', paspatur: '', borda_outra: false, margem: '', margem_outra: false,
+  vidro_duplo: false, objeto_alto: false
+};
+
 export function trocarTipo(q, tipo, pacote) {
   if (q.tipo === tipo) return q;
+  if (tipo === 'tela') return { ...q, ...SO_A_MOLDURA, tipo };
   if (tipo === 'objeto') {
     return {
       ...q, tipo, paspatur: '', borda_outra: false, margem: String(MARGEM_OBJETO_CM), margem_outra: false, objeto_alto: true,
@@ -83,7 +90,7 @@ export function mudarQuadro(q, campos) {
   return novo;
 }
 
-const NOMES_TIPO = { quadro: 'Quadro', reforma: 'Reforma', objeto: 'Objeto' };
+const NOMES_TIPO = { quadro: 'Quadro', reforma: 'Reforma', objeto: 'Objeto', tela: 'Tela' };
 
 export function rotuloQuadro(q) {
   const l = lerNumero(q.largura);
@@ -100,7 +107,7 @@ const numeroOuVazio = (n) => (Number(n) > 0 ? formatarNumero(n) : '');
 
 function tipoSalvo(t) {
   if (t === 'camiseta') return 'objeto';
-  return t === 'reforma' || t === 'objeto' ? t : 'quadro';
+  return t === 'reforma' || t === 'objeto' || t === 'tela' ? t : 'quadro';
 }
 
 function deQuadroSalvo(x) {
@@ -154,6 +161,7 @@ export function filtrarAbertos(abertos, termo) {
 function erroDeMedida(tipo) {
   if (tipo === 'objeto') return 'Informe a medida do objeto.';
   if (tipo === 'reforma') return 'Pra trocar material, informe a largura e a altura.';
+  if (tipo === 'tela') return 'Informe a largura e a altura da tela.';
   return 'Informe a largura e a altura da foto.';
 }
 
@@ -168,11 +176,22 @@ function lerServicos(lista) {
   return { lista: servicosDoQuadro(out) };
 }
 
+export function precoDoChassi(pacote) {
+  return Number(pacote && pacote.chassi_m) > 0 ? Number(pacote.chassi_m) : PRECO_CHASSI_M;
+}
+
+export function travasDaTela(q) {
+  const l = lerNumero(q.largura);
+  const a = lerNumero(q.altura);
+  return q.tipo === 'tela' && l > 0 && a > 0 ? travasDoChassi(l, a) : null;
+}
+
 export function calcularQuadro(pacote, q) {
   const largura = lerNumero(q.largura);
   const altura = lerNumero(q.altura);
   const temMedida = largura > 0 && altura > 0;
   const reforma = q.tipo === 'reforma';
+  const tela = q.tipo === 'tela';
   if (!reforma && !temMedida) return { ok: false, erro: erroDeMedida(q.tipo) };
   const usaMargem = q.tipo === 'objeto' || !!q.vidro_duplo;
   if (Number.isNaN(lerNumero(usaMargem ? q.margem : q.paspatur))) {
@@ -192,20 +211,22 @@ export function calcularQuadro(pacote, q) {
   }
   for (const categoria of MATERIAIS) {
     const codigo = q[categoria];
-    if (!codigo || (categoria === 'chapa' && q.vidro_duplo)) continue;
+    if (!codigo || tela || (categoria === 'chapa' && q.vidro_duplo)) continue;
     const mat = (pacote.materiais || []).find((m) => m.categoria === categoria && String(m.codigo) === String(codigo));
     if (!mat) return { ok: false, erro: 'O item ' + codigo + ' não está mais no catálogo.' };
     itens.push({ categoria, nome: mat.nome, preco: Number(mat.preco), perfilCm: 0 });
   }
-  if (!reforma && !itens.length) return { ok: false, erro: 'Escolha pelo menos a moldura, o vidro, o fundo ou o espelho.' };
+  if (!reforma && !tela && !itens.length) return { ok: false, erro: 'Escolha pelo menos a moldura, o vidro, o fundo ou o espelho.' };
   if (reforma && !temMedida && (itens.length || borda.paspatur)) return { ok: false, erro: erroDeMedida(q.tipo) };
   const externa = temMedida ? medidaExterna(largura, altura, borda.cm) : { largura: 0, altura: 0 };
-  const orc = calcularOrcamento(externa.largura, externa.altura, itens, {
-    objetoAlto: !!q.objeto_alto,
-    vidroDuplo: !!q.vidro_duplo,
-    paspatur: borda.paspatur,
-    paspaturPrecoM2: borda.paspatur ? Number(pacote.paspatur_m2) || 0 : 0
-  });
+  const orc = calcularOrcamento(externa.largura, externa.altura, itens, tela
+    ? { chassiPrecoM: precoDoChassi(pacote) }
+    : {
+      objetoAlto: !!q.objeto_alto,
+      vidroDuplo: !!q.vidro_duplo,
+      paspatur: borda.paspatur,
+      paspaturPrecoM2: borda.paspatur ? Number(pacote.paspatur_m2) || 0 : 0
+    });
   return {
     ok: true, tipo: q.tipo, largura: temMedida ? largura : 0, altura: temMedida ? altura : 0, externa, moldura,
     borda: borda.paspatur ? borda.cm : 0,
@@ -336,6 +357,7 @@ export function dadosDoTexto(pacote, f, rr) {
         vidro_duplo: !!q.vidro_duplo,
         fundo: q.chapa && !q.vidro_duplo ? nomeMaterial(pacote, q.chapa) : '',
         espelho: q.espelho ? nomeMaterial(pacote, q.espelho) : '',
+        travas: q.tipo === 'tela' ? (travasDaTela(q) || { quantidade: 0 }).quantidade : 0,
         valor_total: r.calc.valor_total,
         valor_unitario: r.calc.valor_unitario,
         servicos: r.calc.servicos

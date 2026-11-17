@@ -1,6 +1,6 @@
 import { lerValor, formatarNumero } from './formato';
-import { rotuloQuadro, nomeMaterial } from './orcamento';
-import { nomeCasinha, bordaDoQuadro, medidaExterna } from './gerado/nucleo';
+import { rotuloQuadro, nomeMaterial, travasDaTela } from './orcamento';
+import { nomeCasinha, bordaDoQuadro, medidaExterna, travasDoChassi } from './gerado/nucleo';
 
 export const PRAZOS = [
   { dias: 0, titulo: 'Hoje' },
@@ -80,7 +80,7 @@ export function dadosDeTirarFoto(o, f) {
   return { ...alvoDaOrdem(o), cliente: o.cliente || '', foto_url: f.url, foto_ref: f.ref };
 }
 
-const TIPOS_DA_OFICINA = { reforma: 'Reforma', objeto: 'Objeto', camiseta: 'Objeto' };
+const TIPOS_DA_OFICINA = { reforma: 'Reforma', objeto: 'Objeto', camiseta: 'Objeto', tela: 'Tela' };
 
 export function tituloDoQuadro(q, i, total) {
   const l = Number(q.largura_cm) || 0;
@@ -127,7 +127,25 @@ export function acrescimoDoQuadro(q) {
   };
 }
 
+const nomeDasTravas = (n) => (n > 1 ? n + ' travas' : '1 trava');
+
+function linhaDoChassi(q) {
+  const l = Number(q.largura_cm) || 0;
+  const a = Number(q.altura_cm) || 0;
+  if (!(l > 0) || !(a > 0)) return linha('Chassi', 'Medida não informada');
+  const t = travasDoChassi(l, a);
+  return linha('Chassi', medidaCm(l, a) + (t.quantidade
+    ? ', com ' + nomeDasTravas(t.quantidade) + ' de ' + formatarNumero(t.comprimento_m * 100) + ' cm'
+    : ', sem trava'));
+}
+
+function linhaDosServicos(q) {
+  const servicos = (q.servicos || []).map((s) => String(s.descricao || '').trim()).filter(Boolean);
+  return servicos.length ? [linha('Serviços', servicos.join(', '))] : [];
+}
+
 export function detalhesDoQuadro(pacote, q) {
+  if (q.tipo === 'tela') return [linhaDoChassi(q), linhaDaMoldura(pacote, q.moldura), ...linhaDosServicos(q)];
   const nome = (codigo) => (codigo ? nomeMaterial(pacote, codigo) || codigo : '');
   const objeto = q.tipo === 'objeto' || q.tipo === 'camiseta';
   const margem = Number(q.margem_cm) || 0;
@@ -143,9 +161,7 @@ export function detalhesDoQuadro(pacote, q) {
       : linha('Paspatur', Number(q.paspatur_cm) > 0 ? formatarNumero(Number(q.paspatur_cm)) + ' cm' : '')
   ];
   if (q.espelho) linhas.push(linha('Espelho', nome(q.espelho)));
-  const servicos = (q.servicos || []).map((s) => String(s.descricao || '').trim()).filter(Boolean);
-  if (servicos.length) linhas.push(linha('Serviços', servicos.join(', ')));
-  return linhas;
+  return [...linhas, ...linhaDosServicos(q)];
 }
 
 export function ordemVazia() {
@@ -183,6 +199,8 @@ export function dadosDaOrdem(f, alvo) {
 export function descricaoDosQuadros(pacote, quadros) {
   return (quadros || []).map((q) => {
     const partes = [(Number(q.quantidade) > 1 ? q.quantidade + 'x ' : '') + rotuloQuadro(q)];
+    const travas = travasDaTela(q);
+    if (travas) partes.push(travas.quantidade ? 'chassi com ' + nomeDasTravas(travas.quantidade) : 'chassi sem trava');
     const moldura = q.moldura ? pacote.molduras.find((m) => m.codigo === q.moldura) : null;
     if (moldura) partes.push('moldura ' + moldura.nome);
     if (Number(String(q.paspatur || '').replace(',', '.')) > 0 && q.tipo !== 'objeto') partes.push('paspatur ' + q.paspatur + ' cm');

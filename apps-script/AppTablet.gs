@@ -40,22 +40,36 @@ function _garantirAbaLoja() {
   comLock(function () {
     if (abaExiste(ABAS_APP.LOJA)) return;
     garantirColunas(ABAS_APP.LOJA, CABECALHOS_APP.Loja);
-    [['Nome', NOME_PADRAO_LOJA], ['Telefone', ''], ['Endereço', '']].forEach(function (c) {
+    [['Nome', NOME_PADRAO_LOJA], ['Telefone', ''], ['Endereço', ''], [CAMPO_CHASSI_LOJA, PRECO_CHASSI_M]].forEach(function (c) {
       anexarLinha(ABAS_APP.LOJA, { Campo: c[0], Valor: c[1] });
     });
   });
+}
+
+function _garantirPrecoChassi(linhas) {
+  if (_chassiNaLoja(linhas)) return;
+  comLock(function () {
+    if (_chassiNaLoja(lerAba(ABAS_APP.LOJA))) return;
+    anexarLinha(ABAS_APP.LOJA, { Campo: CAMPO_CHASSI_LOJA, Valor: PRECO_CHASSI_M });
+  });
+}
+
+function _precoChassiAtual() {
+  return _precoChassiDe(_lerAbaApp(ABAS_APP.LOJA));
 }
 
 function appSync() {
   _garantirAbaLoja();
   var a = lerAbas([ABAS.MOLDURAS, ABAS.VIDROS, ABAS.CHAPAS, ABAS.ESPELHOS, ABAS.AVULSOS, ABAS_APP.QUADROS,
     ABAS_APP.CASINHAS, ABAS_APP.ORCAMENTOS, ABAS_APP.COMPRAS, ABAS_FIN.USUARIOS, ABAS_FIN.OFICINA, ABAS_APP.LOJA]);
+  _garantirPrecoChassi(a[ABAS_APP.LOJA]);
   var quadros = _quadrosPorRef(a[ABAS_APP.QUADROS]);
   return {
     gerado_em: new Date().toISOString(),
     molduras: a[ABAS.MOLDURAS].map(function (x) { return _molduraParaApp(x); }),
     materiais: _produtosDe(a).filter(function (p) { return p.categoria !== 'moldura'; }),
     paspatur_m2: _precoPaspaturDe(a[ABAS.AVULSOS]),
+    chassi_m: _precoChassiDe(a[ABAS_APP.LOJA]),
     taxa_pintura_chapa: TAXA_PINTURA_CHAPA,
     casinhas_contadas: a[ABAS_APP.CASINHAS]
       .filter(function (c) { return c.Contada_em; })
@@ -164,9 +178,16 @@ function _temMaterial(q) {
   });
 }
 
-function _calcularOrcamentoApp(q) {
+function _calcularOrcamentoApp(q, precoChassi) {
   var borda = _bordaDoQuadro(q);
   var servicos = _servicosDoQuadro(q.servicos);
+  if (_tipoDoQuadro(q) === 'tela') {
+    var tela = orcamentoPorCodigos({
+      moldura: q.moldura, largura: q.largura_cm, altura: q.altura_cm,
+      chassiPrecoM: Number(precoChassi) > 0 ? Number(precoChassi) : _precoChassiAtual()
+    });
+    return _totaisOrcamentoApp(tela, q.quantidade, servicos);
+  }
   if (_tipoDoQuadro(q) === 'reforma' && !_temMaterial(q) && !borda.paspatur) {
     var semMaterial = calcularOrcamento(0, 0, [], { objetoAlto: _ehDisponivel(q.objeto_alto) });
     return _totaisOrcamentoApp(semMaterial, q.quantidade, servicos);
@@ -184,9 +205,10 @@ function _calcularOrcamentoApp(q) {
 
 function _calcularPedidoApp(d) {
   var quadros = _quadrosDoPedido(d);
+  var precoChassi = quadros.some(function (q) { return _tipoDoQuadro(q) === 'tela'; }) ? _precoChassiAtual() : 0;
   var calcs = quadros.map(function (q, i) {
     try {
-      return _calcularOrcamentoApp(q);
+      return _calcularOrcamentoApp(q, precoChassi);
     } catch (e) {
       throw quadros.length > 1 ? new Error('Quadro ' + (i + 1) + ': ' + e.message) : e;
     }
@@ -207,13 +229,14 @@ function _calcularPedidoApp(d) {
 
 function _tipoDoQuadro(q) {
   var t = String(q.tipo || '');
-  return t === 'reforma' || t === 'objeto' || t === 'camiseta' ? t : 'quadro';
+  return t === 'reforma' || t === 'objeto' || t === 'camiseta' || t === 'tela' ? t : 'quadro';
 }
 
 function _linhaDoQuadro(id, ref, q, c, n) {
   var tipo = _tipoDoQuadro(q);
   var borda = _bordaDoQuadro(q);
-  var duplo = _ehDisponivel(q.vidro_duplo);
+  var tela = tipo === 'tela';
+  var duplo = !tela && _ehDisponivel(q.vidro_duplo);
   return {
     Orcamento: id, Ref_app: ref, N: n, Tipo: tipo,
     Tamanho: tipo === 'camiseta' ? String(q.tamanho || '') : '',
@@ -221,9 +244,9 @@ function _linhaDoQuadro(id, ref, q, c, n) {
     Margem_cm: borda.paspatur ? 0 : borda.cm,
     Quantidade: c.quantidade,
     Paspatur_cm: borda.paspatur ? borda.cm : 0,
-    Moldura: String(q.moldura || ''), Vidro: String(q.vidro || ''),
-    Chapa: duplo ? '' : String(q.chapa || ''), Espelho: String(q.espelho || ''),
-    Vidro_duplo: duplo, Objeto_alto: _ehDisponivel(q.objeto_alto),
+    Moldura: String(q.moldura || ''), Vidro: tela ? '' : String(q.vidro || ''),
+    Chapa: duplo || tela ? '' : String(q.chapa || ''), Espelho: tela ? '' : String(q.espelho || ''),
+    Vidro_duplo: duplo, Objeto_alto: !tela && _ehDisponivel(q.objeto_alto),
     Valor_calculado: c.valor_total, Consumo_m: c.consumo_moldura_m,
     Servicos: c.servicos.length ? JSON.stringify(c.servicos) : '',
     Descricao: String(q.descricao || '').trim()
@@ -315,6 +338,7 @@ function _rotuloHistorico(q, i) {
   var txt = 'quadro ' + (i + 1);
   if (tipo === 'reforma') txt += ' (reforma)';
   if (tipo === 'objeto') txt += ' (objeto)';
+  if (tipo === 'tela') txt += ' (tela)';
   if (tipo === 'camiseta') txt += ' (camiseta' + (q.tamanho ? ' ' + q.tamanho : '') + ')';
   return txt;
 }
@@ -373,7 +397,7 @@ function _registrarVendaApp(o, d, molduras, quando) {
       unidade: l.it.unidade, valor: montado.valores[i], cliente: cliente,
       observacoes: l.moldura
         ? l.obs + (l.falta > 0 ? '; faltou ' + l.falta + ' m (encomenda)' : '')
-        : l.obs + '; sem baixa de estoque',
+        : l.obs + (l.it.categoria === 'chassi' ? '; ' + l.it.calculo : '') + '; sem baixa de estoque',
       codigo: l.moldura ? l.codigo : (l.q[l.it.categoria] || ''),
       data_hora: quando
     });

@@ -383,3 +383,51 @@ test('lista de abertos: mais novo primeiro e busca por nome, telefone ou número
   expect(filtrarAbertos(abertos, '988887777').map((o) => o.ref_app)).toEqual(['a']);
   expect(filtrarAbertos(abertos, 'orc-0002').map((o) => o.ref_app)).toEqual(['c']);
 });
+
+const tela = (mudar) => ({ ...quadroVazio('tela'), largura: '150', altura: '70', ...mudar });
+const comChassi = { ...pacote, chassi_m: 18.9 };
+
+test('tela: chassi pelo perímetro com as travas; moldura opcional; vidro, fundo, paspatur e espelho não entram', () => {
+  const so = calcularQuadro(comChassi, tela());
+  expect(so.ok).toBe(true);
+  expect(so.calc.itens.map((it) => [it.categoria, it.valor])).toEqual([['chassi', 109.7]]);
+  expect(so.calc.itens[0].calculo).toBe('perímetro 4,40 m + 2 travas de 0,70 m = 5,80 m x R$ 18,90/m');
+  const com = calcularQuadro(comChassi, tela({
+    moldura: 'M1', vidro: 'VID-001', chapa: 'CHA-001', espelho: 'ESP-001', paspatur: '5', objeto_alto: true, quantidade: 2
+  }));
+  expect(com.calc.itens.map((it) => it.categoria)).toEqual(['chassi', 'moldura']);
+  expect(com.calc.valor_unitario).toBe(241.7);
+  expect(com.calc.valor_total).toBe(483.4);
+  expect(com.calc.pintura_chapa).toBe(0);
+  expect(com.externa).toEqual({ largura: 150, altura: 70 });
+  expect(calcularQuadro(comChassi, tela({ largura: '' })).erro).toBe('Informe a largura e a altura da tela.');
+  expect(calcularQuadro(pacote, tela({ largura: '80', altura: '60' })).calc.valor_total).toBe(53);
+  expect(calcularQuadro({ ...pacote, chassi_m: 20 }, tela({ largura: '110', altura: '70' })).calc.valor_total).toBe(86);
+});
+
+test('trocar pra tela limpa vidro, fundo, paspatur, espelho e borda; guarda medida, moldura e serviços', () => {
+  const q = quadro({
+    moldura: 'M1', vidro: 'VID-001', chapa: 'CHA-001', espelho: 'ESP-001', paspatur: '5', objeto_alto: true,
+    servicos: [servico('Limpar', '10')], descricao: 'Pintura a óleo'
+  });
+  const t = trocarTipo(q, 'tela', pacote);
+  expect(t.tipo).toBe('tela');
+  expect([t.vidro, t.chapa, t.espelho, t.paspatur, t.margem]).toEqual(['', '', '', '', '']);
+  expect([t.vidro_duplo, t.objeto_alto, t.borda_outra]).toEqual([false, false, false]);
+  expect([t.largura, t.altura, t.moldura, t.descricao, t.servicos.length]).toEqual(['40', '50', 'M1', 'Pintura a óleo', 1]);
+  expect(rotuloQuadro(t)).toBe('Tela 40 x 50');
+  expect(trocarTipo(t, 'objeto', pacote)).toMatchObject({ tipo: 'objeto', margem: '4', objeto_alto: true, vidro: 'VID-001' });
+});
+
+test('tela salva volta como tela e segue pra API e pro texto com as travas', () => {
+  const f = deAberto({
+    ref_app: 'r', quadros: [{ tipo: 'tela', largura_cm: 110, altura_cm: 70, quantidade: 1, moldura: 'M1', servicos: [] }]
+  });
+  expect(f.quadros[0].tipo).toBe('tela');
+  const rr = calcularPedido(comChassi, f);
+  expect(rr.valor_total).toBe(189.3);
+  expect(dadosParaApi(f, rr).quadros[0]).toMatchObject({
+    tipo: 'tela', largura_cm: 110, altura_cm: 70, moldura: 'M1', vidro: '', chapa: '', espelho: '', paspatur_cm: 0, margem_cm: 0
+  });
+  expect(dadosDoTexto(comChassi, f, rr).quadros[0]).toMatchObject({ tipo: 'tela', travas: 1, moldura: 'Moldura M1' });
+});

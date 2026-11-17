@@ -108,7 +108,12 @@ function _ehObjeto(q) {
   return t === 'objeto' || t === 'camiseta';
 }
 
+function _ehTela(q) {
+  return String((q && q.tipo) || '') === 'tela';
+}
+
 function _bordaDoQuadro(q) {
+  if (_ehTela(q)) return { cm: 0, paspatur: false };
   if (_ehObjeto(q) || _ehDisponivel(q.vidro_duplo)) return { cm: Math.max(0, Number(q.margem_cm) || 0), paspatur: false };
   var p = Math.max(0, Number(q.paspatur_cm) || 0);
   return { cm: p, paspatur: p > 0 };
@@ -140,6 +145,7 @@ function _resumoQuadros(quadros) {
     if (tipo === 'camiseta') txt = 'camiseta ' + (q.tamanho ? q.tamanho : medida);
     if (tipo === 'objeto') txt = 'objeto' + (medida ? ' ' + medida : '');
     if (tipo === 'reforma') txt = 'reforma' + (medida ? ' ' + medida : '');
+    if (tipo === 'tela') txt = 'tela' + (medida ? ' ' + medida : '');
     var nomes = _servicosDoQuadro(q.servicos).map(function (s) { return s.descricao; }).filter(function (d) { return d; });
     if (nomes.length) txt += ' (' + nomes.join(', ') + ')';
     return (qtd > 1 ? qtd + 'x ' : '') + txt;
@@ -227,6 +233,20 @@ function _lojaDe(linhas) {
   var v = {};
   (linhas || []).forEach(function (l) { v[_campoDaLoja(l.Campo)] = String(l.Valor == null ? '' : l.Valor).trim(); });
   return { nome: v.nome || NOME_PADRAO_LOJA, telefone: v.telefone || '', endereco: v.endereco || '' };
+}
+
+var CAMPO_CHASSI_LOJA = 'Chassi (R$ por metro)';
+
+function _chassiNaLoja(linhas) {
+  return (linhas || []).filter(function (l) { return _campoDaLoja(l.Campo).indexOf('chassi') === 0; })[0] || null;
+}
+
+function _precoChassiDe(linhas) {
+  var l = _chassiNaLoja(linhas);
+  if (!l) return PRECO_CHASSI_M;
+  var v = l.Valor;
+  if (typeof v !== 'number') v = Number(String(v == null ? '' : v).replace(/[^\d,.]/g, '').replace(',', '.'));
+  return v > 0 ? Number(v.toFixed(2)) : PRECO_CHASSI_M;
 }
 
 function _quadrosPorRef(linhas) {

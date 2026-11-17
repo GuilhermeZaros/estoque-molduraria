@@ -264,3 +264,38 @@ test('calcularOrcamento: paspatur soma area x preco numa linha propria', () => {
   assert.equal(pas.valor, 39.6);              // 0.12 * 330
   assert.equal(orc.valor_total, 213.2);       // 140 + 21.6 + 12 + 39.6
 });
+
+const comoJs = (x) => JSON.parse(JSON.stringify(x));
+
+test('travasDoChassi: até 99 cm sem trava, de 1 m uma trava, de 1,50 m duas, sempre do lado menor', () => {
+  assert.deepEqual(comoJs(ctx.travasDoChassi(80, 60)), { quantidade: 0, comprimento_m: 0.6 });
+  assert.deepEqual(comoJs(ctx.travasDoChassi(99.9, 60)), { quantidade: 0, comprimento_m: 0.6 });
+  assert.deepEqual(comoJs(ctx.travasDoChassi(70, 100)), { quantidade: 1, comprimento_m: 0.7 });
+  assert.deepEqual(comoJs(ctx.travasDoChassi(110, 70)), { quantidade: 1, comprimento_m: 0.7 });
+  assert.deepEqual(comoJs(ctx.travasDoChassi(149.9, 70)), { quantidade: 1, comprimento_m: 0.7 });
+  assert.deepEqual(comoJs(ctx.travasDoChassi(150, 70)), { quantidade: 2, comprimento_m: 0.7 });
+  assert.deepEqual(comoJs(ctx.travasDoChassi(80, 160)), { quantidade: 2, comprimento_m: 0.8 });
+});
+
+test('calcularOrcamento: chassi da tela pelo perímetro mais as travas, conta escrita com as travas', () => {
+  const sem = ctx.calcularOrcamento(80, 60, [], { chassiPrecoM: 18.9 });
+  assert.equal(sem.itens.length, 1);
+  assert.equal(sem.itens[0].categoria, 'chassi');
+  assert.equal(sem.itens[0].quantidade, 2.8);
+  assert.equal(sem.itens[0].valor, 53);
+  assert.equal(sem.itens[0].calculo, 'perímetro 2,80 m x R$ 18,90/m');
+  assert.equal(sem.itens[0].travas, 0);
+  const uma = ctx.calcularOrcamento(110, 70, [], { chassiPrecoM: 18.9 });
+  assert.equal(uma.itens[0].calculo, 'perímetro 3,60 m + 1 trava de 0,70 m = 4,30 m x R$ 18,90/m');
+  assert.equal(uma.itens[0].valor, 81.3);
+  assert.equal(uma.itens[0].travas, 1);
+  assert.equal(uma.itens[0].trava_m, 0.7);
+  const duas = ctx.calcularOrcamento(150, 70, [{ categoria: 'moldura', nome: 'M', preco: 50 }], { chassiPrecoM: 18.9 });
+  assert.deepEqual(Array.from(duas.itens, (i) => i.categoria), ['chassi', 'moldura']);
+  assert.equal(duas.itens[0].calculo, 'perímetro 4,40 m + 2 travas de 0,70 m = 5,80 m x R$ 18,90/m');
+  assert.equal(duas.itens[0].quantidade, 5.8);
+  assert.equal(duas.itens[0].valor, 109.7);
+  assert.equal(duas.itens[1].valor, 220);
+  assert.equal(duas.valor_total, 329.7);
+  assert.equal(ctx.calcularOrcamento(80, 60, []).itens.length, 0);
+});

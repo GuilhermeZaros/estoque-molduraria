@@ -19,6 +19,7 @@ function tituloQuadro(q, varios) {
   if (q.tipo === 'objeto') {
     return (n > 1 ? n + ' objetos de ' : 'Objeto de ') + medida(q.largura, q.altura) + (q.margem > 0 ? fica : '');
   }
+  if (q.tipo === 'tela') return (n > 1 ? n + ' telas de ' : 'Tela de ') + medida(q.largura, q.altura);
   if (q.tipo === 'reforma') {
     const de = q.largura > 0 && q.altura > 0 ? ' de ' + medida(q.largura, q.altura) : '';
     return (n > 1 ? n + ' reformas de quadro' : 'Reforma do seu quadro') + de;
@@ -32,6 +33,9 @@ function tituloQuadro(q, varios) {
 export function linhasDoQuadro(q, varios, ajustado) {
   const novo = q.tipo === 'reforma' ? ' novo' : '';
   const linhas = [tituloQuadro(q, varios)];
+  if (q.tipo === 'tela') {
+    linhas.push('Esticada no chassi' + (q.travas > 0 ? ', com ' + (q.travas > 1 ? q.travas + ' travas' : '1 trava') : ''));
+  }
   if (q.moldura) linhas.push((novo ? 'Moldura nova' : 'Moldura') + ': ' + q.moldura);
   if (q.vidro) linhas.push('Vidro' + novo + ': ' + q.vidro + (q.vidro_duplo ? ' (2 vidros)' : ''));
   if (q.fundo) linhas.push('Fundo' + novo + ': ' + q.fundo);

@@ -172,3 +172,15 @@ test('ordem em cupom: sem foto, com o mesmo conteúdo', () => {
   }
   expect(p.height).toBeGreaterThan(300);
 });
+
+test('tela no papel: orçamento com o chassi e as travas; ordem com a linha do chassi e sem aviso de crescer', () => {
+  const orc = papelOrcamento(orcamento({
+    total: 241.7,
+    quadros: [q({ tipo: 'tela', largura: 150, altura: 70, externa: { largura: 150, altura: 70 }, travas: 2, moldura: 'Preta lisa', valor_total: 241.7 })]
+  }), 'a4', loja);
+  for (const t of ['Tela de 150 x 70 cm', 'Esticada no chassi, com 2 travas', 'Moldura: Preta lisa', 'R$ 241,70']) expect(orc.html).toContain(t);
+  const ordemTela = papelOrdem(pacote, ordem({ quadros: [quadroSalvo({ tipo: 'tela', largura_cm: 150, altura_cm: 70, moldura: 'D-110' })] }), 'a4', loja, {});
+  for (const t of ['Quadro 1 de 1: Tela 150 x 70', 'Chassi', '150 x 70 cm, com 2 travas de 70 cm', 'Preta lisa (D-110)']) expect(ordemTela.html).toContain(t);
+  expect(ordemTela.html).not.toContain('class="cresce"');
+  expect(ordemTela.html).not.toContain('Vidro');
+});
