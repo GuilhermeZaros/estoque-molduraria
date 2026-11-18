@@ -100,9 +100,12 @@ function relatorio(periodo) {
     lucro: { tem_custo: true, valor: r2(faturamento * 0.46), itens_sem_custo: 2 },
     serie_tempo: [],
     por_categoria: [
-      { categoria: 'moldura', valor: r2(4210 * f), quantidade: r1(96 * f), unidade: 'm' },
-      { categoria: 'vidro', valor: r2(1630 * f), quantidade: r1(9.4 * f), unidade: 'm²' },
-      { categoria: 'chapa', valor: r2(1000 * f), quantidade: r1(11 * f), unidade: 'm²' }
+      { categoria: 'moldura', valor: r2(3600 * f), quantidade: r1(96 * f), unidade: 'm' },
+      { categoria: 'vidro', valor: r2(1300 * f), quantidade: r1(9.4 * f), unidade: 'm²' },
+      { categoria: 'chapa', valor: r2(700 * f), quantidade: r1(11 * f), unidade: 'm²' },
+      { categoria: 'servico', valor: r2(440 * f), quantidade: 0, unidade: 'm²' },
+      { categoria: 'paspatur', valor: r2(420 * f), quantidade: r1(3.1 * f), unidade: 'm²' },
+      { categoria: 'chassi', valor: r2(380 * f), quantidade: r1(4.2 * f), unidade: 'm²' }
     ],
     ranking_molduras: [
       { nome: 'Lisa preta 2 cm', metros: r1(28 * f), valor: r2(784 * f) },

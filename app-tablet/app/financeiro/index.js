@@ -5,7 +5,7 @@ import { useEstado, central, api } from '../../src/estado';
 import { cofre } from '../../src/senhaFinanceiro';
 import { formatarReais, formatarNumero, lerValor } from '../../src/formato';
 import {
-  TIPOS, PERIODOS_VENDA, opcoesDeMes, textoVariacao, tomDaVariacao, validarSaldos, lancamentosPendentes, detalheLancamento
+  TIPOS, PERIODOS_VENDA, opcoesDeMes, textoVariacao, tomDaVariacao, validarSaldos, lancamentosPendentes, detalheLancamento, vendasPorTipo
 } from '../../src/financeiro';
 import { Cartao } from '../../src/componentes/Cartao';
 import { Campo } from '../../src/componentes/Campo';
@@ -14,7 +14,7 @@ import { Dialogo } from '../../src/componentes/Dialogo';
 import { Icone } from '../../src/componentes/Icone';
 import { GrupoPilulas } from '../../src/componentes/Pilula';
 import { BarrasMes, BarrasCategoria } from '../../src/componentes/Graficos';
-import { cores, tamanho } from '../../src/tema';
+import { GRAFICO, cores, tamanho } from '../../src/tema';
 
 const TOM = { bom: '#065f46', ruim: cores.vermelho, neutro: cores.apagado };
 const TECLAS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'apagar'];
@@ -316,6 +316,8 @@ function Painel({ inicial, aoSair }) {
             />
           ) : null}
         </View>
+        <Text style={s.subtitulo}>Vendas por tipo</Text>
+        <BarrasCategoria itens={vendasPorTipo(relatorio.por_categoria)} vazio="Nenhuma venda pelo sistema nesse período." de="das vendas" cor={GRAFICO.entrou} />
         {relatorio.ranking_molduras.length ? (
           <>
             <Text style={s.subtitulo}>Molduras campeãs</Text>

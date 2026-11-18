@@ -102,6 +102,33 @@ export function detalheLancamento(l) {
     : '');
 }
 
+const NOMES_TIPO = {
+  moldura: 'Moldura', vidro: 'Vidro', chapa: 'Fundo (chapa)', espelho: 'Espelho', paspatur: 'Paspatur',
+  chassi: 'Tela (chassi)', silicone: 'Silicone', servico: 'Serviços e reforma'
+};
+
+export function nomeDoTipo(categoria) {
+  const c = String(categoria == null ? '' : categoria).trim().toLowerCase();
+  if (NOMES_TIPO[c]) return NOMES_TIPO[c];
+  return c ? c.charAt(0).toUpperCase() + c.slice(1) : 'Outros';
+}
+
+export function vendasPorTipo(porCategoria) {
+  const somas = new Map();
+  for (const i of porCategoria || []) {
+    const valor = Number(i.valor) || 0;
+    if (valor <= 0) continue;
+    const nome = nomeDoTipo(i.categoria);
+    somas.set(nome, (somas.get(nome) || 0) + valor);
+  }
+  const total = [...somas.values()].reduce((a, b) => a + b, 0);
+  return [...somas.entries()]
+    .map(([categoria, valor]) => ({
+      categoria, valor: Number(valor.toFixed(2)), pct: total > 0 ? Number(((valor / total) * 100).toFixed(1)) : 0
+    }))
+    .sort((a, b) => b.valor - a.valor);
+}
+
 export function lerLancamento(texto) {
   try {
     const l = texto ? JSON.parse(String(texto)) : null;

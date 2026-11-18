@@ -1,7 +1,7 @@
 import {
   dataDe, gastoVazio, validarGasto, dadosDoGasto, vendaVazia, validarVenda, dadosDaVenda, validarSaldos,
   textoVariacao, tomDaVariacao, proporcao, opcoesDeMes, lancamentosPendentes, tetoBonito, rotuloEixo,
-  gastoDoLancamento, vendaDoLancamento, lerLancamento, formaDe, partesDaForma, formaValida, textoRecebimento, detalheLancamento
+  gastoDoLancamento, vendaDoLancamento, lerLancamento, formaDe, partesDaForma, formaValida, textoRecebimento, detalheLancamento, nomeDoTipo, vendasPorTipo
 } from '../financeiro';
 import { criarCofre } from '../senhaFinanceiro';
 
@@ -146,4 +146,21 @@ test('forma de recebimento: tipo, parcelas, taxa e texto', () => {
   expect(vendaDoLancamento({ id: 'E-1', data: '01/11/2026', valor: 97.17, valor_bruto: 100, forma: 'Crédito 1x' }).valor).toBe('100');
   expect(detalheLancamento({ tipo: 'entrada', data: '01/11/2026', forma: 'Crédito 1x', taxa: 2.83 })).toBe('01/11/2026  ·  Crédito 1x, taxa R$ 2,83');
   expect(detalheLancamento({ tipo: 'entrada', data: '01/11/2026', forma: '', taxa: 0 })).toBe('01/11/2026');
+});
+
+test('vendas por tipo: nome amigável, junta repetidos, porcentagem e ordem', () => {
+  expect(nomeDoTipo('chassi')).toBe('Tela (chassi)');
+  expect(nomeDoTipo('servico')).toBe('Serviços e reforma');
+  expect(nomeDoTipo('avulso')).toBe('Avulso');
+  expect(nomeDoTipo('')).toBe('Outros');
+  expect(vendasPorTipo([
+    { categoria: 'vidro', valor: 25 },
+    { categoria: 'moldura', valor: 50 },
+    { categoria: 'Moldura', valor: 25 },
+    { categoria: 'chapa', valor: 0 }
+  ])).toEqual([
+    { categoria: 'Moldura', valor: 75, pct: 75 },
+    { categoria: 'Vidro', valor: 25, pct: 25 }
+  ]);
+  expect(vendasPorTipo(undefined)).toEqual([]);
 });

@@ -84,11 +84,11 @@ export function BarrasMes({ meses, escolhido, aoEscolher }) {
   );
 }
 
-export function BarrasCategoria({ itens }) {
+export function BarrasCategoria({ itens, vazio = 'Nenhum gasto nesse período.', de = 'dos gastos', cor = GRAFICO.saiu }) {
   const janela = useWindowDimensions().width;
   const [largura, medir] = useLargura(janela - 80);
   const lista = itens || [];
-  if (!lista.length) return <Text style={s.vazio}>Nenhum gasto nesse período.</Text>;
+  if (!lista.length) return <Text style={s.vazio}>{vazio}</Text>;
   const maior = Math.max(...lista.map((i) => i.valor));
   const estreito = largura < LARGURA_ESTREITA;
   return (
@@ -101,7 +101,7 @@ export function BarrasCategoria({ itens }) {
         );
         const trilho = (
           <View style={[s.trilho, estreito && s.trilhoEstreito]}>
-            <View style={[s.barra, { width: proporcao(i.valor, maior) + '%' }]} />
+            <View style={[s.barra, { width: proporcao(i.valor, maior) + '%', backgroundColor: cor }]} />
           </View>
         );
         return (
@@ -109,7 +109,7 @@ export function BarrasCategoria({ itens }) {
             key={i.categoria}
             style={estreito ? s.linhaEstreita : s.linha}
             accessible
-            accessibilityLabel={i.categoria + ': ' + formatarReais(i.valor) + ', ' + String(i.pct).replace('.', ',') + '% dos gastos'}>
+            accessibilityLabel={i.categoria + ': ' + formatarReais(i.valor) + ', ' + String(i.pct).replace('.', ',') + '% ' + de}>
             {estreito ? (
               <>
                 <View style={s.topoEstreito}>
