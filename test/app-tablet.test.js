@@ -1225,3 +1225,32 @@ test('zerarFinanceiro só apaga quando a pessoa digita ZERAR', () => {
   assert.match(certo.alertas[0], /Financeiro zerado/);
   assert.equal(dados.Entradas.length, 0);
 });
+
+test('taxa da maquininha: o financeiro recebe o valor já descontado', () => {
+  const { ctx, dados } = montar({ Molduras: [moldura(12.3)], Vidros: [vidro], Oficina: [], Entradas: [] });
+  assert.deepEqual(JSON.parse(JSON.stringify(ctx._recebimento(100, 'Débito'))), { bruto: 100, pct: 0.98, taxa: 0.98, liquido: 99.02 });
+  assert.equal(ctx._recebimento(100, 'Crédito 12x').liquido, 86.25);
+  assert.equal(ctx._recebimento(100, 'Pix').taxa, 0);
+  assert.equal(ctx._recebimento(100, 'Dinheiro').liquido, 100);
+  assert.equal(ctx._recebimento(250, 'Crédito 3x').taxa, 12.23);
+  js(ctx.appExecutar({ id_op: 'op-00000400', acao: 'fecharVenda', dados: pedidoOrc({ valor_final: 250, pago: true, forma: 'Crédito 3x' }) }));
+  assert.equal(dados.Entradas[0].valor, 237.77);
+  assert.equal(dados.Entradas[0].valor_bruto, 250);
+  assert.equal(dados.Entradas[0].taxa, 12.23);
+  assert.equal(dados.Entradas[0].forma_pagamento, 'Crédito 3x');
+});
+
+test('entrega da ordem e venda avulsa também descontam a taxa', () => {
+  const { ctx, dados } = montar({
+    Oficina: [{ ID: 'OS-001', Cliente: 'Rui', Status: 'pronto', Valor: 200, Lancado_financeiro: false }],
+    Entradas: []
+  });
+  const r = js(ctx.appExecutar({ id_op: 'op-00000401', acao: 'marcarEntregue', dados: { id: 'OS-001', forma: 'Débito' } }));
+  assert.equal(r.resultado.lancado, true);
+  assert.equal(dados.Entradas[0].valor, 198.04);
+  assert.equal(dados.Entradas[0].taxa, 1.96);
+  assert.equal(dados.Entradas[0].forma_pagamento, 'Débito');
+  const v = ctx._gravarVenda({ data: '17/11/2026', valor: 100, forma_pagamento: 'Crédito 1x', cliente: 'Ana' }, 'tablet');
+  assert.equal(v.valor, 97.17);
+  assert.equal(dados.Entradas[1].valor_bruto, 100);
+});

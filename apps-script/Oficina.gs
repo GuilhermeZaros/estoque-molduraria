@@ -146,18 +146,19 @@ function _ehVerdade(v) {
   return v === true || String(v).toUpperCase() === 'TRUE';
 }
 
-function _lancarEntrada(valor, cliente, obs, origem) {
+function _lancarEntrada(valor, cliente, obs, origem, forma) {
   garantirColunas(ABAS_FIN.ENTRADAS, CABECALHOS_FIN.Entradas);
   var id = _proximoIdFin('E', _idsDaAba(ABAS_FIN.ENTRADAS));
+  var r = _recebimento(valor, forma);
   anexarLinha(ABAS_FIN.ENTRADAS, {
-    id: id, timestamp: new Date(), data: new Date(), valor: valor,
-    forma_pagamento: '', cliente: cliente || '', obs: obs || '', origem: origem
+    id: id, timestamp: new Date(), data: new Date(), valor: r.liquido, valor_bruto: r.bruto, taxa: r.taxa,
+    forma_pagamento: String(forma || '').trim(), cliente: cliente || '', obs: obs || '', origem: origem
   });
   return id;
 }
 
-function _lancarEntradaOficina(valor, cliente, idOS) {
-  return _lancarEntrada(valor, cliente, 'Ordem ' + idOS, 'oficina');
+function _lancarEntradaOficina(valor, cliente, idOS, forma) {
+  return _lancarEntrada(valor, cliente, 'Ordem ' + idOS, 'oficina', forma);
 }
 
 function _dadosDaOrdem(d) {
@@ -205,12 +206,12 @@ function _marcarProntoNucleo(o, quem) {
   return { id: String(o.ID) };
 }
 
-function _marcarEntregueNucleo(o) {
+function _marcarEntregueNucleo(o, forma) {
   atualizarCampos(ABAS_FIN.OFICINA, o._linha, { Status: 'entregue', Data_entrega: new Date() });
   var jaLancado = _ehVerdade(o.Lancado_financeiro) || _ehVerdade(o.Pago);
   var valor = Number(o.Valor) || 0;
   if (jaLancado || !(valor > 0)) return { id: String(o.ID), lancado: false };
-  _lancarEntradaOficina(valor, o.Cliente, o.ID);
+  _lancarEntradaOficina(valor, o.Cliente, o.ID, forma);
   atualizarCampos(ABAS_FIN.OFICINA, o._linha, { Lancado_financeiro: true });
   return { id: String(o.ID), lancado: true };
 }

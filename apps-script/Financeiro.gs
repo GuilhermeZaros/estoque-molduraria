@@ -271,7 +271,8 @@ function _resumirFinanceiro(entradas, saidas, opcoes) {
     if (mesSel && _chaveMes(e.data, ano) !== mesSel) return;
     lancamentos.push({ _ms: _msDataFin(e.data), id: String(e.id || ''), data: _fmtDataFin(e.data), tipo: 'entrada',
       descricao: e.cliente || e.obs || 'Venda', categoria: 'Venda', valor: _arred2(_parseValorBR(e.valor)),
-      cliente: String(e.cliente || ''), forma: String(e.forma_pagamento || ''), obs: String(e.obs || ''), origem: String(e.origem || '') });
+      cliente: String(e.cliente || ''), forma: String(e.forma_pagamento || ''), obs: String(e.obs || ''), origem: String(e.origem || ''),
+      valor_bruto: _arred2(_parseValorBR(e.valor_bruto)) || _arred2(_parseValorBR(e.valor)), taxa: _arred2(_parseValorBR(e.taxa)) });
   });
   saidas.forEach(function (s) {
     if (!_saiNoTipo(s)) return;
@@ -370,12 +371,13 @@ function _gravarVenda(args, origem) {
   if (valor <= 0) throw new Error('Informe um valor maior que zero.');
   var data = _parseDataBR(args.data, ANO_HISTORICO) || new Date();
   var id = _proximoIdFin('E', _idsDaAba(ABAS_FIN.ENTRADAS));
+  var r = _recebimento(valor, args.forma_pagamento);
   anexarLinha(ABAS_FIN.ENTRADAS, {
-    id: id, timestamp: new Date(), data: data, valor: valor,
+    id: id, timestamp: new Date(), data: data, valor: r.liquido, valor_bruto: r.bruto, taxa: r.taxa,
     forma_pagamento: args.forma_pagamento || '', cliente: args.cliente || '',
     obs: args.obs || '', origem: origem
   });
-  return { id: id, valor: valor };
+  return { id: id, valor: r.liquido };
 }
 
 function _acharLancamento(qual, id) {
@@ -406,7 +408,12 @@ function _editarLancamento(d) {
     };
   } else {
     garantirColunas(ABAS_FIN.ENTRADAS, CABECALHOS_FIN.Entradas);
-    campos = { data: data, valor: valor, forma_pagamento: texto(d.forma_pagamento), cliente: texto(d.cliente), obs: texto(d.obs) };
+    var r = _recebimento(valor, d.forma_pagamento);
+    valor = r.liquido;
+    campos = {
+      data: data, valor: r.liquido, valor_bruto: r.bruto, taxa: r.taxa,
+      forma_pagamento: texto(d.forma_pagamento), cliente: texto(d.cliente), obs: texto(d.obs)
+    };
   }
   atualizarCampos(achado.aba, achado.linha._linha, campos);
   return { id: String(achado.linha.id), valor: valor };

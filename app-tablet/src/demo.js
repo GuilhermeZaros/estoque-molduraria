@@ -147,7 +147,7 @@ export function criarApiDemo() {
       const o = ordemDe(d);
       if (!o) return {};
       historico.unshift({ ...o, status: 'entregue', data_entrega: new Date().toISOString() });
-      return { id: o.id, lancado: financeiro.entradaDaOficina(o, hoje) };
+      return { id: o.id, lancado: financeiro.entradaDaOficina(o, hoje, d.forma) };
     }
     if (op.acao === 'lancarGasto') return financeiro.lancarGasto(d);
     if (op.acao === 'lancarVenda') return financeiro.lancarVenda(d);
@@ -168,7 +168,7 @@ export function criarApiDemo() {
       };
     });
     const valor_final = Number(d.valor_final) > 0 ? Number(d.valor_final) : Number(d.valor_calculado) || 0;
-    if (d.pago) financeiro.entradaDaOficina({ valor: valor_final, cliente: d.cliente }, hoje);
+    if (d.pago) financeiro.entradaDaOficina({ valor: valor_final, cliente: d.cliente }, hoje, d.forma);
     return { id, valor_final, molduras, ordem_id: d.oficina ? novaOrdem() : '' };
   }
   return {

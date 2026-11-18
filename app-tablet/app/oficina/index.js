@@ -12,6 +12,9 @@ import { Botao } from '../../src/componentes/Botao';
 import { Icone } from '../../src/componentes/Icone';
 import { MiniaturasOrdem } from '../../src/componentes/FotosOrdem';
 import { Dialogo } from '../../src/componentes/Dialogo';
+import { FormaRecebimento } from '../../src/componentes/FormaRecebimento';
+import { formaValida } from '../../src/financeiro';
+import { recebimento } from '../../src/gerado/nucleo';
 import { GrupoPilulas } from '../../src/componentes/Pilula';
 import { BarraSync } from '../../src/componentes/BarraSync';
 import { AVISO, cores, tamanho } from '../../src/tema';
@@ -99,6 +102,7 @@ export default function Oficina() {
   const [aba, setAba] = useState('producao');
   const [pronto, setPronto] = useState(null);
   const [buscou, setBuscou] = useState(null);
+  const [forma, setForma] = useState('');
   const [aviso, setAviso] = useState('');
   const lista = visivel ? visivel.oficina || [] : [];
   const resumo = resumoOficina(lista);
@@ -121,9 +125,10 @@ export default function Oficina() {
     setPronto(null);
   };
   const confirmarBuscou = () => {
-    central.registrar('marcarEntregue', alvoDaOrdem(buscou));
-    setAviso(Number(buscou.valor) > 0 && !buscou.pago
-      ? formatarReais(buscou.valor) + ' de ' + (buscou.cliente || 'cliente') + ' vai pro financeiro.'
+    const cobra = Number(buscou.valor) > 0 && !buscou.pago;
+    central.registrar('marcarEntregue', cobra ? { ...alvoDaOrdem(buscou), forma } : alvoDaOrdem(buscou));
+    setAviso(cobra
+      ? formatarReais(recebimento(buscou.valor, forma).liquido) + ' de ' + (buscou.cliente || 'cliente') + ' vai pro financeiro (' + forma + ').'
       : (buscou.cliente || 'A ordem') + ' foi entregue.');
     setBuscou(null);
   };
@@ -189,7 +194,7 @@ export default function Oficina() {
               o={o}
               acoes={(
                 <>
-                  <Botao icone="handshake-outline" titulo="Cliente buscou" variante="ouro" onPress={() => setBuscou(o)} estilo={s.acao} />
+                  <Botao icone="handshake-outline" titulo="Cliente buscou" variante="ouro" onPress={() => { setForma(''); setBuscou(o); }} estilo={s.acao} />
                   <Botao icone="pencil-outline" titulo="Editar" variante="contorno" onPress={() => editar(o)} estilo={s.acao} />
                 </>
               )}
@@ -227,9 +232,11 @@ export default function Oficina() {
                   ? 'Esse valor entra como venda no financeiro e a ordem sai da lista.'
                   : 'A ordem não tem valor, então nada vai pro financeiro. Ela só sai da lista.'}
             </Text>
+            {Number(buscou.valor) > 0 && !buscou.pago ? <FormaRecebimento valor={buscou.valor} forma={forma} aoMudar={setForma} /> : null}
           </>
         ) : null}
-        <Botao grande icone="check-circle-outline" titulo="Sim, entreguei" variante="ouro" onPress={confirmarBuscou} />
+        <Botao grande icone="check-circle-outline" titulo="Sim, entreguei" variante="ouro" onPress={confirmarBuscou}
+          desativado={!!buscou && Number(buscou.valor) > 0 && !buscou.pago && !formaValida(forma)} />
         <Botao titulo="Voltar" variante="contorno" onPress={() => setBuscou(null)} />
       </Dialogo>
     </ScrollView>

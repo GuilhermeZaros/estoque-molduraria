@@ -3,14 +3,14 @@ import { Text, ScrollView, StyleSheet } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { central } from '../../src/estado';
 import { cofre } from '../../src/senhaFinanceiro';
-import { FORMAS, vendaVazia, validarVenda, dadosDaVenda, vendaDoLancamento, lerLancamento } from '../../src/financeiro';
-import { formatarReais } from '../../src/formato';
+import { vendaVazia, validarVenda, dadosDaVenda, vendaDoLancamento, lerLancamento } from '../../src/financeiro';
+import { formatarReais, lerValor } from '../../src/formato';
 import { Dialogo } from '../../src/componentes/Dialogo';
 import { Cartao } from '../../src/componentes/Cartao';
 import { Campo } from '../../src/componentes/Campo';
 import { CampoData } from '../../src/componentes/CampoData';
 import { Botao } from '../../src/componentes/Botao';
-import { GrupoPilulas } from '../../src/componentes/Pilula';
+import { FormaRecebimento } from '../../src/componentes/FormaRecebimento';
 import { SenhaExpirou } from '../../src/componentes/SenhaExpirou';
 import { cores, tamanho } from '../../src/tema';
 
@@ -53,12 +53,12 @@ export default function LancarVenda() {
         </Text>
       )}
       <Cartao titulo="VENDA">
-        <Campo rotulo="Valor (R$)" valor={f.valor} aoMudar={(v) => mudar({ valor: v })} teclado="decimal-pad" placeholder="0,00" />
+        <Campo rotulo="Valor cobrado (R$)" valor={f.valor} aoMudar={(v) => mudar({ valor: v })} teclado="decimal-pad" placeholder="0,00" />
         <CampoData valor={f.data} aoMudar={(v) => mudar({ data: v })} />
         <Campo rotulo="Cliente" valor={f.cliente} aoMudar={(v) => mudar({ cliente: v })} autoCapitalize="words" />
       </Cartao>
       <Cartao titulo="COMO RECEBEU">
-        <GrupoPilulas opcoes={FORMAS.map((x) => ({ valor: x, titulo: x }))} valor={f.forma_pagamento} aoMudar={(v) => mudar({ forma_pagamento: v })} />
+        <FormaRecebimento titulo="" valor={lerValor(f.valor)} forma={f.forma_pagamento} aoMudar={(v) => mudar({ forma_pagamento: v })} />
         <Campo rotulo="Observação" valor={f.obs} aoMudar={(v) => mudar({ obs: v })} autoCapitalize="sentences" multilinha />
       </Cartao>
       {erro ? <Text style={s.erro} accessibilityLiveRegion="polite">{erro}</Text> : null}

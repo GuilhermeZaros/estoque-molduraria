@@ -367,6 +367,19 @@ function _resumoQuadros(quadros) {
   }).join('; ');
 }
 
+var TAXAS_MAQUININHA = {
+  'Débito': 0.98, 'Crédito 1x': 2.83, 'Crédito 2x': 4.05, 'Crédito 3x': 4.89, 'Crédito 4x': 5.75, 'Crédito 5x': 6.61,
+  'Crédito 6x': 7.49, 'Crédito 7x': 9.23, 'Crédito 8x': 10.11, 'Crédito 9x': 11.01, 'Crédito 10x': 11.91,
+  'Crédito 11x': 12.83, 'Crédito 12x': 13.75
+};
+
+function _recebimento(valor, forma) {
+  var bruto = Number((Number(valor) || 0).toFixed(2));
+  var pct = TAXAS_MAQUININHA[String(forma == null ? '' : forma).trim()] || 0;
+  var taxa = Math.round(Math.round(bruto * 100) * Math.round(pct * 100) / 10000) / 100;
+  return { bruto: bruto, pct: pct, taxa: taxa, liquido: Number((bruto - taxa).toFixed(2)) };
+}
+
 export {
   KERF_M,
   VARA_PADRAO_M,
@@ -403,5 +416,7 @@ export {
   _usosDeMoldura as usosDeMoldura,
   _consumoPorMoldura as consumoPorMoldura,
   _numeroCurto as numeroCurto,
-  _resumoQuadros as resumoQuadros
+  _resumoQuadros as resumoQuadros,
+  TAXAS_MAQUININHA,
+  _recebimento as recebimento
 };

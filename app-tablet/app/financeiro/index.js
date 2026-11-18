@@ -5,7 +5,7 @@ import { useEstado, central, api } from '../../src/estado';
 import { cofre } from '../../src/senhaFinanceiro';
 import { formatarReais, formatarNumero, lerValor } from '../../src/formato';
 import {
-  TIPOS, PERIODOS_VENDA, opcoesDeMes, textoVariacao, tomDaVariacao, validarSaldos, lancamentosPendentes
+  TIPOS, PERIODOS_VENDA, opcoesDeMes, textoVariacao, tomDaVariacao, validarSaldos, lancamentosPendentes, detalheLancamento
 } from '../../src/financeiro';
 import { Cartao } from '../../src/componentes/Cartao';
 import { Campo } from '../../src/componentes/Campo';
@@ -287,9 +287,7 @@ function Painel({ inicial, aoSair }) {
             <View style={s.lancTextos}>
               <Text style={s.lancDescricao} numberOfLines={2}>{l.descricao || l.categoria}</Text>
               <Text style={s.lancCategoria}>
-                {l.data + ((l.descricao && l.descricao !== l.categoria) || l.escopo === 'pessoal'
-                  ? '  ·  ' + l.categoria + (l.escopo === 'pessoal' ? ', pessoal' : '')
-                  : '')}
+                {detalheLancamento(l)}
               </Text>
             </View>
             <Text style={[s.lancValor, l.tipo === 'entrada' && s.entrada]}>

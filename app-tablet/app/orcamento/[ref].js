@@ -19,6 +19,8 @@ import { ListaQuadros } from '../../src/componentes/ListaQuadros';
 import { ResumoOrcamento } from '../../src/componentes/ResumoOrcamento';
 import { Botao } from '../../src/componentes/Botao';
 import { Dialogo } from '../../src/componentes/Dialogo';
+import { FormaRecebimento } from '../../src/componentes/FormaRecebimento';
+import { formaValida } from '../../src/financeiro';
 import { Interruptor } from '../../src/componentes/Interruptor';
 import { GrupoPilulas } from '../../src/componentes/Pilula';
 import { BarraSync } from '../../src/componentes/BarraSync';
@@ -53,6 +55,7 @@ export default function EditorOrcamento() {
   const [oficina, setOficina] = useState(true);
   const [prazo, setPrazo] = useState(7);
   const [pago, setPago] = useState(false);
+  const [forma, setForma] = useState('');
   const [desistir, setDesistir] = useState(false);
   const [erro, setErro] = useState('');
   const [mensagem, setMensagem] = useState('');
@@ -159,7 +162,7 @@ export default function EditorOrcamento() {
   };
   const fecharVenda = () => {
     const ordem = oficina ? { oficina: { prazo: prazoDe(prazo), descricao: descricaoDosQuadros(visivel, f.quadros) } } : {};
-    const venda = { ...dados(), encomendar: true, ...ordem, ...(pago ? { pago: true } : {}) };
+    const venda = { ...dados(), encomendar: true, ...ordem, ...(pago ? { pago: true, forma } : {}) };
     const comFotos = oficina ? fotosDaVenda(f, fotos) : [];
     setConfirmar(false);
     setFechada({ oficina, pago });
@@ -218,7 +221,7 @@ export default function EditorOrcamento() {
       </Cartao>
 
       <Cartao titulo="RESUMO">
-        <ResumoOrcamento rr={rr} aoFechar={() => { setOficina(true); setPrazo(7); setPago(false); setConfirmar(true); }} aoSalvar={salvar} aoWhatsApp={mandar}>
+        <ResumoOrcamento rr={rr} aoFechar={() => { setOficina(true); setPrazo(7); setPago(false); setForma(''); setConfirmar(true); }} aoSalvar={salvar} aoWhatsApp={mandar}>
           <BotaoImprimir
             desativado={!rr || !rr.ok}
             montar={papel}
@@ -262,11 +265,12 @@ export default function EditorOrcamento() {
           <Interruptor
             titulo="Cliente deixou pago"
             dica={pago
-              ? (rr && rr.ok ? formatarReais(rr.valor_final) + ' entra' : 'O valor entra') + ' no financeiro agora' + (oficina ? ' e a ordem fica marcada como paga.' : '.')
+              ? 'Entra no financeiro agora, já sem a taxa da maquininha' + (oficina ? ', e a ordem fica marcada como paga.' : '.')
               : oficina ? 'O valor entra no financeiro quando o cliente buscar.' : 'Nada vai pro financeiro.'}
             valor={pago}
             aoMudar={setPago}
           />
+          {pago ? <FormaRecebimento valor={rr && rr.ok ? rr.valor_final : 0} forma={forma} aoMudar={setForma} /> : null}
         </View>
         {oficina ? (
           <View style={s.fotos}>
@@ -290,7 +294,7 @@ export default function EditorOrcamento() {
             })}
           </View>
         ) : null}
-        <Botao grande icone="check-circle-outline" titulo="Confirmar venda" variante="ouro" onPress={fecharVenda} desativado={camera.ocupado != null} />
+        <Botao grande icone="check-circle-outline" titulo="Confirmar venda" variante="ouro" onPress={fecharVenda} desativado={camera.ocupado != null || (pago && !formaValida(forma))} />
         <Botao titulo="Voltar" variante="contorno" onPress={() => setConfirmar(false)} />
       </Dialogo>
       <Dialogo visivel={tirando != null} titulo="Tirar este quadro?" aoFechar={() => setTirando(null)}>

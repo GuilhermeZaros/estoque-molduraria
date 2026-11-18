@@ -61,7 +61,7 @@ var ABAS_FIN = {
 
 var CABECALHOS_FIN = {
   Saidas:       ['id', 'timestamp', 'data', 'descricao', 'valor', 'categoria', 'pagamento', 'obs', 'origem', 'tipo'],
-  Entradas:     ['id', 'timestamp', 'data', 'valor', 'forma_pagamento', 'cliente', 'obs', 'origem'],
+  Entradas:     ['id', 'timestamp', 'data', 'valor', 'forma_pagamento', 'cliente', 'obs', 'origem', 'valor_bruto', 'taxa'],
   ResumoMensal: ['mes', 'ano', 'entrada', 'saida', 'saldo', 'margem'],
   Usuarios:     ['email', 'senha', 'nome', 'ativo', 'papeis'],
   // Saldos: 1 linha de dados (conta + tesouro). atualizado_em vira string no retorno (regra de ouro).

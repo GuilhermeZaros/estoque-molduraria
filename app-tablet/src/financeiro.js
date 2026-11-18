@@ -1,8 +1,40 @@
-import { lerValor, formatarNumero } from './formato';
+import { lerValor, formatarNumero, formatarReais } from './formato';
+import { recebimento, TAXAS_MAQUININHA } from './gerado/nucleo';
 import { textoData, lerData } from './oficina';
 
 export const CATEGORIAS = ['Salários', 'Impostos', 'Contas', 'Matéria-Prima', 'Marketing', 'Financiamento', 'Frete', 'Outros'];
 export const FORMAS = ['Pix', 'Dinheiro', 'Débito', 'Crédito', 'Cartão parcelado', 'Cheque', 'Link', 'Boleto'];
+
+export const TIPOS_RECEBIMENTO = ['Dinheiro', 'Pix', 'Débito', 'Crédito'];
+export const PARCELAS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
+export function formaDe(tipo, parcelas) {
+  if (tipo === 'Crédito') return 'Crédito ' + (Number(parcelas) >= 1 && Number(parcelas) <= 12 ? Number(parcelas) : 1) + 'x';
+  return TIPOS_RECEBIMENTO.includes(tipo) ? tipo : '';
+}
+
+export function partesDaForma(forma) {
+  const t = String(forma == null ? '' : forma).trim();
+  const m = /^Crédito (\d{1,2})x$/.exec(t);
+  if (m) return { tipo: 'Crédito', parcelas: Number(m[1]) };
+  if (t === 'Crédito') return { tipo: 'Crédito', parcelas: 1 };
+  return { tipo: TIPOS_RECEBIMENTO.includes(t) ? t : '', parcelas: 1 };
+}
+
+export function formaValida(forma) {
+  return forma === 'Dinheiro' || forma === 'Pix' || Object.prototype.hasOwnProperty.call(TAXAS_MAQUININHA, forma);
+}
+
+function porcento(pct) {
+  return String(pct.toFixed(2)).replace('.', ',') + '%';
+}
+
+export function textoRecebimento(valor, forma) {
+  const r = recebimento(valor, forma);
+  const entra = 'Entra ' + formatarReais(r.liquido) + ' no financeiro.';
+  if (!r.pct) return 'Sem taxa. ' + entra;
+  return 'Taxa da maquininha ' + porcento(r.pct) + ': ' + formatarReais(r.taxa) + '. ' + entra;
+}
 export const TIPOS = [
   { valor: '', titulo: 'Tudo' },
   { valor: 'loja', titulo: 'Loja' },
@@ -54,7 +86,20 @@ export function gastoDoLancamento(l) {
 }
 
 export function vendaDoLancamento(l) {
-  return { data: l.data || '', valor: formatarNumero(l.valor), forma_pagamento: l.forma || '', cliente: l.cliente || '', obs: l.obs || '' };
+  const { tipo, parcelas } = partesDaForma(l.forma);
+  return {
+    data: l.data || '', valor: formatarNumero(l.valor_bruto || l.valor), forma_pagamento: formaDe(tipo, parcelas),
+    cliente: l.cliente || '', obs: l.obs || ''
+  };
+}
+
+export function detalheLancamento(l) {
+  if (l.tipo === 'entrada') {
+    return l.data + (l.forma ? '  ·  ' + l.forma : '') + (Number(l.taxa) > 0 ? ', taxa ' + formatarReais(l.taxa) : '');
+  }
+  return l.data + ((l.descricao && l.descricao !== l.categoria) || l.escopo === 'pessoal'
+    ? '  ·  ' + l.categoria + (l.escopo === 'pessoal' ? ', pessoal' : '')
+    : '');
 }
 
 export function lerLancamento(texto) {
@@ -67,12 +112,13 @@ export function lerLancamento(texto) {
 }
 
 export function vendaVazia(hoje = new Date()) {
-  return { data: dataDe(0, hoje), valor: '', forma_pagamento: 'Pix', cliente: '', obs: '' };
+  return { data: dataDe(0, hoje), valor: '', forma_pagamento: '', cliente: '', obs: '' };
 }
 
 export function validarVenda(f) {
   if (!(lerValor(f.valor) > 0)) return 'Informe um valor maior que zero.';
   if (!lerData(f.data)) return dataInvalida;
+  if (!formaValida(f.forma_pagamento)) return 'Escolha como o cliente pagou.';
   return '';
 }
 

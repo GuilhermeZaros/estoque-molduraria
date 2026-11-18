@@ -161,7 +161,7 @@ function _executarAcaoApp(acao, d) {
     case 'editarOrdem': return _editarOrdemNucleo(_acharOrdemApp(d), d);
     case 'marcarAcabamento': return _marcarAcabamentoNucleo(_acharOrdemApp(d));
     case 'marcarPronto': return _marcarProntoNucleo(_acharOrdemApp(d), 'app');
-    case 'marcarEntregue': return _marcarEntregueNucleo(_acharOrdemApp(d));
+    case 'marcarEntregue': return _marcarEntregueNucleo(_acharOrdemApp(d), d.forma);
     case 'fotoOrdem': return _appFotoOrdem(d);
     case 'tirarFotoOrdem': return _appTirarFotoOrdem(d);
     case 'lancarGasto': return _gravarGasto(d, 'tablet');
@@ -463,7 +463,7 @@ function _appFecharVenda(d) {
   }, 'app').id : '';
   var entradaId = pago && Number(o.valor_final) > 0
     ? _lancarEntrada(o.valor_final, String(d.cliente || '').trim() || o.id,
-      (ordemId ? 'Ordem ' + ordemId : 'Orçamento ' + o.id) + ', pago ao fechar a venda', 'venda')
+      (ordemId ? 'Ordem ' + ordemId : 'Orçamento ' + o.id) + ', pago ao fechar a venda', 'venda', d.forma)
     : '';
   var uma = molduras.length === 1 ? molduras[0] : null;
   return {

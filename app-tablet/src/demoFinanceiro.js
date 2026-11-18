@@ -1,3 +1,5 @@
+import { recebimento } from './gerado/nucleo';
+
 export const SENHA_DEMO = '123456';
 
 const MESES = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
@@ -13,7 +15,10 @@ const ms = (data) => {
   return new Date(a, m - 1, d).getTime();
 };
 
-const entrada = (id, data, valor, cliente, forma_pagamento = 'Pix') => ({ id, data, valor, cliente, forma_pagamento, origem: 'demo' });
+const entrada = (id, data, valor, cliente, forma_pagamento = 'Pix') => {
+  const r = recebimento(valor, forma_pagamento);
+  return { id, data, valor: r.liquido, valor_bruto: r.bruto, taxa: r.taxa, cliente, forma_pagamento, origem: 'demo' };
+};
 const saida = (id, data, valor, descricao, categoria, tipo = 'loja') => ({ id, data, valor, descricao, categoria, tipo, origem: 'demo' });
 
 function resumir(entradas, todasSaidas, mes, tipo) {
@@ -55,7 +60,7 @@ function resumir(entradas, todasSaidas, mes, tipo) {
   const lancamentos = [
     ...noMes(entradas).map((e) => ({
       _ms: ms(e.data), id: e.id, data: e.data, tipo: 'entrada', descricao: e.cliente || 'Venda', categoria: 'Venda', valor: e.valor,
-      cliente: e.cliente || '', forma: e.forma_pagamento || '', obs: e.obs || ''
+      cliente: e.cliente || '', forma: e.forma_pagamento || '', obs: e.obs || '', valor_bruto: e.valor_bruto || e.valor, taxa: e.taxa || 0
     })),
     ...saidasDoMes.map((s) => ({
       _ms: ms(s.data), id: s.id, data: s.data, tipo: 'saida', descricao: s.descricao, categoria: s.categoria, escopo: s.tipo, valor: s.valor,
@@ -178,7 +183,7 @@ export function criarFinanceiroDemo() {
       const i = lista.findIndex((x) => x.id === d.id);
       if (i < 0) return {};
       lista[i] = d.lancamento === 'entrada'
-        ? { ...lista[i], data: d.data, valor: Number(d.valor) || 0, cliente: d.cliente, forma_pagamento: d.forma_pagamento, obs: d.obs }
+        ? { ...entrada(d.id, d.data, Number(d.valor) || 0, d.cliente, d.forma_pagamento), obs: d.obs }
         : { ...lista[i], data: d.data, valor: Number(d.valor) || 0, descricao: d.descricao, categoria: d.categoria, tipo: d.tipo === 'pessoal' ? 'pessoal' : 'loja', pagamento: d.pagamento, obs: d.obs };
       return { id: d.id, valor: lista[i].valor };
     },
@@ -188,9 +193,9 @@ export function criarFinanceiroDemo() {
       if (i >= 0) lista.splice(i, 1);
       return { id: d.id };
     },
-    entradaDaOficina(ordem, data) {
+    entradaDaOficina(ordem, data, forma = '') {
       if (!(Number(ordem.valor) > 0) || ordem.pago) return false;
-      entradas.push(entrada(proximo('E', entradas), data, Number(ordem.valor), ordem.cliente, ''));
+      entradas.push(entrada(proximo('E', entradas), data, Number(ordem.valor), ordem.cliente, forma));
       return true;
     }
   };

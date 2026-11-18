@@ -1,7 +1,7 @@
 import {
   dataDe, gastoVazio, validarGasto, dadosDoGasto, vendaVazia, validarVenda, dadosDaVenda, validarSaldos,
   textoVariacao, tomDaVariacao, proporcao, opcoesDeMes, lancamentosPendentes, tetoBonito, rotuloEixo,
-  gastoDoLancamento, vendaDoLancamento, lerLancamento
+  gastoDoLancamento, vendaDoLancamento, lerLancamento, formaDe, partesDaForma, formaValida, textoRecebimento, detalheLancamento
 } from '../financeiro';
 import { criarCofre } from '../senhaFinanceiro';
 
@@ -33,8 +33,8 @@ test('venda precisa de valor e data válida', () => {
   const f = vendaVazia(hoje);
   expect(validarVenda(f)).toBe('Informe um valor maior que zero.');
   expect(validarVenda({ ...f, valor: 'abc' })).toBe('Informe um valor maior que zero.');
-  expect(validarVenda({ ...f, valor: '250' })).toBe('');
-  expect(dadosDaVenda({ ...f, valor: '250', cliente: ' Rui ' })).toEqual({
+  expect(validarVenda({ ...f, valor: '250', forma_pagamento: 'Pix' })).toBe('');
+  expect(dadosDaVenda({ ...f, valor: '250', forma_pagamento: 'Pix', cliente: ' Rui ' })).toEqual({
     data: '01/11/2026', valor: 250, forma_pagamento: 'Pix', cliente: 'Rui', obs: ''
   });
 });
@@ -126,4 +126,24 @@ test('lançamento do extrato vira o formulário de editar e conta como pendente'
   expect(lerLancamento(JSON.stringify({ valor: 1 }))).toBe(null);
   expect(lerLancamento(undefined)).toBe(null);
   expect(lancamentosPendentes([{ acao: 'editarLancamento' }, { acao: 'apagarLancamento' }, { acao: 'fotoOrdem' }])).toBe(2);
+});
+
+test('forma de recebimento: tipo, parcelas, taxa e texto', () => {
+  expect(formaDe('Crédito', 3)).toBe('Crédito 3x');
+  expect(formaDe('Crédito', 40)).toBe('Crédito 1x');
+  expect(formaDe('Débito', 5)).toBe('Débito');
+  expect(formaDe('Cheque', 1)).toBe('');
+  expect(partesDaForma('Crédito 12x')).toEqual({ tipo: 'Crédito', parcelas: 12 });
+  expect(partesDaForma('Crédito')).toEqual({ tipo: 'Crédito', parcelas: 1 });
+  expect(partesDaForma('Boleto')).toEqual({ tipo: '', parcelas: 1 });
+  expect(formaValida('Crédito 7x')).toBe(true);
+  expect(formaValida('Pix')).toBe(true);
+  expect(formaValida('')).toBe(false);
+  expect(formaValida('Crédito')).toBe(false);
+  expect(textoRecebimento(100, 'Débito')).toBe('Taxa da maquininha 0,98%: R$ 0,98. Entra R$ 99,02 no financeiro.');
+  expect(textoRecebimento(100, 'Dinheiro')).toBe('Sem taxa. Entra R$ 100,00 no financeiro.');
+  expect(validarVenda({ data: '01/11/2026', valor: '50', forma_pagamento: '' })).toBe('Escolha como o cliente pagou.');
+  expect(vendaDoLancamento({ id: 'E-1', data: '01/11/2026', valor: 97.17, valor_bruto: 100, forma: 'Crédito 1x' }).valor).toBe('100');
+  expect(detalheLancamento({ tipo: 'entrada', data: '01/11/2026', forma: 'Crédito 1x', taxa: 2.83 })).toBe('01/11/2026  ·  Crédito 1x, taxa R$ 2,83');
+  expect(detalheLancamento({ tipo: 'entrada', data: '01/11/2026', forma: '', taxa: 0 })).toBe('01/11/2026');
 });
