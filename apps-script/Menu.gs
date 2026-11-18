@@ -13,6 +13,7 @@ function onOpen() {
     .addItem('Criar aba Oficina + papéis (e gerar token do bot)', 'prepararOficina')
     .addItem('Preparar app do tablet (abas + senha)', 'prepararAppTablet')
     .addItem('Senha do financeiro (app)', 'definirSenhaFinanceiro')
+    .addItem('Autorizar fotos da oficina (Drive)', 'autorizarFotos')
     .addSeparator()
     .addItem('Remover coluna Modelo das molduras (1x)', 'removerColunaModelo')
     .addItem('Importar custos das molduras (do relatório)', 'importarCustosMolduras')

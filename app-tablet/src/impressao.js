@@ -64,7 +64,7 @@ function modeloOrdem(pacote, o, fotos) {
     ? quadros.map((q, i) => ({
       titulo: tituloDoQuadro(q, i, quadros.length),
       descricao: limpo(q.descricao),
-      acrescimo: acrescimoDoQuadro(q, pacote),
+      acrescimo: acrescimoDoQuadro(q),
       detalhes: detalhesDoQuadro(pacote, q),
       foto: (fotos && fotos[i + 1]) || ''
     }))

@@ -107,36 +107,18 @@ function linhasDasMolduras(pacote, q) {
   return [linhaDaMoldura(pacote, q.moldura, 'Moldura por dentro'), linhaDaMoldura(pacote, q.moldura_fora, 'Moldura por fora')];
 }
 
-function perfilDaMoldura(pacote, codigo) {
-  const m = ((pacote && pacote.molduras) || []).find((x) => x.codigo === codigo);
-  return m ? Number(m.perfil_cm) || 0 : 0;
-}
-
 const medidaCm = (l, a) => formatarNumero(l) + ' x ' + formatarNumero(a) + ' cm';
 const juntar = (lista) => (lista.length > 1 ? lista.slice(0, -1).join(', ') + ' e ' + lista[lista.length - 1] : lista[0]);
 
-export function acrescimoDoQuadro(q, pacote) {
+export function acrescimoDoQuadro(q) {
   const l = Number(q.largura_cm) || 0;
   const a = Number(q.altura_cm) || 0;
   const borda = bordaDoQuadro(q);
   const temFora = !!(q.moldura && q.moldura_fora);
-  if ((!(borda.cm > 0) && !temFora) || !(l > 0) || !(a > 0)) return null;
+  if (!(borda.cm > 0) || !(l > 0) || !(a > 0)) return null;
   const objeto = q.tipo === 'objeto' || q.tipo === 'camiseta';
   const final = medidaExterna(l, a, borda.cm);
   const cm = formatarNumero(borda.cm) + ' cm';
-  const contas = [];
-  if (borda.cm > 0) {
-    contas.push((objeto ? 'Objeto ' : 'Foto ') + medidaCm(l, a) + ' + '
-      + (borda.paspatur ? 'paspatur de ' + cm + ' de cada lado' : 'borda de ' + cm + (objeto ? ' em volta' : ' de cada lado')));
-  }
-  let fora = '';
-  if (temFora) {
-    const perfil = perfilDaMoldura(pacote, q.moldura);
-    fora = ' e a moldura de fora em ' + medidaCm(final.largura + 2 * perfil, final.altura + 2 * perfil);
-    contas.push(perfil > 0
-      ? (contas.length ? 'moldura de fora: ' : 'Moldura de fora: ') + medidaCm(final.largura, final.altura) + ' + ' + formatarNumero(perfil) + ' cm da moldura de dentro de cada lado'
-      : (contas.length ? 'a' : 'A') + ' moldura de dentro está sem perfil cadastrado: confira a medida da de fora');
-  }
   const pecas = [
     q.moldura && (temFora ? 'a moldura de dentro' : 'a moldura'),
     q.vidro && (q.vidro_duplo ? 'os 2 vidros' : 'o vidro'),
@@ -145,8 +127,9 @@ export function acrescimoDoQuadro(q, pacote) {
     borda.paspatur && 'o paspatur'
   ].filter(Boolean);
   return {
-    cortar: (pecas.length ? 'Cortar ' + juntar(pecas) + ' em ' : 'O quadro fica ') + medidaCm(final.largura, final.altura) + fora,
-    conta: contas.join('; ')
+    cortar: (pecas.length ? 'Cortar ' + juntar(pecas) + ' em ' : 'O quadro fica ') + medidaCm(final.largura, final.altura),
+    conta: (objeto ? 'Objeto ' : 'Foto ') + medidaCm(l, a) + ' + '
+      + (borda.paspatur ? 'paspatur de ' + cm + ' de cada lado' : 'borda de ' + cm + (objeto ? ' em volta' : ' de cada lado'))
   };
 }
 

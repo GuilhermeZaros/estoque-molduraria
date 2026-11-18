@@ -246,20 +246,17 @@ test('descrição da ordem: tela leva o chassi com as travas e a moldura', () =>
   ])).toBe('2x Tela 150 x 70, chassi com 2 travas, moldura Rústica natural; Tela 80 x 60, chassi sem trava');
 });
 
-test('duas molduras na oficina: por dentro e por fora, com a medida de corte de cada uma', () => {
+test('duas molduras na oficina: por dentro e por fora, sem aviso de que o quadro cresce', () => {
   const pacote = { ...pacoteOficina, molduras: [{ codigo: 'D-104', nome: 'Rústica natural', local: 'CR1-F3', perfil_cm: 2 }, { codigo: 'D-109', nome: 'Madeira escura', local: '', perfil_cm: 4 }] };
   const q = quadroSalvo({ paspatur_cm: 5, moldura: 'D-104', moldura_fora: 'D-109', vidro: 'VID-001' });
   expect(detalhesDoQuadro(pacote, q).slice(0, 2).map((d) => [d.rotulo, d.valor])).toEqual([
     ['Moldura por dentro', 'Rústica natural (D-104)'], ['Moldura por fora', 'Madeira escura (D-109)']
   ]);
-  expect(acrescimoDoQuadro(q, pacote)).toEqual({
-    cortar: 'Cortar a moldura de dentro, o vidro e o paspatur em 40 x 50 cm e a moldura de fora em 44 x 54 cm',
-    conta: 'Foto 30 x 40 cm + paspatur de 5 cm de cada lado; moldura de fora: 40 x 50 cm + 2 cm da moldura de dentro de cada lado'
+  expect(acrescimoDoQuadro(q)).toEqual({
+    cortar: 'Cortar a moldura de dentro, o vidro e o paspatur em 40 x 50 cm',
+    conta: 'Foto 30 x 40 cm + paspatur de 5 cm de cada lado'
   });
-  expect(acrescimoDoQuadro(quadroSalvo({ moldura: 'D-104', moldura_fora: 'D-109' }), pacote)).toEqual({
-    cortar: 'Cortar a moldura de dentro em 30 x 40 cm e a moldura de fora em 34 x 44 cm',
-    conta: 'Moldura de fora: 30 x 40 cm + 2 cm da moldura de dentro de cada lado'
-  });
+  expect(acrescimoDoQuadro(quadroSalvo({ moldura: 'D-104', moldura_fora: 'D-109' }))).toBe(null);
   expect(descricaoDosQuadros(pacote, [{ tipo: 'quadro', largura: '30', altura: '40', quantidade: 1, moldura: 'D-104', moldura_fora: 'D-109', servicos: [] }]))
     .toBe('Quadro 30 x 40, moldura por dentro Rústica natural, moldura por fora Madeira escura');
 });
