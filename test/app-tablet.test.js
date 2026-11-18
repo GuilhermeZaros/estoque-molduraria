@@ -1393,6 +1393,24 @@ test('editarMoldura: muda tudo menos código e estoque; custo volta no appSync; 
   assert.equal(dados.Historico.filter((h) => h.Tipo_movimentacao === 'edicao').length, 3);
 });
 
+test('fotoMoldura troca só a foto, mesmo sem perfil cadastrado', () => {
+  const { ctx, dados } = montar({ Molduras: [moldura(5, { Largura_perfil_cm: '', Valor_por_metro: 40 })] });
+  ctx.Utilities = { base64Decode: (s) => s, newBlob: (bytes, mime, nome) => ({ bytes, mime, nome }) };
+  ctx.DriveApp = {
+    Access: { ANYONE_WITH_LINK: 'link' },
+    Permission: { VIEW: 'ver' },
+    getFolderById: () => ({ createFile: () => ({ getId: () => 'F9', setSharing: () => {} }) })
+  };
+  ctx.FOTO_PASTA_ID = 'pasta-das-fotos';
+  const r =js(ctx.appExecutar({ id_op: 'op-00000690', acao: 'fotoMoldura', dados: { codigo: 'M1', foto_base64: 'AAA', foto_tipo: 'image/jpeg' } }));
+  const m = dados.Molduras[0];
+  assert.ok(r.resultado.foto_url);
+  assert.equal(m.Foto_URL, r.resultado.foto_url);
+  assert.deepEqual([m.Largura_perfil_cm, m.Valor_por_metro, m.Estoque_atual_m], ['', 40, 5]);
+  assert.throws(() => ctx.appExecutar({ id_op: 'op-00000691', acao: 'fotoMoldura', dados: { codigo: 'M1', foto_base64: '' } }), /vazia/);
+  assert.throws(() => ctx.appExecutar({ id_op: 'op-00000692', acao: 'fotoMoldura', dados: { codigo: 'NAO', foto_base64: 'A' } }), /não encontrada/);
+});
+
 test('editarMoldura troca o código e leva junto pros orçamentos, quadros, compras e oficina', () => {
   const quebras = JSON.stringify([{ id: 'qb1', quadro: 1, moldura: 'M1', lado_cm: 30, quantidade: 1, metros: 0.4 }]);
   const cortes = JSON.stringify([{ codigo: 'M1', usos: [], faltam: [] }, { codigo: 'X9', usos: [], faltam: [] }]);

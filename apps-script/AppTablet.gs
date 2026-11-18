@@ -187,6 +187,7 @@ function _executarAcaoApp(acao, d) {
     case 'tirarLadoAMais': return _appTirarLadoAMais(d);
     case 'editarMoldura': return _appEditarMoldura(d);
     case 'excluirMoldura': return _appExcluirMoldura(d);
+    case 'fotoMoldura': return _appFotoMoldura(d);
     case 'lancarGasto': return _gravarGasto(d, 'tablet');
     case 'lancarVenda': return _gravarVenda(d, 'tablet');
     case 'ajustarSaldos': return _gravarSaldos(d);
@@ -936,6 +937,19 @@ function _ondeAMolduraEsta(codigo) {
 
 function _juntarComE(lista) {
   return lista.length > 1 ? lista.slice(0, -1).join(', ') + ' e ' + lista[lista.length - 1] : lista.join('');
+}
+
+function _appFotoMoldura(d) {
+  var p = _molduraOuErro(d.codigo);
+  if (!d.foto_base64) throw new Error('A foto chegou vazia. Tire de novo.');
+  var codigo = String(p.dados.Codigo);
+  var url = _salvarFotoMoldura(codigo, d.foto_base64, d.foto_tipo);
+  atualizarCampos(ABAS.MOLDURAS, p.dados._linha, { Foto_URL: url });
+  registrarHistorico({
+    tipo: 'edicao', categoria: 'moldura', produto: String(p.dados.Nome || ''), quantidade: '', unidade: '',
+    observacoes: 'foto trocada' + (d.atendente ? ' (' + d.atendente + ')' : ''), codigo: codigo
+  });
+  return { codigo: codigo, foto_url: url };
 }
 
 function _appExcluirMoldura(d) {
