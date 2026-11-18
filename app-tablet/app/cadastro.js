@@ -6,7 +6,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useEstado, central } from '../src/estado';
 import { nomeCasinha, normalizarCasinha, validarNovaMoldura } from '../src/gerado/nucleo';
 import { prepararFoto, primeiraFoto } from '../src/foto';
-import { totalMetros } from '../src/varas';
+import { totalMetros, numeroDoPerfil } from '../src/varas';
 import { Botao } from '../src/componentes/Botao';
 import { Campo } from '../src/componentes/Campo';
 import { CampoMetros } from '../src/componentes/CampoMetros';
@@ -20,7 +20,7 @@ export default function Cadastro() {
   const casinha = normalizarCasinha(param);
   const visivel = useEstado((s) => s.visivel);
   const [campos, setCampos] = useState(VAZIO);
-  const [metros, setMetros] = useState({ varas: '', extra: '' });
+  const [metros, setMetros] = useState({ varas: '', extra: '', pedacos: [] });
   const [foto, setFoto] = useState(null);
   const [erro, setErro] = useState('');
   const [ocupado, setOcupado] = useState(false);
@@ -56,7 +56,7 @@ export default function Cadastro() {
 
   const salvar = async () => {
     setErro('');
-    const total = totalMetros(metros);
+    const total = totalMetros(metros, numeroDoPerfil(campos.perfil_cm));
     if (total == null) {
       setErro('Informe quanto tem dessa moldura (0 se não tem).');
       return;
@@ -116,7 +116,7 @@ export default function Cadastro() {
         teclado="decimal-pad"
         dica="Sem preço ela fica fora do catálogo: não aparece pra Julia nem no orçamento até alguém pôr o preço na planilha."
       />
-      <CampoMetros valor={metros} aoMudar={setMetros} rotulo="Quanto tem" />
+      <CampoMetros valor={metros} aoMudar={setMetros} rotulo="Quanto tem" pedacos perfilCm={numeroDoPerfil(campos.perfil_cm)} />
       <Campo rotulo="Estilo (se quiser)" valor={campos.estilo} aoMudar={mudar('estilo')} autoCapitalize="sentences" />
       <Campo rotulo="Cor (se quiser)" valor={campos.cor} aoMudar={mudar('cor')} autoCapitalize="sentences" />
       {erro ? <Text style={s.erro} accessibilityLiveRegion="assertive">{erro}</Text> : null}

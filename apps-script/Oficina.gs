@@ -50,7 +50,8 @@ function _ordemParaApp(o, quadrosPorRef) {
     valor: Number(o.Valor) || 0, status: String(o.Status || ''), aviso: String(o.Aviso || ''),
     data_criacao: _isoOuTexto(o.Data_criacao), data_pronto: _isoOuTexto(o.Data_pronto),
     data_entrega: _isoOuTexto(o.Data_entrega), fotos: _fotosDaLinha(o.Fotos), pago: _ehVerdade(o.Pago),
-    quadros: _quadrosDaOrdem(o, quadrosPorRef)
+    quadros: _quadrosDaOrdem(o, quadrosPorRef),
+    quebras: _lerQuebras(o.Quebras)
   };
 }
 
@@ -61,6 +62,24 @@ function _fotosDaLinha(v) {
     if (m) fotos.push({ url: m[2], quadro: m[1] ? Number(m[1]) : 0 });
   });
   return fotos;
+}
+
+function _lerQuebras(v) {
+  var lista;
+  try {
+    lista = JSON.parse(String(v == null || v === '' ? '[]' : v));
+  } catch (e) {
+    return [];
+  }
+  if (!Array.isArray(lista)) return [];
+  return lista.filter(function (x) { return x && x.id; }).map(function (x) {
+    return {
+      id: String(x.id), quadro: Math.round(Number(x.quadro) || 0), fora: x.fora === true,
+      moldura: String(x.moldura || ''), lado_cm: Number(x.lado_cm) || 0,
+      quantidade: Math.max(1, Math.round(Number(x.quantidade) || 1)), metros: Number(x.metros) || 0,
+      data: String(x.data || '')
+    };
+  });
 }
 
 function _linhaDasFotos(fotos) {

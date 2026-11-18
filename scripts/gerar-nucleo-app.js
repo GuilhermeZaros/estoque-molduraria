@@ -6,14 +6,14 @@ const raiz = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const DESTINO = path.join(raiz, 'app-tablet', 'src', 'gerado', 'nucleo.js');
 
 const PECAS = {
-  'Calculo.gs': ['KERF_M', 'VARA_PADRAO_M', 'perimetroM', 'areaM2', 'consumoMolduraM', 'TAXA_PINTURA_CHAPA',
+  'Calculo.gs': ['KERF_M', 'VARA_PADRAO_M', 'desencabecoM', 'consumoLadoM', 'perimetroM', 'areaM2', 'consumoMolduraM', 'TAXA_PINTURA_CHAPA',
     'SILICONE_POR_METRO', 'PRECO_CHASSI_M', '_arredondarPraCima', 'travasDoChassi', '_numeroDaConta', '_metrosDaConta', '_linhaDoChassi',
     'calcularOrcamento'],
   'Catalogo.gs': ['_ehDisponivel'],
   'AppNucleo.gs': ['LADOS_CORREDOR', '_casinhasDoDeposito', '_normalizarCasinha', '_casinhaValida',
     '_nomeCasinha', '_corEstoque', '_metros', '_abaterFaltas', '_validarNovaMoldura', '_medidaExterna',
     '_servicosDoQuadro', '_totaisOrcamentoApp', '_ehObjeto', '_ehTela', '_planejarBaixaMoldura', '_quadrosDoPedido', '_bordaDoQuadro', '_usosDeMoldura', '_consumoPorMoldura',
-    '_numeroCurto', '_resumoQuadros', 'TAXAS_MAQUININHA', '_recebimento']
+    '_numeroCurto', '_resumoQuadros', 'TAXAS_MAQUININHA', '_recebimento', '_ladosDaMoldura', '_textoQuebra']
 };
 
 function extrair(src, nome, arquivo) {

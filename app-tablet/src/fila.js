@@ -9,6 +9,8 @@ const DESCRICOES = {
   descartarOrcamento: (d) => 'descartar orçamento de ' + (d.cliente || 'cliente sem nome'),
   fotoOrdem: (d) => 'foto da ordem de ' + (d.cliente || 'cliente sem nome'),
   tirarFotoOrdem: (d) => 'tirar foto da ordem de ' + (d.cliente || 'cliente sem nome'),
+  ladoAMais: (d) => 'lado a mais na ordem de ' + (d.cliente || 'cliente sem nome'),
+  tirarLadoAMais: (d) => 'tirar lado a mais da ordem de ' + (d.cliente || 'cliente sem nome'),
   zerarNaoEncontradas: (d) => 'zerar ' + (d.codigos || []).length + ' molduras não achadas'
 };
 

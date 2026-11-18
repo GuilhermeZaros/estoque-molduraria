@@ -1300,3 +1300,57 @@ test('tela sem chassi: servidor não cobra chassi, aceita vidro e grava Sem_chas
   const aberto = js(ctx.appSync()).orcamentos_abertos[0];
   assert.deepEqual(aberto.quadros.map((x) => x.sem_chassi), [true, false]);
 });
+
+test('lado de moldura: 4 lados somam o consumo do quadro; desencabeço cresce com o perfil', () => {
+  const { ctx } = montar({});
+  const lados = 2 * ctx.consumoLadoM(90, 2) + 2 * ctx.consumoLadoM(60, 2);
+  assert.ok(Math.abs(lados - ctx.consumoMolduraM(90, 60, 2)) < 0.005);
+  assert.equal(ctx.consumoLadoM(60, 3), 0.706);
+  assert.equal(ctx.consumoLadoM(60, 0), 0.6);
+  assert.equal(ctx.consumoLadoM(0, 3), 0);
+  assert.equal(ctx.desencabecoM(2), 0.0303);
+  assert.equal(ctx.desencabecoM(5), 0.0727);
+  assert.equal(ctx.desencabecoM(''), 0);
+  assert.deepEqual(js(ctx._ladosDaMoldura({ tipo: 'quadro', largura_cm: 60, altura_cm: 60 }, 0, false)), [60]);
+  assert.deepEqual(js(ctx._ladosDaMoldura({ tipo: 'quadro', largura_cm: 30, altura_cm: 40, paspatur_cm: 5 }, 0, false)), [50, 40]);
+  assert.deepEqual(js(ctx._ladosDaMoldura({ tipo: 'quadro', largura_cm: 30, altura_cm: 40, paspatur_cm: 5 }, 3, true)), [56, 46]);
+  assert.equal(ctx._textoQuebra({ quantidade: 2, lado_cm: 60 }), '2 lados de 60 cm');
+  assert.equal(ctx._textoQuebra({ quantidade: 1, lado_cm: 66.5, fora: true }), '1 lado de 66,5 cm (moldura de fora)');
+});
+
+test('lado a mais na ordem: baixa a moldura com a perda, não repete, valida o lado e tirar devolve', () => {
+  const { ctx, dados } = montar({
+    Molduras: [moldura(27), moldura(5, { Codigo: 'M2', Nome: 'Lisa preta 2cm', Largura_perfil_cm: 2 })],
+    Orcamento_quadros: [{ Orcamento: 'ORC-0007', Ref_app: 'r7', N: 1, Tipo: 'quadro', Largura_cm: 60, Altura_cm: 60, Quantidade: 1, Moldura: 'M1', Moldura_fora: 'M2' }],
+    Oficina: [ordem({ Ref_app: 'orc-r7' })]
+  });
+  const lado = (id_op, extra) => js(ctx.appExecutar({ id_op, acao: 'ladoAMais', dados: { id: 'OS-001', quadro: 1, lado_cm: 60, quantidade: 2, id_quebra: 'qb-1', ...extra } }));
+  const r = lado('op-00000500');
+  assert.equal(r.resultado.quebra.metros, 1.412);
+  assert.equal(dados.Molduras[0].Estoque_atual_m, 25.588);
+  lado('op-00000501');
+  assert.equal(dados.Molduras[0].Estoque_atual_m, 25.588);
+  lado('op-00000502', { id_quebra: 'qb-2', fora: true, lado_cm: 66, quantidade: 1 });
+  assert.equal(dados.Molduras[1].Estoque_atual_m, 4.268);
+  assert.throws(() => lado('op-00000503', { id_quebra: 'qb-3', lado_cm: 50 }), /não é deste quadro/);
+  assert.throws(() => lado('op-00000504', { id_quebra: 'qb-4', quantidade: 0 }), /Quantidade/);
+  assert.throws(() => lado('op-00000505', { id_quebra: 'qb-5', quadro: 2 }), /Quadro não encontrado/);
+  const ordemNoApp = js(ctx.appSync()).oficina.find((o) => o.id === 'OS-001');
+  assert.deepEqual(ordemNoApp.quebras.map((x) => [x.id, x.moldura, x.quantidade, x.fora]), [['qb-1', 'M1', 2, false], ['qb-2', 'M2', 1, true]]);
+  assert.deepEqual(dados.Historico.filter((h) => h.Tipo_movimentacao === 'quebra').map((h) => h.Quantidade), [1.412, 0.732]);
+  const t = js(ctx.appExecutar({ id_op: 'op-00000506', acao: 'tirarLadoAMais', dados: { id: 'OS-001', id_quebra: 'qb-1' } }));
+  assert.equal(t.resultado.devolvido_m, 1.412);
+  assert.equal(dados.Molduras[0].Estoque_atual_m, 27);
+  assert.deepEqual(js(ctx.appSync()).oficina[0].quebras.map((x) => x.id), ['qb-2']);
+});
+
+test('lado a mais com pouco estoque: baixa só o que tem e fica zero', () => {
+  const { ctx, dados } = montar({
+    Molduras: [moldura(0.5)],
+    Orcamento_quadros: [{ Orcamento: 'ORC-0007', Ref_app: 'r7', N: 1, Tipo: 'quadro', Largura_cm: 60, Altura_cm: 40, Quantidade: 1, Moldura: 'M1' }],
+    Oficina: [ordem({ Ref_app: 'orc-r7' })]
+  });
+  const r = js(ctx.appExecutar({ id_op: 'op-00000510', acao: 'ladoAMais', dados: { ref_app: 'orc-r7', quadro: 1, lado_cm: 40, quantidade: 3, id_quebra: 'qb-9' } }));
+  assert.equal(r.resultado.quebra.metros, 0.5);
+  assert.equal(dados.Molduras[0].Estoque_atual_m, 0);
+});

@@ -183,6 +183,8 @@ function _executarAcaoApp(acao, d) {
     case 'marcarEntregue': return _marcarEntregueNucleo(_acharOrdemApp(d), d.forma);
     case 'fotoOrdem': return _appFotoOrdem(d);
     case 'tirarFotoOrdem': return _appTirarFotoOrdem(d);
+    case 'ladoAMais': return _appLadoAMais(d);
+    case 'tirarLadoAMais': return _appTirarLadoAMais(d);
     case 'lancarGasto': return _gravarGasto(d, 'tablet');
     case 'lancarVenda': return _gravarVenda(d, 'tablet');
     case 'ajustarSaldos': return _gravarSaldos(d);
@@ -690,4 +692,68 @@ function _appZerarNaoEncontradas(d) {
     zeradas.push(cod);
   });
   return { zeradas: zeradas };
+}
+
+var LADOS_A_MAIS_MAXIMO = 20;
+
+function _perfilDaMoldura(p) {
+  return Number(p.dados.Largura_perfil_cm) || 0;
+}
+
+function _appLadoAMais(d) {
+  garantirColunas(ABAS_FIN.OFICINA, CABECALHOS_FIN.Oficina);
+  var o = _acharOrdemApp(d);
+  var idQuebra = String(d.id_quebra || '');
+  if (!idQuebra) throw new Error('Lado a mais sem identificação.');
+  var quebras = _lerQuebras(o.Quebras);
+  var ja = quebras.filter(function (x) { return x.id === idQuebra; })[0];
+  if (ja) return { id: String(o.ID), quebra: ja };
+  var n = Math.round(Number(d.quadro) || 0);
+  var q = _quadrosDaOrdem(o, _quadrosPorRef(_lerAbaApp(ABAS_APP.QUADROS)))[n - 1];
+  if (!q) throw new Error('Quadro não encontrado nesta ordem.');
+  var fora = d.fora === true || String(d.fora).toUpperCase() === 'TRUE';
+  var codigo = fora ? q.moldura_fora : q.moldura;
+  if (!codigo) throw new Error(fora ? 'Esse quadro não tem moldura por fora.' : 'Esse quadro não tem moldura.');
+  var p = _molduraOuErro(codigo);
+  var perfilDentro = fora && q.moldura ? _perfilDaMoldura(_molduraOuErro(q.moldura)) : 0;
+  var lado = Number(d.lado_cm);
+  var lados = _ladosDaMoldura(q, perfilDentro, fora);
+  if (!lados.some(function (x) { return Math.abs(x - lado) < 0.05; })) throw new Error('Esse lado não é deste quadro.');
+  var quantidade = Math.round(Number(d.quantidade) || 0);
+  if (quantidade < 1 || quantidade > LADOS_A_MAIS_MAXIMO) throw new Error('Quantidade de lados inválida.');
+  var plano = _planejarBaixaMoldura(p.dados.Estoque_atual_m, quantidade * consumoLadoM(lado, _perfilDaMoldura(p)));
+  atualizarCampos(ABAS.MOLDURAS, p.dados._linha, { Estoque_atual_m: plano.novo_estoque });
+  var quebra = {
+    id: idQuebra, quadro: n, fora: fora, moldura: String(p.dados.Codigo), lado_cm: lado,
+    quantidade: quantidade, metros: plano.baixa, data: new Date().toISOString()
+  };
+  quebras.push(quebra);
+  atualizarCampos(ABAS_FIN.OFICINA, o._linha, { Quebras: JSON.stringify(quebras) });
+  registrarHistorico({
+    tipo: 'quebra', categoria: 'moldura', produto: p.dados.Nome, quantidade: plano.baixa, unidade: 'm',
+    observacoes: 'ordem ' + o.ID + ': quebrou ' + _textoQuebra(quebra) + (d.atendente ? '; ' + d.atendente : ''),
+    codigo: p.dados.Codigo
+  });
+  return { id: String(o.ID), quebra: quebra, novo_estoque_m: plano.novo_estoque };
+}
+
+function _appTirarLadoAMais(d) {
+  garantirColunas(ABAS_FIN.OFICINA, CABECALHOS_FIN.Oficina);
+  var o = _acharOrdemApp(d);
+  var idQuebra = String(d.id_quebra || '');
+  var quebras = _lerQuebras(o.Quebras);
+  var quebra = quebras.filter(function (x) { return x.id === idQuebra; })[0];
+  if (!quebra) return { id: String(o.ID), devolvido_m: 0 };
+  var p = _molduraOuErro(quebra.moldura);
+  var novo = Number(((Number(p.dados.Estoque_atual_m) || 0) + quebra.metros).toFixed(3));
+  atualizarCampos(ABAS.MOLDURAS, p.dados._linha, { Estoque_atual_m: novo });
+  atualizarCampos(ABAS_FIN.OFICINA, o._linha, {
+    Quebras: JSON.stringify(quebras.filter(function (x) { return x.id !== idQuebra; }))
+  });
+  registrarHistorico({
+    tipo: 'ajuste', categoria: 'moldura', produto: p.dados.Nome, quantidade: quebra.metros, unidade: 'm',
+    observacoes: 'ordem ' + o.ID + ': tirou o lado a mais (' + _textoQuebra(quebra) + ')' + (d.atendente ? '; ' + d.atendente : ''),
+    codigo: p.dados.Codigo
+  });
+  return { id: String(o.ID), devolvido_m: quebra.metros, novo_estoque_m: novo };
 }

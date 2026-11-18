@@ -273,3 +273,20 @@ test('venda paga cria a ordem marcada como paga; sem pago fica sem marca', () =>
   const { pago, ...naoPago } = d;
   expect(aplicarOperacao(comOficina, opEm('fecharVenda', naoPago)).oficina[0].pago).toBe(false);
 });
+
+test('lado a mais: põe na ordem, baixa a moldura uma vez só e tirar devolve', () => {
+  const comOrdem = { ...base, oficina: [{ id: 'OS-001', ref_app: 'orc-r1', cliente: 'Rita', quebras: [] }] };
+  const dados = { id: 'OS-001', quadro: 1, fora: false, lado_cm: 60, quantidade: 2, id_quebra: 'qb-1', moldura: '202', metros: 1.38 };
+  const p = aplicarOperacao(comOrdem, op('ladoAMais', dados));
+  expect(achar(p, '202').estoque_m).toBe(8.62);
+  expect(p.oficina[0].quebras.map((x) => [x.id, x.quantidade, x.metros])).toEqual([['qb-1', 2, 1.38]]);
+  expect(aplicarOperacao(p, op('ladoAMais', dados))).toBe(p);
+  const doServidor = aplicarOperacao(comOrdem, op('ladoAMais', dados), {
+    quebra: { ...dados, id: 'qb-1', metros: 1.4 }, novo_estoque_m: 8.6
+  });
+  expect(achar(doServidor, '202').estoque_m).toBe(8.6);
+  const tirado = aplicarOperacao(p, op('tirarLadoAMais', { id: 'OS-001', id_quebra: 'qb-1' }));
+  expect(achar(tirado, '202').estoque_m).toBe(10);
+  expect(tirado.oficina[0].quebras).toEqual([]);
+  expect(aplicarOperacao(tirado, op('tirarLadoAMais', { id: 'OS-001', id_quebra: 'qb-1' }))).toBe(tirado);
+});

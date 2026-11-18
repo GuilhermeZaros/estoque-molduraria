@@ -1,7 +1,8 @@
 import {
   prazoDe, lerData, prazoVencido, deOrdem, validarOrdem, dadosDaOrdem, descricaoDosQuadros, resumoOficina,
   chaveDaOrdem, alvoDaOrdem, mesesRecentes, textoPrazo, ordenarProducao, textoAviso, fotosDaOrdem, fotosDoQuadro,
-  ordemVazia, LIMITE_FOTOS, tituloDoQuadro, detalhesDoQuadro, dadosDaFoto, dadosDeTirarFoto, acrescimoDoQuadro, fotosDaVenda
+  ordemVazia, LIMITE_FOTOS, tituloDoQuadro, detalhesDoQuadro, dadosDaFoto, dadosDeTirarFoto, acrescimoDoQuadro, fotosDaVenda,
+  opcoesDoLadoAMais, metrosDoLadoAMais, novoIdQuebra, dadosDoLadoAMais, dadosDeTirarLadoAMais, quebrasDoQuadro, textoDaQuebra
 } from '../oficina';
 import { nomeCasinha } from '../gerado/nucleo';
 
@@ -270,4 +271,33 @@ test('fotos tiradas ao fechar a venda vão pra ordem da venda, no quadro certo',
     { dados: { ref_app: 'orc-abc', cliente: 'Ana', foto_ref: 'u2', quadro: 3 }, uri: 'file:///b.jpg' }
   ]);
   expect(fotosDaVenda(f, {})).toEqual([]);
+});
+
+test('lado a mais: lados de cada moldura, metros com a perda, dados e texto', () => {
+  const pacote = {
+    molduras: [
+      { codigo: 'D-102', nome: 'Lisa branca 2 cm', perfil_cm: 2 },
+      { codigo: 'F-9', nome: 'Caixa preta 3 cm', perfil_cm: 3 }
+    ],
+    vidros: [], chapas: [], espelhos: []
+  };
+  const q = { tipo: 'quadro', largura_cm: 30, altura_cm: 40, paspatur_cm: 5, moldura: 'D-102', moldura_fora: 'F-9' };
+  const opcoes = opcoesDoLadoAMais(pacote, q);
+  expect(opcoes.map((x) => [x.titulo, x.codigo, x.lados])).toEqual([
+    ['Moldura de dentro', 'D-102', [50, 40]],
+    ['Moldura de fora', 'F-9', [54, 44]]
+  ]);
+  expect(opcoesDoLadoAMais(pacote, { tipo: 'quadro', largura_cm: 60, altura_cm: 60, moldura: 'D-102' }).map((x) => [x.titulo, x.lados]))
+    .toEqual([['Moldura', [60]]]);
+  expect(opcoesDoLadoAMais(pacote, { tipo: 'quadro', largura_cm: 60, altura_cm: 60, moldura: '' })).toEqual([]);
+  expect(metrosDoLadoAMais(pacote, 'D-102', 60, 2)).toBe(1.344);
+  expect(novoIdQuebra(1000, 0.123456)).toBe('qb-rs' + (0.123456).toString(36).slice(2, 7));
+  const o = { id: 'OS-001', ref_app: 'orc-r1', cliente: 'Rita', quebras: [{ id: 'qb-1', quadro: 1, moldura: 'D-102', lado_cm: 60, quantidade: 2 }] };
+  expect(dadosDoLadoAMais(pacote, o, 1, { fora: false, codigo: 'D-102', lado_cm: 60, quantidade: 2 }, 'qb-2')).toEqual({
+    ...alvoDaOrdem(o), cliente: 'Rita', quadro: 1, fora: false, lado_cm: 60, quantidade: 2, id_quebra: 'qb-2', moldura: 'D-102', metros: 1.344
+  });
+  expect(dadosDeTirarLadoAMais(o, o.quebras[0])).toEqual({ ...alvoDaOrdem(o), cliente: 'Rita', id_quebra: 'qb-1' });
+  expect(quebrasDoQuadro(o, 1).length).toBe(1);
+  expect(quebrasDoQuadro(o, 2)).toEqual([]);
+  expect(textoDaQuebra(pacote, o.quebras[0])).toBe('Quebrou 2 lados de 60 cm · Lisa branca 2 cm');
 });

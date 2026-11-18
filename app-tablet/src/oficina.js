@@ -1,6 +1,6 @@
 import { lerValor, formatarNumero } from './formato';
 import { rotuloQuadro, nomeMaterial, travasDaTela } from './orcamento';
-import { nomeCasinha, bordaDoQuadro, medidaExterna, travasDoChassi } from './gerado/nucleo';
+import { nomeCasinha, bordaDoQuadro, medidaExterna, travasDoChassi, ladosDaMoldura, textoQuebra, consumoLadoM } from './gerado/nucleo';
 
 export const PRAZOS = [
   { dias: 0, titulo: 'Hoje' },
@@ -78,6 +78,60 @@ export function dadosDaFoto(o, quadro, ref) {
 
 export function dadosDeTirarFoto(o, f) {
   return { ...alvoDaOrdem(o), cliente: o.cliente || '', foto_url: f.url, foto_ref: f.ref };
+}
+
+function molduraDe(pacote, codigo) {
+  return ((pacote && pacote.molduras) || []).find((x) => x.codigo === String(codigo)) || null;
+}
+
+function nomeDaMoldura(pacote, codigo) {
+  const m = molduraDe(pacote, codigo);
+  return m ? m.nome : String(codigo || '');
+}
+
+function perfilDe(pacote, codigo) {
+  const m = molduraDe(pacote, codigo);
+  return m ? Number(m.perfil_cm) || 0 : 0;
+}
+
+export function opcoesDoLadoAMais(pacote, q) {
+  const lista = [];
+  if (q.moldura) lista.push({ fora: false, codigo: q.moldura, titulo: q.moldura_fora ? 'Moldura de dentro' : 'Moldura' });
+  if (q.moldura_fora) lista.push({ fora: true, codigo: q.moldura_fora, titulo: 'Moldura de fora' });
+  const perfilDentro = q.moldura ? perfilDe(pacote, q.moldura) : 0;
+  return lista.map((x) => ({
+    ...x,
+    nome: nomeDaMoldura(pacote, x.codigo),
+    lados: ladosDaMoldura(q, x.fora ? perfilDentro : 0, x.fora)
+  }));
+}
+
+export function metrosDoLadoAMais(pacote, codigo, ladoCm, quantidade) {
+  return Number(((Number(quantidade) || 0) * consumoLadoM(ladoCm, perfilDe(pacote, codigo))).toFixed(3));
+}
+
+export function novoIdQuebra(agora = Date.now(), sorte = Math.random()) {
+  return 'qb-' + agora.toString(36) + sorte.toString(36).slice(2, 7);
+}
+
+export function dadosDoLadoAMais(pacote, o, quadro, escolha, id) {
+  return {
+    ...alvoDaOrdem(o), cliente: o.cliente || '', quadro, fora: !!escolha.fora, lado_cm: escolha.lado_cm,
+    quantidade: escolha.quantidade, id_quebra: id, moldura: escolha.codigo,
+    metros: metrosDoLadoAMais(pacote, escolha.codigo, escolha.lado_cm, escolha.quantidade)
+  };
+}
+
+export function dadosDeTirarLadoAMais(o, x) {
+  return { ...alvoDaOrdem(o), cliente: o.cliente || '', id_quebra: x.id };
+}
+
+export function quebrasDoQuadro(o, quadro) {
+  return ((o && o.quebras) || []).filter((x) => x.quadro === quadro);
+}
+
+export function textoDaQuebra(pacote, x) {
+  return 'Quebrou ' + textoQuebra(x) + ' · ' + nomeDaMoldura(pacote, x.moldura);
 }
 
 const TIPOS_DA_OFICINA = { reforma: 'Reforma', objeto: 'Objeto', camiseta: 'Objeto', tela: 'Tela' };

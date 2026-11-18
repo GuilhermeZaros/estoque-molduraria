@@ -187,6 +187,34 @@ function tirarFoto(pacote, d) {
   return mudarOrdem(pacote, d, (o) => ({ fotos: fotosDaOrdem(o).filter((f) => !bate(f)) }));
 }
 
+function ladoAMais(pacote, d, r) {
+  const bate = bateOrdem(d);
+  const ordem = (pacote.oficina || []).find(bate);
+  const quebra = (r && r.quebra) || {
+    id: d.id_quebra, quadro: Number(d.quadro) || 0, fora: !!d.fora, moldura: String(d.moldura || ''),
+    lado_cm: Number(d.lado_cm) || 0, quantidade: Number(d.quantidade) || 1, metros: Number(d.metros) || 0, data: ''
+  };
+  if (!ordem || (ordem.quebras || []).some((x) => x.id === quebra.id)) return pacote;
+  const comOrdem = mudarOrdem(pacote, d, (o) => ({ quebras: [...(o.quebras || []), quebra] }));
+  return trocarMoldura(comOrdem, quebra.moldura, (m) => ({
+    estoque_m: r && r.novo_estoque_m != null
+      ? r.novo_estoque_m
+      : Number(Math.max(0, (Number(m.estoque_m) || 0) - quebra.metros).toFixed(3))
+  }));
+}
+
+function tirarLadoAMais(pacote, d, r) {
+  const ordem = (pacote.oficina || []).find(bateOrdem(d));
+  const quebra = ordem ? (ordem.quebras || []).find((x) => x.id === d.id_quebra) : null;
+  if (!quebra) return pacote;
+  const semEla = mudarOrdem(pacote, d, (o) => ({ quebras: (o.quebras || []).filter((x) => x.id !== quebra.id) }));
+  return trocarMoldura(semEla, quebra.moldura, (m) => ({
+    estoque_m: r && r.novo_estoque_m != null
+      ? r.novo_estoque_m
+      : Number(((Number(m.estoque_m) || 0) + quebra.metros).toFixed(3))
+  }));
+}
+
 function entregarOrdem(pacote, d) {
   const bate = bateOrdem(d);
   return { ...pacote, oficina: (pacote.oficina || []).filter((o) => !bate(o)) };
@@ -238,6 +266,8 @@ export function aplicarOperacao(pacote, op, resultado) {
     case 'marcarEntregue': return entregarOrdem(pacote, d);
     case 'fotoOrdem': return porFoto(pacote, d, resultado, op.extra);
     case 'tirarFotoOrdem': return tirarFoto(pacote, d);
+    case 'ladoAMais': return ladoAMais(pacote, d, resultado);
+    case 'tirarLadoAMais': return tirarLadoAMais(pacote, d, resultado);
     default: return pacote;
   }
 }

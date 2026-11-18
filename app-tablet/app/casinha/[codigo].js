@@ -14,7 +14,7 @@ import { BuscaMoldura } from '../../src/componentes/BuscaMoldura';
 import { BarraSync } from '../../src/componentes/BarraSync';
 import { cores, tamanho } from '../../src/tema';
 
-const VAZIO = { varas: '', extra: '' };
+const VAZIO = { varas: '', extra: '', pedacos: [] };
 
 export default function TelaCasinha() {
   const { codigo } = useLocalSearchParams();
@@ -26,7 +26,8 @@ export default function TelaCasinha() {
   const lista = useMemo(() => (visivel ? moldurasPorCasinha(visivel.molduras)[casinha] || [] : []), [visivel, casinha]);
   if (!visivel || !casinhaValida(casinha)) return null;
 
-  const total = totalMetros(valor);
+  const m = aberto ? aberto.moldura : null;
+  const total = totalMetros(valor, m ? m.perfil_cm : 0);
   const abrir = (tipo, moldura) => { setValor(VAZIO); setAberto({ tipo, moldura }); };
   const fechar = () => setAberto(null);
   const gravar = (acao, dados) => { central.registrar(acao, dados); fechar(); };
@@ -35,7 +36,6 @@ export default function TelaCasinha() {
     fechar();
   };
   const cadastrarNova = () => { setBuscando(false); router.push({ pathname: '/cadastro', params: { casinha } }); };
-  const m = aberto ? aberto.moldura : null;
   const faltas = m ? visivel.compras_pendentes.filter((c) => c.moldura === m.codigo) : [];
 
   return (
@@ -80,7 +80,7 @@ export default function TelaCasinha() {
 
       <Dialogo visivel={!!aberto && aberto.tipo === 'corrigir'} titulo="Corrigir a quantidade" aoFechar={fechar}>
         {m ? <Text style={s.qual}>{m.codigo} · {m.nome}: no sistema {formatarMetros(m.estoque_m)} ({varasTexto(m.estoque_m)})</Text> : null}
-        <CampoMetros valor={valor} aoMudar={setValor} rotulo="Quanto tem de verdade" />
+        <CampoMetros valor={valor} aoMudar={setValor} rotulo="Quanto tem de verdade" pedacos perfilCm={m ? m.perfil_cm : 0} />
         <Botao titulo="Gravar o número contado" desativado={total == null} onPress={() => gravar('ajustarMoldura', { codigo: m.codigo, metros: total })} />
         <Botao titulo="Cancelar" variante="contorno" onPress={fechar} />
       </Dialogo>
@@ -88,7 +88,7 @@ export default function TelaCasinha() {
       <Dialogo visivel={!!aberto && aberto.tipo === 'colocar'} titulo="Colocar nesta casinha" aoFechar={fechar}>
         {m ? <Text style={s.qual}>{m.codigo} · {m.nome}</Text> : null}
         {m && casinhaValida(m.local) ? <Text style={s.encomenda}>Hoje ela está em {nomeCasinha(m.local)}. Vai mudar pra cá.</Text> : null}
-        <CampoMetros valor={valor} aoMudar={setValor} rotulo="Quanto tem aqui (se não souber, deixe em branco)" />
+        <CampoMetros valor={valor} aoMudar={setValor} rotulo="Quanto tem aqui (se não souber, deixe em branco)" pedacos perfilCm={m ? m.perfil_cm : 0} />
         <Botao titulo="Colocar nesta casinha" onPress={colocar} />
         <Botao titulo="Cancelar" variante="contorno" onPress={fechar} />
       </Dialogo>

@@ -201,7 +201,7 @@ function _abaterFaltas(metrosChegaram, faltas) {
 var ACOES_APP = ['salvarOrcamento', 'fecharVenda', 'descartarOrcamento', 'entradaMoldura', 'ajustarMoldura',
                  'contarCasinha', 'moverMoldura', 'cadastrarMoldura', 'zerarNaoEncontradas',
                  'criarOrdem', 'editarOrdem', 'marcarAcabamento', 'marcarPronto', 'marcarEntregue',
-                 'fotoOrdem', 'tirarFotoOrdem', 'lancarGasto', 'lancarVenda', 'ajustarSaldos',
+                 'fotoOrdem', 'tirarFotoOrdem', 'ladoAMais', 'tirarLadoAMais', 'lancarGasto', 'lancarVenda', 'ajustarSaldos',
                  'editarLancamento', 'apagarLancamento'];
 
 function _molduraParaApp(x) {
@@ -386,4 +386,18 @@ function _validarNovaMoldura(d) {
     casinha: casinha,
     disponivel: preco > 0
   };
+}
+
+function _ladosDaMoldura(q, perfilDentroCm, fora) {
+  var ext = _medidaExterna(q.largura_cm, q.altura_cm, _bordaDoQuadro(q).cm);
+  var soma = fora ? 2 * Math.max(0, Number(perfilDentroCm) || 0) : 0;
+  var lados = [ext.largura + soma, ext.altura + soma]
+    .map(function (x) { return Number(Number(x).toFixed(1)); })
+    .filter(function (x) { return x > 0; });
+  return lados.filter(function (x, i) { return lados.indexOf(x) === i; }).sort(function (a, b) { return b - a; });
+}
+
+function _textoQuebra(x) {
+  var n = Math.max(1, Math.round(Number(x && x.quantidade) || 1));
+  return n + (n > 1 ? ' lados' : ' lado') + ' de ' + _numeroDaConta(x.lado_cm) + ' cm' + (x.fora ? ' (moldura de fora)' : '');
 }

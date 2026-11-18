@@ -2,6 +2,20 @@ var KERF_M = 0.002;
 
 var VARA_PADRAO_M = 2.70;
 
+function desencabecoM(perfilCm) {
+  var p = Number(perfilCm) / 100;
+  if (!p || p <= 0) return 0;
+  return Number((Math.SQRT2 * p + KERF_M).toFixed(4));
+}
+
+function consumoLadoM(ladoCm, perfilCm) {
+  var lado = Number(ladoCm) / 100;
+  if (!lado || lado <= 0) return 0;
+  var p = Number(perfilCm) / 100;
+  if (!p || p <= 0) return Number(lado.toFixed(3));
+  return Number((lado + 2 * p + Math.SQRT2 * p + 2 * KERF_M).toFixed(3));
+}
+
 function perimetroM(larguraCm, alturaCm) {
   return Number((2 * (Number(larguraCm) + Number(alturaCm)) / 100).toFixed(4));
 }
@@ -380,9 +394,25 @@ function _recebimento(valor, forma) {
   return { bruto: bruto, pct: pct, taxa: taxa, liquido: Number((bruto - taxa).toFixed(2)) };
 }
 
+function _ladosDaMoldura(q, perfilDentroCm, fora) {
+  var ext = _medidaExterna(q.largura_cm, q.altura_cm, _bordaDoQuadro(q).cm);
+  var soma = fora ? 2 * Math.max(0, Number(perfilDentroCm) || 0) : 0;
+  var lados = [ext.largura + soma, ext.altura + soma]
+    .map(function (x) { return Number(Number(x).toFixed(1)); })
+    .filter(function (x) { return x > 0; });
+  return lados.filter(function (x, i) { return lados.indexOf(x) === i; }).sort(function (a, b) { return b - a; });
+}
+
+function _textoQuebra(x) {
+  var n = Math.max(1, Math.round(Number(x && x.quantidade) || 1));
+  return n + (n > 1 ? ' lados' : ' lado') + ' de ' + _numeroDaConta(x.lado_cm) + ' cm' + (x.fora ? ' (moldura de fora)' : '');
+}
+
 export {
   KERF_M,
   VARA_PADRAO_M,
+  desencabecoM,
+  consumoLadoM,
   perimetroM,
   areaM2,
   consumoMolduraM,
@@ -418,5 +448,7 @@ export {
   _numeroCurto as numeroCurto,
   _resumoQuadros as resumoQuadros,
   TAXAS_MAQUININHA,
-  _recebimento as recebimento
+  _recebimento as recebimento,
+  _ladosDaMoldura as ladosDaMoldura,
+  _textoQuebra as textoQuebra
 };

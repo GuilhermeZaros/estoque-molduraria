@@ -1,10 +1,13 @@
+import { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, Linking } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEstado, central } from '../../../src/estado';
-import { formatarReais, dataCurta } from '../../../src/formato';
+import { formatarReais, dataCurta, formatarNumero } from '../../../src/formato';
+import { formatarMetros } from '../../../src/varas';
 import {
   STATUS_ORDEM, chaveDaOrdem, emAndamento, prazoVencido, textoPrazo, fotosDoQuadro, tituloDoQuadro, detalhesDoQuadro,
-  dadosDaFoto, dadosDeTirarFoto, acrescimoDoQuadro
+  dadosDaFoto, dadosDeTirarFoto, acrescimoDoQuadro, opcoesDoLadoAMais, metrosDoLadoAMais, novoIdQuebra,
+  dadosDoLadoAMais, dadosDeTirarLadoAMais, quebrasDoQuadro, textoDaQuebra
 } from '../../../src/oficina';
 import { ordemLembrada } from '../../../src/ordemAberta';
 import { numeroWhatsApp, linkWhatsApp } from '../../../src/whatsapp';
@@ -13,6 +16,8 @@ import { fotoParaPapel } from '../../../src/foto';
 import { BlocoFotos, useCameraDaOrdem } from '../../../src/componentes/FotosOrdem';
 import { Cartao } from '../../../src/componentes/Cartao';
 import { Botao } from '../../../src/componentes/Botao';
+import { Dialogo } from '../../../src/componentes/Dialogo';
+import { GrupoPilulas } from '../../../src/componentes/Pilula';
 import { BotaoImprimir } from '../../../src/componentes/Imprimir';
 import { Icone } from '../../../src/componentes/Icone';
 import { AVISO, cores, tamanho } from '../../../src/tema';
@@ -42,7 +47,7 @@ function QuadroCresce({ a }) {
   );
 }
 
-function BlocoQuadro({ titulo, acrescimo, descricao, detalhes, fotos }) {
+function BlocoQuadro({ titulo, acrescimo, descricao, detalhes, fotos, extra }) {
   return (
     <Cartao>
       <Text style={s.tituloQuadro} accessibilityRole="header">{titulo}</Text>
@@ -55,6 +60,7 @@ function BlocoQuadro({ titulo, acrescimo, descricao, detalhes, fotos }) {
         </View>
       ) : null}
       {detalhes ? <View style={s.detalhes}>{detalhes.map((d) => <Detalhe key={d.rotulo} d={d} />)}</View> : null}
+      {extra}
     </Cartao>
   );
 }
@@ -65,6 +71,7 @@ export default function OrdemAberta() {
   const visivel = useEstado((s) => s.visivel);
   const ativa = visivel ? (visivel.oficina || []).find((o) => chaveDaOrdem(o) === chave) : null;
   const o = ativa || ordemLembrada(chave);
+  const [lado, setLado] = useState(null);
   const camera = useCameraDaOrdem(ativa ? chave : null, (quadro, foto, uri) => (
     central.registrar('fotoOrdem', dadosDaFoto(o, quadro, foto), { foto_uri: uri })
   ));
@@ -97,6 +104,37 @@ export default function OrdemAberta() {
     );
   };
   const semQuadro = fotosDoQuadro(o, 0);
+  const escolhida = lado ? lado.opcoes[lado.qual] : null;
+  const abrirLado = (quadro, opcoes) => setLado({ quadro, opcoes, qual: 0, lado_cm: opcoes[0].lados[0] || 0, quantidade: 1 });
+  const registrarLado = () => {
+    central.registrar('ladoAMais', dadosDoLadoAMais(visivel, o, lado.quadro, {
+      fora: escolhida.fora, codigo: escolhida.codigo, lado_cm: lado.lado_cm, quantidade: lado.quantidade
+    }, novoIdQuebra()));
+    setLado(null);
+  };
+  const blocoDeQuebras = (n, q) => {
+    const opcoes = ativa ? opcoesDoLadoAMais(visivel, q).filter((x) => x.lados.length) : [];
+    const quebras = quebrasDoQuadro(o, n);
+    if (!opcoes.length && !quebras.length) return null;
+    return (
+      <View style={s.quebras}>
+        {quebras.map((x) => (
+          <View key={x.id} style={s.quebra}>
+            <Text style={s.quebraTexto}>{textoDaQuebra(visivel, x)}</Text>
+            {ativa ? (
+              <Botao
+                titulo="Tirar"
+                variante="contorno"
+                rotulo={'Tirar: ' + textoDaQuebra(visivel, x)}
+                onPress={() => central.registrar('tirarLadoAMais', dadosDeTirarLadoAMais(o, x))}
+              />
+            ) : null}
+          </View>
+        ))}
+        {opcoes.length ? <Botao icone="plus" titulo="Lado a mais (quebrou)" variante="contorno" onPress={() => abrirLado(n, opcoes)} /> : null}
+      </View>
+    );
+  };
   const papel = async (formato) => papelOrdem(visivel, o, formato, visivel.loja, await fotosParaOPapel(o, formato, fotoParaPapel));
 
   return (
@@ -156,6 +194,7 @@ export default function OrdemAberta() {
             descricao={q.descricao}
             detalhes={detalhesDoQuadro(visivel, q)}
             fotos={blocoDeFotos(i + 1, titulo, true)}
+            extra={blocoDeQuebras(i + 1, q)}
           />
         );
       })}
@@ -167,6 +206,50 @@ export default function OrdemAberta() {
       {quadros.length && semQuadro.length ? (
         <BlocoQuadro titulo="Fotos da ordem" fotos={blocoDeFotos(0, 'Fotos da ordem', false)} />
       ) : null}
+
+      <Dialogo visivel={!!escolhida} titulo="Lado a mais (quebrou)" aoFechar={() => setLado(null)}>
+        {escolhida ? (
+          <>
+            {lado.opcoes.length > 1 ? (
+              <GrupoPilulas
+                opcoes={lado.opcoes.map((x, i) => ({ valor: i, titulo: x.titulo }))}
+                valor={lado.qual}
+                aoMudar={(i) => setLado({ ...lado, qual: i, lado_cm: lado.opcoes[i].lados[0] || 0 })}
+              />
+            ) : null}
+            <Text style={s.ladoQual}>{escolhida.codigo} · {escolhida.nome}</Text>
+            <Text style={s.ladoRotulo}>Qual lado quebrou</Text>
+            <GrupoPilulas
+              opcoes={escolhida.lados.map((c) => ({ valor: c, titulo: 'Lado de ' + formatarNumero(c) + ' cm' }))}
+              valor={lado.lado_cm}
+              aoMudar={(c) => setLado({ ...lado, lado_cm: c })}
+            />
+            <Text style={s.ladoRotulo}>Quantos lados</Text>
+            <View style={s.ladoPasso}>
+              <Botao
+                titulo="−"
+                rotulo="Um lado a menos"
+                variante="contorno"
+                onPress={() => setLado({ ...lado, quantidade: Math.max(1, lado.quantidade - 1) })}
+                estilo={s.ladoBotaoPasso}
+              />
+              <Text style={s.ladoQuantidade} accessibilityLiveRegion="polite">{lado.quantidade}</Text>
+              <Botao
+                titulo="+"
+                rotulo="Um lado a mais"
+                variante="contorno"
+                onPress={() => setLado({ ...lado, quantidade: Math.min(20, lado.quantidade + 1) })}
+                estilo={s.ladoBotaoPasso}
+              />
+            </View>
+            <Text style={s.ladoNota}>
+              Sai do estoque {formatarMetros(metrosDoLadoAMais(visivel, escolhida.codigo, lado.lado_cm, lado.quantidade))}, já com a perda do corte. O cliente não paga a mais.
+            </Text>
+            <Botao titulo="Registrar" onPress={registrarLado} />
+            <Botao titulo="Cancelar" variante="contorno" onPress={() => setLado(null)} />
+          </>
+        ) : null}
+      </Dialogo>
     </ScrollView>
   );
 }
@@ -220,6 +303,18 @@ const s = StyleSheet.create({
   valor: { fontSize: tamanho.texto, fontWeight: '700', color: cores.tinta },
   naoVai: { color: cores.apagado, fontWeight: '600' },
   detalhe: { fontSize: tamanho.pequeno, fontWeight: '600', color: cores.marinho },
+  quebras: { gap: 10, paddingTop: 12, borderTopWidth: 1, borderTopColor: cores.linha },
+  quebra: {
+    flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12, padding: 12, borderRadius: tamanho.raio,
+    backgroundColor: AVISO.vermelho.fundo, borderLeftWidth: 5, borderLeftColor: AVISO.vermelho.borda
+  },
+  quebraTexto: { flex: 1, minWidth: 220, fontSize: tamanho.texto, fontWeight: '700', color: AVISO.vermelho.texto },
+  ladoQual: { fontSize: tamanho.texto, fontWeight: '700', color: cores.tinta },
+  ladoRotulo: { fontSize: tamanho.pequeno, fontWeight: '700', color: cores.apagado },
+  ladoPasso: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  ladoBotaoPasso: { minWidth: tamanho.toque, paddingHorizontal: 0 },
+  ladoQuantidade: { minWidth: 48, textAlign: 'center', fontSize: 28, fontWeight: '800', color: cores.marinho },
+  ladoNota: { fontSize: tamanho.pequeno, fontWeight: '600', color: cores.marinho },
   sumiu: { flex: 1, padding: 24, gap: 16, alignItems: 'flex-start' },
   texto: { fontSize: tamanho.texto, color: cores.tinta }
 });

@@ -35,6 +35,20 @@ function consumoMolduraM(larguraCm, alturaCm, perfilCm) {
 // Comprimento padrão da vara entregue pelos fornecedores (a maioria entrega 2,70 m).
 var VARA_PADRAO_M = 2.70;
 
+function desencabecoM(perfilCm) {
+  var p = Number(perfilCm) / 100;
+  if (!p || p <= 0) return 0;
+  return Number((Math.SQRT2 * p + KERF_M).toFixed(4));
+}
+
+function consumoLadoM(ladoCm, perfilCm) {
+  var lado = Number(ladoCm) / 100;
+  if (!lado || lado <= 0) return 0;
+  var p = Number(perfilCm) / 100;
+  if (!p || p <= 0) return Number(lado.toFixed(3));
+  return Number((lado + 2 * p + Math.SQRT2 * p + 2 * KERF_M).toFixed(3));
+}
+
 // Distribui o valor cobrado (override do funcionário) proporcionalmente entre os itens,
 // pra o histórico somar EXATAMENTE o cobrado. A última linha absorve o arredondamento.
 // Sem override válido (<=0) ou total calculado 0, devolve os próprios valores calculados.
