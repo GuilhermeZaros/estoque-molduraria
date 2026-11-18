@@ -59,7 +59,7 @@ function EscolhaMoldura({ titulo, codigo, molduras, pacote, rotulo, aviso, nota,
 }
 
 function notaDaFora(r, moldura) {
-  if (!moldura) return '';
+  if (!moldura) return 'Falta escolher a moldura de dentro. A de fora continua aqui.';
   if (!(Number(moldura.perfil_cm) > 0)) return 'A moldura de dentro está sem largura de perfil cadastrada: a de fora vai na mesma medida.';
   if (!r || !r.ok || !r.fora) return 'Vai por fora da moldura de dentro (mais ' + formatarNumero(moldura.perfil_cm) + ' cm de cada lado).';
   return 'Vai por fora da moldura de dentro: corta em ' + formatarNumero(r.fora.largura) + ' x ' + formatarNumero(r.fora.altura) + ' cm.';
@@ -175,13 +175,13 @@ export function EditorQuadro({ q, n, total, pacote, r, aviso, avisoFora, aoMudar
         aviso={aviso}
         nota={tela && !moldura ? 'Moldura é opcional. Sem moldura, a tela vai só no chassi.' : ''}
         aoEscolher={(codigo) => aoMudar({ moldura: codigo })}
-        aoTirar={() => aoMudar(q.moldura_fora ? { moldura: q.moldura_fora, moldura_fora: '' } : { moldura: '' })}>
+        aoTirar={() => aoMudar({ moldura: '' })}>
         {moldura && !duas ? (
           <Botao icone="plus" titulo="Moldura por fora" variante="contorno" rotulo="Adicionar moldura por fora" onPress={() => setComFora(true)} />
         ) : null}
       </EscolhaMoldura>
 
-      {moldura && duas ? (
+      {(moldura && duas) || q.moldura_fora ? (
         <EscolhaMoldura
           titulo={reforma ? 'MOLDURA NOVA POR FORA' : 'MOLDURA POR FORA'}
           codigo={q.moldura_fora}
