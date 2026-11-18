@@ -6,11 +6,12 @@ import * as ImagePicker from 'expo-image-picker';
 import { useEstado, central } from '../src/estado';
 import { nomeCasinha, normalizarCasinha, validarNovaMoldura } from '../src/gerado/nucleo';
 import { prepararFoto, primeiraFoto } from '../src/foto';
-import { totalMetros, numeroDoPerfil, pedacosDoValor } from '../src/varas';
-import { camposDaMoldura } from '../src/edicao';
+import { totalMetros, numeroDoPerfil, pedacosDoValor, formatarMetros } from '../src/varas';
+import { camposDaMoldura, ondeAMolduraEsta, codigoRepetido, juntarComE } from '../src/edicao';
 import { Botao } from '../src/componentes/Botao';
 import { Campo } from '../src/componentes/Campo';
 import { CampoMetros } from '../src/componentes/CampoMetros';
+import { Dialogo } from '../src/componentes/Dialogo';
 import { cores, tamanho } from '../src/tema';
 
 const MARCAS = ['Art Mold', 'Moldurarte', 'Aguiar', 'Moldunobre', 'Sul América', 'Ruberti', 'Santa Luzia'];
@@ -30,6 +31,8 @@ export default function Cadastro() {
   const [foto, setFoto] = useState(null);
   const [erro, setErro] = useState('');
   const [ocupado, setOcupado] = useState(false);
+  const [saindo, setSaindo] = useState(false);
+  const [confirmar, setConfirmar] = useState(false);
   const mudar = (chave) => (texto) => setCampos((c) => ({ ...c, [chave]: texto }));
 
   const usarFoto = async (asset) => {
@@ -54,7 +57,7 @@ export default function Cadastro() {
     ImagePicker.getPendingResultAsync().then((r) => usarFoto(primeiraFoto(r))).catch(() => null);
   }, []);
 
-  if (!visivel) return null;
+  if (!visivel || saindo) return null;
   const editar = !!editando;
   if (editar && !original) {
     return (
@@ -90,20 +93,33 @@ export default function Cadastro() {
     setErro('');
     let m;
     try {
-      m = validarNovaMoldura({ ...campos, codigo: original.codigo, metros: 0, casinha: '' });
+      m = validarNovaMoldura({ ...campos, metros: 0, casinha: '' });
     } catch (e) {
       setErro(e.message);
       return;
     }
+    if (codigoRepetido(visivel, original.codigo, m.codigo)) {
+      setErro('Já existe um produto com o código ' + m.codigo + '.');
+      return;
+    }
     const dados = {
-      codigo: original.codigo, nome: m.nome, marca: m.marca, estilo: m.estilo, cor: m.cor,
+      codigo: original.codigo, codigo_novo: m.codigo, nome: m.nome, marca: m.marca, estilo: m.estilo, cor: m.cor,
       perfil_cm: m.perfil_cm, preco_m: m.preco_m, custo_m: m.custo_m
     };
     if (foto) {
       dados.foto_base64 = foto.base64;
       dados.foto_tipo = 'image/jpeg';
     }
+    setSaindo(true);
     await central.registrar('editarMoldura', dados, foto ? { foto_uri: foto.uri } : null);
+    router.back();
+  };
+
+  const lugares = editar ? ondeAMolduraEsta(visivel, original.codigo) : [];
+  const excluir = async () => {
+    setConfirmar(false);
+    setSaindo(true);
+    await central.registrar('excluirMoldura', { codigo: original.codigo });
     router.back();
   };
 
@@ -154,15 +170,13 @@ export default function Cadastro() {
           <Text style={s.dica}>Sem foto a Julia não consegue mostrar a moldura pro cliente.</Text>
         </View>
       </View>
-      {editar ? (
-        <View style={s.codigoTravado}>
-          <Text style={s.rotulo}>Código da etiqueta</Text>
-          <Text style={s.codigoTexto}>{original.codigo}</Text>
-          <Text style={s.dica}>O código não muda. A quantidade em estoque se acerta no botão Corrigir da casinha.</Text>
-        </View>
-      ) : (
-        <Campo rotulo="Código da etiqueta" valor={campos.codigo} aoMudar={mudar('codigo')} autoCapitalize="characters" />
-      )}
+      <Campo
+        rotulo="Código da etiqueta"
+        valor={campos.codigo}
+        aoMudar={mudar('codigo')}
+        autoCapitalize="characters"
+        dica={editar ? 'Se trocar o código, ele muda junto nos orçamentos, na oficina e na lista de compras. A quantidade em estoque se acerta no botão Corrigir da casinha.' : undefined}
+      />
       <Campo rotulo="Nome" valor={campos.nome} aoMudar={mudar('nome')} autoCapitalize="sentences" />
       <Text style={s.rotulo}>Fornecedor</Text>
       <View style={s.marcas}>
@@ -194,6 +208,30 @@ export default function Cadastro() {
       {erro ? <Text style={s.erro} accessibilityLiveRegion="assertive">{erro}</Text> : null}
       <Botao grande titulo={editar ? 'Salvar mudanças' : 'Salvar moldura'} onPress={editar ? salvarEdicao : salvar} desativado={ocupado} />
       <Botao titulo="Cancelar" variante="contorno" onPress={() => router.back()} />
+      {editar ? (
+        <View style={s.excluir}>
+          <Botao icone="trash-can-outline" titulo="Excluir moldura" variante="perigo" onPress={() => setConfirmar(true)} desativado={ocupado} />
+        </View>
+      ) : null}
+      {editar ? (
+        <Dialogo visivel={confirmar} titulo={'Excluir ' + original.codigo + '?'} aoFechar={() => setConfirmar(false)}>
+          {lugares.length ? (
+            <>
+              <Text style={s.aviso}>Não dá pra excluir agora: ela ainda está {juntarComE(lugares)}. Tire ela de lá primeiro.</Text>
+              <Botao titulo="Entendi" onPress={() => setConfirmar(false)} />
+            </>
+          ) : (
+            <>
+              <Text style={s.aviso}>
+                A moldura {original.codigo} ({original.nome}) sai do sistema, da Julia e do orçamento. Não dá pra desfazer.
+                {Number(original.estoque_m) > 0 ? ' Ela ainda tem ' + formatarMetros(Number(original.estoque_m)) + ' no estoque, que somem junto.' : ''}
+              </Text>
+              <Botao titulo="Excluir de vez" variante="perigo" onPress={excluir} />
+              <Botao titulo="Cancelar" variante="contorno" onPress={() => setConfirmar(false)} />
+            </>
+          )}
+        </Dialogo>
+      ) : null}
     </ScrollView>
   );
 }
@@ -208,7 +246,7 @@ const s = StyleSheet.create({
   dica: { fontSize: tamanho.pequeno, color: cores.apagado },
   rotulo: { fontSize: tamanho.texto, fontWeight: '700', color: cores.tinta },
   marcas: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  codigoTravado: { gap: 4 },
-  codigoTexto: { fontSize: 24, fontWeight: '800', color: cores.marinho },
+  excluir: { marginTop: 24, paddingTop: 20, borderTopWidth: 1, borderTopColor: cores.linha },
+  aviso: { fontSize: tamanho.texto, color: cores.tinta },
   erro: { fontSize: tamanho.texto, color: cores.vermelho, fontWeight: '700' }
 });

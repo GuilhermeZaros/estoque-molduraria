@@ -186,6 +186,7 @@ function _executarAcaoApp(acao, d) {
     case 'ladoAMais': return _appLadoAMais(d);
     case 'tirarLadoAMais': return _appTirarLadoAMais(d);
     case 'editarMoldura': return _appEditarMoldura(d);
+    case 'excluirMoldura': return _appExcluirMoldura(d);
     case 'lancarGasto': return _gravarGasto(d, 'tablet');
     case 'lancarVenda': return _gravarVenda(d, 'tablet');
     case 'ajustarSaldos': return _gravarSaldos(d);
@@ -818,7 +819,8 @@ function _appTirarLadoAMais(d) {
 
 function _appEditarMoldura(d) {
   var p = _molduraOuErro(d.codigo);
-  var codigo = String(p.dados.Codigo);
+  var antigo = String(p.dados.Codigo);
+  var codigo = _codigoNovoDaMoldura(antigo, d.codigo_novo);
   var m = _validarNovaMoldura({
     codigo: codigo, nome: d.nome, marca: d.marca, estilo: d.estilo, cor: d.cor,
     perfil_cm: d.perfil_cm, preco_m: d.preco_m, custo_m: d.custo_m, metros: 0, casinha: ''
@@ -829,12 +831,125 @@ function _appEditarMoldura(d) {
     Nome: m.nome, Marca: m.marca, Estilo: m.estilo, Cor: m.cor, Largura_perfil_cm: m.perfil_cm,
     Valor_por_metro: m.preco_m || '', Custo_por_metro: m.custo_m || '', Disponivel: disponivel
   };
+  if (codigo !== antigo) campos.Codigo = codigo;
   if (d.foto_base64) campos.Foto_URL = _salvarFotoMoldura(codigo, d.foto_base64, d.foto_tipo);
   garantirColunas(ABAS.MOLDURAS, CABECALHOS.Molduras);
   atualizarCampos(ABAS.MOLDURAS, p.dados._linha, campos);
+  if (codigo !== antigo) _levarCodigoDaMoldura(antigo, codigo);
   registrarHistorico({
     tipo: 'edicao', categoria: 'moldura', produto: m.nome, quantidade: '', unidade: '',
-    observacoes: 'editada pelo app' + (d.atendente ? ' (' + d.atendente + ')' : ''), codigo: codigo
+    observacoes: 'editada pelo app' + (d.atendente ? ' (' + d.atendente + ')' : '') +
+      (codigo !== antigo ? '; código trocado de ' + antigo + ' para ' + codigo : ''),
+    codigo: codigo
   });
-  return { codigo: codigo, foto_url: campos.Foto_URL || String(p.dados.Foto_URL || ''), disponivel: disponivel };
+  return {
+    codigo: codigo, codigo_antigo: antigo,
+    foto_url: campos.Foto_URL || String(p.dados.Foto_URL || ''), disponivel: disponivel
+  };
+}
+
+function _codigoNovoDaMoldura(antigo, pedido) {
+  var novo = String(pedido == null ? '' : pedido).trim();
+  if (!novo || novo === antigo) return antigo;
+  var dono = buscarProduto(novo);
+  var igual = dono || lerAba(ABAS.MOLDURAS).filter(function (x) {
+    return String(x.Codigo).trim().toUpperCase() === novo.toUpperCase() && String(x.Codigo) !== antigo;
+  })[0];
+  if (igual) throw new Error('Já existe um produto com o código ' + novo + '.');
+  return novo;
+}
+
+function _trocarNoJson(texto, campo, antigo, novo) {
+  var lista;
+  try {
+    lista = JSON.parse(String(texto == null || texto === '' ? '[]' : texto));
+  } catch (e) {
+    return null;
+  }
+  if (!Array.isArray(lista)) return null;
+  var mudou = false;
+  lista.forEach(function (x) {
+    if (x && String(x[campo]) === antigo) { x[campo] = novo; mudou = true; }
+  });
+  return mudou ? JSON.stringify(lista) : null;
+}
+
+function _levarCodigoDaMoldura(antigo, novo) {
+  var trocar = function (aba, colunas) {
+    if (!abaExiste(aba)) return;
+    lerAba(aba).forEach(function (linha) {
+      var campos = {}, mudou = false;
+      colunas.forEach(function (c) {
+        if (String(linha[c] == null ? '' : linha[c]) === antigo) { campos[c] = novo; mudou = true; }
+      });
+      if (mudou) atualizarCampos(aba, linha._linha, campos);
+    });
+  };
+  trocar(ABAS_APP.ORCAMENTOS, ['Moldura']);
+  trocar(ABAS_APP.QUADROS, ['Moldura', 'Moldura_fora']);
+  trocar(ABAS_APP.COMPRAS, ['Moldura']);
+  if (!abaExiste(ABAS_FIN.OFICINA)) return;
+  lerAba(ABAS_FIN.OFICINA).forEach(function (o) {
+    var campos = {}, mudou = false;
+    var quebras = _trocarNoJson(o.Quebras, 'moldura', antigo, novo);
+    var cortes = _trocarNoJson(o.Cortes, 'codigo', antigo, novo);
+    if (quebras != null) { campos.Quebras = quebras; mudou = true; }
+    if (cortes != null) { campos.Cortes = cortes; mudou = true; }
+    if (mudou) atualizarCampos(ABAS_FIN.OFICINA, o._linha, campos);
+  });
+}
+
+function _ondeAMolduraEsta(codigo) {
+  var lugares = [];
+  var ler = function (aba) { return abaExiste(aba) ? lerAba(aba) : []; };
+  var refsAbertas = {}, refsNaOficina = {};
+  ler(ABAS_APP.ORCAMENTOS).forEach(function (o) {
+    if (String(o.Status) !== 'aberto') return;
+    refsAbertas[String(o.Ref_app)] = o;
+    if (String(o.Moldura) === codigo) lugares.push('no orçamento de ' + (o.Cliente || 'cliente sem nome'));
+  });
+  ler(ABAS_FIN.OFICINA).forEach(function (o) {
+    if (['em_producao', 'acabamento', 'pronto'].indexOf(String(o.Status)) < 0) return;
+    var ref = String(o.Ref_app || '');
+    if (ref.indexOf('orc-') === 0) refsNaOficina[ref.slice(4)] = o;
+  });
+  var vistos = {};
+  ler(ABAS_APP.QUADROS).forEach(function (q) {
+    if (String(q.Moldura) !== codigo && String(q.Moldura_fora) !== codigo) return;
+    var ref = String(q.Ref_app || '');
+    if (vistos[ref]) return;
+    if (refsAbertas[ref]) {
+      vistos[ref] = true;
+      lugares.push('no orçamento de ' + (refsAbertas[ref].Cliente || 'cliente sem nome'));
+    } else if (refsNaOficina[ref]) {
+      vistos[ref] = true;
+      lugares.push('na ordem da oficina de ' + (refsNaOficina[ref].Cliente || 'cliente sem nome'));
+    }
+  });
+  ler(ABAS_APP.COMPRAS).forEach(function (c) {
+    if (String(c.Status) === 'pendente' && String(c.Moldura) === codigo) {
+      lugares.push('na lista de compras' + (c.Cliente ? ' (' + c.Cliente + ')' : ''));
+    }
+  });
+  return lugares.filter(function (x, i) { return lugares.indexOf(x) === i; });
+}
+
+function _juntarComE(lista) {
+  return lista.length > 1 ? lista.slice(0, -1).join(', ') + ' e ' + lista[lista.length - 1] : lista.join('');
+}
+
+function _appExcluirMoldura(d) {
+  var p = _molduraOuErro(d.codigo);
+  var codigo = String(p.dados.Codigo);
+  var lugares = _ondeAMolduraEsta(codigo);
+  if (lugares.length) {
+    throw new Error('A moldura ' + codigo + ' ainda está ' + _juntarComE(lugares) + '. Tire ela de lá antes de excluir.');
+  }
+  apagarLinhas(ABAS.MOLDURAS, [p.dados._linha]);
+  registrarHistorico({
+    tipo: 'exclusao', categoria: 'moldura', produto: String(p.dados.Nome || ''),
+    quantidade: Number(p.dados.Estoque_atual_m) || 0, unidade: 'm',
+    observacoes: 'excluída pelo app' + (d.atendente ? ' (' + d.atendente + ')' : ''), codigo: codigo
+  });
+  return { codigo: codigo };
 }

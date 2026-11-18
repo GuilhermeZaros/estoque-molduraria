@@ -79,6 +79,33 @@ test('editar moldura sem preço tira do catálogo e com preço novo volta', () =
   expect(achar(voltou, '101')).toMatchObject({ preco_m: 35, disponivel: true });
 });
 
+test('editar moldura com código novo troca o código e leva junto pros orçamentos, oficina e compras', () => {
+  const comUsos = {
+    ...base,
+    orcamentos_abertos: [{ ref_app: 'r1', cliente: 'Ana', moldura: '101', quadros: [{ moldura: '202', moldura_fora: '101' }] }],
+    oficina: [{ id: 'OS-1', quadros: [{ moldura: '101' }], quebras: [{ id: 'qb1', moldura: '101' }], cortes: [{ codigo: '101' }, { codigo: '202' }] }]
+  };
+  const p = aplicarOperacao(comUsos, op('editarMoldura', { codigo: '101', codigo_novo: 'A-101', nome: 'Moldura 101', perfil_cm: 2, preco_m: 30 }));
+  expect(p.molduras.map((m) => m.codigo)).toEqual(['A-101', '202']);
+  expect(achar(p, 'A-101')).toMatchObject({ estoque_m: 2, local: 'CR1-E1' });
+  expect(p.orcamentos_abertos[0]).toMatchObject({ moldura: 'A-101', quadros: [{ moldura: '202', moldura_fora: 'A-101' }] });
+  expect(p.oficina[0].quadros[0].moldura).toBe('A-101');
+  expect(p.oficina[0].quebras[0].moldura).toBe('A-101');
+  expect(p.oficina[0].cortes.map((c) => c.codigo)).toEqual(['A-101', '202']);
+  expect(p.compras_pendentes.map((c) => c.moldura)).toEqual(['A-101', 'A-101']);
+});
+
+test('editar moldura não troca pra um código que já existe', () => {
+  const p = aplicarOperacao(base, op('editarMoldura', { codigo: '101', codigo_novo: '202', nome: 'Moldura 101', perfil_cm: 2, preco_m: 30 }));
+  expect(p.molduras.map((m) => m.codigo)).toEqual(['101', '202']);
+});
+
+test('excluir moldura tira ela do pacote', () => {
+  const p = aplicarOperacao(base, op('excluirMoldura', { codigo: '202' }));
+  expect(p.molduras.map((m) => m.codigo)).toEqual(['101']);
+  expect(aplicarOperacao(p, op('excluirMoldura', { codigo: '202' }))).toBe(p);
+});
+
 test('editar moldura com dado inválido não muda nada', () => {
   expect(aplicarOperacao(base, op('editarMoldura', { codigo: '101', nome: '', perfil_cm: 2 }))).toBe(base);
   expect(aplicarOperacao(base, op('editarMoldura', { codigo: '101', nome: 'X', perfil_cm: 2, custo_m: '-3' }))).toBe(base);

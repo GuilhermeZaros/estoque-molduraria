@@ -1393,6 +1393,65 @@ test('editarMoldura: muda tudo menos código e estoque; custo volta no appSync; 
   assert.equal(dados.Historico.filter((h) => h.Tipo_movimentacao === 'edicao').length, 3);
 });
 
+test('editarMoldura troca o código e leva junto pros orçamentos, quadros, compras e oficina', () => {
+  const quebras = JSON.stringify([{ id: 'qb1', quadro: 1, moldura: 'M1', lado_cm: 30, quantidade: 1, metros: 0.4 }]);
+  const cortes = JSON.stringify([{ codigo: 'M1', usos: [], faltam: [] }, { codigo: 'X9', usos: [], faltam: [] }]);
+  const { ctx, dados } = montar({
+    Molduras: [moldura(5), { ...moldura(1), Codigo: 'M2' }],
+    Orcamentos: [{ ID: 'ORC-0001', Ref_app: 'r1', Status: 'aberto', Moldura: 'M1' }],
+    Orcamento_quadros: [{ Ref_app: 'r1', N: 1, Moldura: 'M2', Moldura_fora: 'M1' }],
+    Compras: [{ ID: 'CMP-0001', Moldura: 'M1', Status: 'pendente' }],
+    Oficina: [{ ID: 'OS-001', Status: 'em_producao', Ref_app: 'orc-r9', Quebras: quebras, Cortes: cortes }]
+  });
+  const editar = (id_op, codigo, codigo_novo) => js(ctx.appExecutar({
+    id_op, acao: 'editarMoldura', dados: { codigo, codigo_novo, nome: 'Madeira', perfil_cm: 3, preco_m: 58 }
+  }));
+  const r = editar('op-00000620', 'M1', ' M1-NOVO ');
+  assert.equal(r.resultado.codigo, 'M1-NOVO');
+  assert.equal(r.resultado.codigo_antigo, 'M1');
+  assert.deepEqual(dados.Molduras.map((m) => m.Codigo), ['M1-NOVO', 'M2']);
+  assert.equal(dados.Molduras[0].Estoque_atual_m, 5);
+  assert.equal(dados.Orcamentos[0].Moldura, 'M1-NOVO');
+  assert.deepEqual([dados.Orcamento_quadros[0].Moldura, dados.Orcamento_quadros[0].Moldura_fora], ['M2', 'M1-NOVO']);
+  assert.equal(dados.Compras[0].Moldura, 'M1-NOVO');
+  assert.equal(JSON.parse(dados.Oficina[0].Quebras)[0].moldura, 'M1-NOVO');
+  assert.deepEqual(JSON.parse(dados.Oficina[0].Cortes).map((c) => c.codigo), ['M1-NOVO', 'X9']);
+  assert.match(dados.Historico.at(-1).Observacoes, /código trocado de M1 para M1-NOVO/);
+  assert.throws(() => editar('op-00000621', 'M1-NOVO', 'M2'), /Já existe um produto com o código M2/);
+  assert.throws(() => editar('op-00000622', 'M1-NOVO', 'm2'), /Já existe/);
+  assert.equal(editar('op-00000623', 'M1-NOVO', '').resultado.codigo, 'M1-NOVO');
+});
+
+test('excluirMoldura apaga a linha e recusa se ainda estiver em orçamento, oficina ou compra', () => {
+  const { ctx, dados } = montar({
+    Molduras: [moldura(5), { ...moldura(0), Codigo: 'M2' }, { ...moldura(0), Codigo: 'M3' }, { ...moldura(0), Codigo: 'M4' }],
+    Orcamentos: [
+      { ID: 'ORC-0001', Ref_app: 'r1', Status: 'aberto', Cliente: 'Ana' },
+      { ID: 'ORC-0002', Ref_app: 'r2', Status: 'fechado', Cliente: 'Bia' }
+    ],
+    Orcamento_quadros: [
+      { Ref_app: 'r1', N: 1, Moldura: 'M2' },
+      { Ref_app: 'r2', N: 1, Moldura_fora: 'M3' },
+      { Ref_app: 'r3', N: 1, Moldura: 'M1' }
+    ],
+    Compras: [{ ID: 'CMP-0001', Moldura: 'M4', Status: 'pendente', Cliente: 'Caio' }],
+    Oficina: [
+      { ID: 'OS-001', Status: 'em_producao', Ref_app: 'orc-r2', Cliente: 'Bia' },
+      { ID: 'OS-002', Status: 'entregue', Ref_app: 'orc-r3', Cliente: 'Davi' }
+    ]
+  });
+  const excluir = (id_op, codigo) => js(ctx.appExecutar({ id_op, acao: 'excluirMoldura', dados: { codigo, atendente: 'Gui' } }));
+  assert.throws(() => excluir('op-00000630', 'M2'), /M2 ainda está no orçamento de Ana\. Tire/);
+  assert.throws(() => excluir('op-00000631', 'M3'), /na ordem da oficina de Bia/);
+  assert.throws(() => excluir('op-00000632', 'M4'), /na lista de compras \(Caio\)/);
+  assert.equal(excluir('op-00000633', 'M1').resultado.codigo, 'M1');
+  assert.deepEqual(dados.Molduras.map((m) => m.Codigo), ['M2', 'M3', 'M4']);
+  const h = dados.Historico.at(-1);
+  assert.deepEqual([h.Tipo_movimentacao, h.Quantidade], ['exclusao', 5]);
+  assert.match(h.Observacoes, /excluída pelo app \(Gui\)/);
+  assert.throws(() => excluir('op-00000634', 'M1'), /não encontrada/);
+});
+
 test('cadastrarMoldura grava o preço de custo', () => {
   const { ctx, dados } = montar({ Molduras: [] });
   ctx.appExecutar({

@@ -83,7 +83,7 @@ function edicao(pacote, d, r, extra) {
   } catch (e) {
     return pacote;
   }
-  return trocarMoldura(pacote, d.codigo, (m) => ({
+  const editado = trocarMoldura(pacote, d.codigo, (m) => ({
     nome: v.nome, marca: v.marca, estilo: v.estilo, cor: v.cor,
     perfil_cm: v.perfil_cm, preco_m: v.preco_m, custo_m: v.custo_m,
     foto_url: (r && r.foto_url) || (extra && extra.foto_uri) || m.foto_url || '',
@@ -91,6 +91,35 @@ function edicao(pacote, d, r, extra) {
       ? r.disponivel
       : (v.preco_m > 0 ? (Number(m.preco_m) > 0 ? m.disponivel !== false : true) : false)
   }));
+  const novo = String((r && r.codigo) || d.codigo_novo || '').trim();
+  return novo ? renomearMoldura(editado, String(d.codigo), novo) : editado;
+}
+
+function renomearMoldura(pacote, antigo, novo) {
+  if (novo === antigo || !pacote.molduras.some((m) => m.codigo === antigo)) return pacote;
+  if (pacote.molduras.some((m) => m.codigo === novo)) return pacote;
+  const troca = (c) => (String(c || '') === antigo ? novo : c);
+  const quadro = (q) => ({ ...q, moldura: troca(q.moldura), moldura_fora: troca(q.moldura_fora) });
+  return {
+    ...pacote,
+    molduras: pacote.molduras.map((m) => (m.codigo === antigo ? { ...m, codigo: novo } : m)),
+    orcamentos_abertos: (pacote.orcamentos_abertos || []).map((o) => ({
+      ...o, moldura: troca(o.moldura), quadros: (o.quadros || []).map(quadro)
+    })),
+    oficina: (pacote.oficina || []).map((o) => ({
+      ...o,
+      quadros: (o.quadros || []).map(quadro),
+      quebras: (o.quebras || []).map((x) => ({ ...x, moldura: troca(x.moldura) })),
+      cortes: (o.cortes || []).map((x) => ({ ...x, codigo: troca(x.codigo) }))
+    })),
+    compras_pendentes: (pacote.compras_pendentes || []).map((c) => ({ ...c, moldura: troca(c.moldura) }))
+  };
+}
+
+function exclusao(pacote, d) {
+  const codigo = String(d.codigo);
+  if (!pacote.molduras.some((m) => m.codigo === codigo)) return pacote;
+  return { ...pacote, molduras: pacote.molduras.filter((m) => m.codigo !== codigo) };
 }
 
 function quadroSalvo(q) {
@@ -289,6 +318,7 @@ export function aplicarOperacao(pacote, op, resultado) {
     case 'moverMoldura': return trocarMoldura(pacote, d.codigo, () => ({ local: normalizarCasinha(d.casinha) }));
     case 'cadastrarMoldura': return cadastro(pacote, d, resultado, op.extra);
     case 'editarMoldura': return edicao(pacote, d, resultado, op.extra);
+    case 'excluirMoldura': return exclusao(pacote, d);
     case 'salvarOrcamento': return salvarOrcamento(pacote, d, resultado, op.criada_em);
     case 'fecharVenda': {
       const planos = planosDaVenda(pacote, d);
