@@ -224,7 +224,7 @@ export function calcularQuadro(pacote, q) {
   }
   for (const categoria of MATERIAIS) {
     const codigo = q[categoria];
-    if (!codigo || (tela && !(semChassi && categoria === 'vidro')) || (categoria === 'chapa' && q.vidro_duplo)) continue;
+    if (!codigo || (tela && categoria !== 'vidro') || (categoria === 'chapa' && q.vidro_duplo)) continue;
     const mat = (pacote.materiais || []).find((m) => m.categoria === categoria && String(m.codigo) === String(codigo));
     if (!mat) return { ok: false, erro: 'O item ' + codigo + ' não está mais no catálogo.' };
     itens.push({ categoria, nome: mat.nome, preco: Number(mat.preco), perfilCm: 0 });

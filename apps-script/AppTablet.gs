@@ -210,7 +210,7 @@ function _calcularOrcamentoApp(q, precoChassi) {
   if (_tipoDoQuadro(q) === 'tela') {
     var semChassi = _ehDisponivel(q.sem_chassi);
     var tela = orcamentoPorCodigos({
-      moldura: q.moldura, molduraFora: q.moldura_fora, vidro: semChassi ? q.vidro : '',
+      moldura: q.moldura, molduraFora: q.moldura_fora, vidro: q.vidro,
       largura: q.largura_cm, altura: q.altura_cm,
       chassiPrecoM: semChassi ? 0 : Number(precoChassi) > 0 ? Number(precoChassi) : _precoChassiAtual()
     });
@@ -273,7 +273,7 @@ function _linhaDoQuadro(id, ref, q, c, n) {
     Margem_cm: borda.paspatur ? 0 : borda.cm,
     Quantidade: c.quantidade,
     Paspatur_cm: borda.paspatur ? borda.cm : 0,
-    Moldura: String(q.moldura || ''), Vidro: tela && !semChassi ? '' : String(q.vidro || ''),
+    Moldura: String(q.moldura || ''), Vidro: String(q.vidro || ''),
     Chapa: duplo || tela ? '' : String(q.chapa || ''), Espelho: tela ? '' : String(q.espelho || ''),
     Vidro_duplo: duplo, Objeto_alto: !tela && _ehDisponivel(q.objeto_alto),
     Valor_calculado: c.valor_total, Consumo_m: Number((c.consumo_moldura_m + c.consumo_fora_m).toFixed(3)),

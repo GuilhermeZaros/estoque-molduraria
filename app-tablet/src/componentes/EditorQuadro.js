@@ -135,11 +135,11 @@ export function EditorQuadro({ q, n, total, pacote, r, aviso, avisoFora, aoMudar
             <GrupoPilulas
               opcoes={[{ valor: false, titulo: 'Com chassi' }, { valor: true, titulo: 'Sem chassi (já vem esticada)' }]}
               valor={semChassi}
-              aoMudar={(v) => aoMudar(v ? { sem_chassi: true } : { sem_chassi: false, vidro: '' })}
+              aoMudar={(v) => aoMudar({ sem_chassi: !!v })}
             />
             <Text style={s.nota}>
               {semChassi
-                ? 'A tela do cliente já vem esticada: não cobra chassi nem trava. Escolha a moldura e, se for, o vidro.'
+                ? 'A tela do cliente já vem esticada: não cobra chassi nem trava.'
                 : 'Pano esticado no chassi, a ' + formatarReais(precoDoChassi(pacote)) + ' o metro. A partir de 1 m no lado maior leva 1 trava; a partir de 1,50 m, 2 travas.'}
             </Text>
           </>
@@ -206,42 +206,40 @@ export function EditorQuadro({ q, n, total, pacote, r, aviso, avisoFora, aoMudar
         </EscolhaMoldura>
       ) : null}
 
-      {!tela || semChassi ? (
-        <Cartao titulo={'VIDRO' + novo}>
-          <GrupoPilulas
-            opcoes={opcoes(materiaisDe(pacote, 'vidro'), 'Sem vidro')}
-            valor={q.vidro}
-            aoMudar={(v) => aoMudar(v ? { vidro: v } : { vidro: '', vidro_duplo: false })}
+      <Cartao titulo={'VIDRO' + novo}>
+        <GrupoPilulas
+          opcoes={opcoes(materiaisDe(pacote, 'vidro'), 'Sem vidro')}
+          valor={q.vidro}
+          aoMudar={(v) => aoMudar(v ? { vidro: v } : { vidro: '', vidro_duplo: false })}
+        />
+        {q.vidro && !objeto && !tela ? (
+          <Interruptor
+            titulo="2 vidros (sem fundo)"
+            dica={'Pra quadro que mostra os dois lados. Leva silicone (' + formatarReais(SILICONE_POR_METRO) + ' o metro) e não leva paspatur.'}
+            valor={q.vidro_duplo}
+            aoMudar={(v) => aoMudar({ vidro_duplo: v })}
           />
-          {q.vidro && !objeto && !tela ? (
-            <Interruptor
-              titulo="2 vidros (sem fundo)"
-              dica={'Pra quadro que mostra os dois lados. Leva silicone (' + formatarReais(SILICONE_POR_METRO) + ' o metro) e não leva paspatur.'}
-              valor={q.vidro_duplo}
-              aoMudar={(v) => aoMudar({ vidro_duplo: v })}
+        ) : null}
+        {q.vidro && !objeto && q.vidro_duplo ? (
+          <>
+            <Text style={s.rotulo}>Borda em volta</Text>
+            <GrupoPilulas
+              opcoes={BORDAS}
+              valor={q.margem_outra ? null : q.margem}
+              aoMudar={(v) => aoMudar({ margem_outra: false, margem: v })}
             />
-          ) : null}
-          {q.vidro && !objeto && q.vidro_duplo ? (
-            <>
-              <Text style={s.rotulo}>Borda em volta</Text>
-              <GrupoPilulas
-                opcoes={BORDAS}
-                valor={q.margem_outra ? null : q.margem}
-                aoMudar={(v) => aoMudar({ margem_outra: false, margem: v })}
-              />
-              <Campo
-                rotulo="Outra borda (cm)"
-                valor={q.margem_outra ? q.margem : ''}
-                aoMudar={(v) => aoMudar({ margem_outra: v !== '', margem: v })}
-                teclado="decimal-pad"
-              />
-              {r && r.ok && r.margem > 0 ? (
-                <Text style={s.nota}>Com a borda o quadro fica {formatarNumero(r.externa.largura)} x {formatarNumero(r.externa.altura)} cm.</Text>
-              ) : null}
-            </>
-          ) : null}
-        </Cartao>
-      ) : null}
+            <Campo
+              rotulo="Outra borda (cm)"
+              valor={q.margem_outra ? q.margem : ''}
+              aoMudar={(v) => aoMudar({ margem_outra: v !== '', margem: v })}
+              teclado="decimal-pad"
+            />
+            {r && r.ok && r.margem > 0 ? (
+              <Text style={s.nota}>Com a borda o quadro fica {formatarNumero(r.externa.largura)} x {formatarNumero(r.externa.altura)} cm.</Text>
+            ) : null}
+          </>
+        ) : null}
+      </Cartao>
 
       {!tela && !q.vidro_duplo ? (
         <Cartao titulo={'FUNDO' + novo}>

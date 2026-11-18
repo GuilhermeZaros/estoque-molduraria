@@ -1053,7 +1053,7 @@ test('appSync: preço do chassi vem da aba Loja; vazio ou errado volta pros R$ 1
   assert.equal(preco('abc'), 18.9);
 });
 
-test('tela: chassi com as travas e moldura opcional; vidro, fundo, paspatur e espelho não entram', () => {
+test('tela: chassi com as travas e moldura e vidro opcionais; fundo, paspatur e espelho não entram', () => {
   const { ctx } = montar({
     Molduras: [moldura(27)], Vidros: [vidro], Chapas: [chapa], Loja: [{ Campo: 'Chassi (R$ por metro)', Valor: 20 }]
   });
@@ -1065,26 +1065,26 @@ test('tela: chassi com as travas e moldura opcional; vidro, fundo, paspatur e es
     quantidade: 2, moldura: 'M1', vidro: 'V1', chapa: 'C1', espelho: 'E9', paspatur_cm: 5, margem_cm: 3,
     vidro_duplo: true, objeto_alto: true, servicos: [{ descricao: 'Esticar com cuidado', valor: 10 }]
   })));
-  assert.deepEqual(com.itens.map((i) => i.categoria), ['chassi', 'moldura']);
+  assert.deepEqual(com.itens.map((i) => i.categoria), ['chassi', 'moldura', 'vidro']);
   assert.equal(com.itens[1].valor, 255.2);
-  assert.equal(com.valor_unitario, 371.2);
-  assert.equal(com.valor_total, 752.4);
+  assert.equal(com.valor_unitario, 560.2);
+  assert.equal(com.valor_total, 1130.4);
   assert.equal(com.consumo_moldura_m, 9.652);
   assert.equal(com.pintura_chapa, 0);
   assert.throws(() => ctx._calcularOrcamentoApp(tela({ largura_cm: 0 })), /largura e altura/);
 });
 
-test('salvarOrcamento: tela grava só medida, moldura e serviços na linha do quadro', () => {
+test('salvarOrcamento: tela grava medida, moldura, vidro e serviços na linha do quadro', () => {
   const { ctx, dados } = montar({ Molduras: [moldura(27)], Vidros: [vidro], Chapas: [chapa] });
   const r = js(ctx.appExecutar({
     id_op: 'op-00000090', acao: 'salvarOrcamento',
     dados: pedidoVarios([tela({ moldura: 'M1', vidro: 'V1', chapa: 'C1', paspatur_cm: 5, objeto_alto: true }), tela({ largura_cm: 80, altura_cm: 60 })])
   }));
-  assert.equal(r.resultado.valor_calculado, Number((109.7 + 255.2 + 53).toFixed(2)));
+  assert.equal(r.resultado.valor_calculado, Number((109.7 + 255.2 + 189 + 53).toFixed(2)));
   const q = dados.Orcamento_quadros;
   assert.deepEqual(q.map((x) => x.Tipo), ['tela', 'tela']);
   assert.deepEqual([q[0].Moldura, q[0].Vidro, q[0].Chapa, q[0].Espelho, q[0].Paspatur_cm, q[0].Margem_cm, q[0].Objeto_alto, q[0].Vidro_duplo],
-    ['M1', '', '', '', 0, 0, false, false]);
+    ['M1', 'V1', '', '', 0, 0, false, false]);
   assert.equal(dados.Orcamentos[0].Quadros, 'tela 150 x 70; tela 80 x 60');
   const aberto = js(ctx.appSync()).orcamentos_abertos[0];
   assert.deepEqual(aberto.quadros.map((x) => x.tipo), ['tela', 'tela']);
@@ -1295,7 +1295,7 @@ test('tela sem chassi: servidor não cobra chassi, aceita vidro e grava Sem_chas
   }));
   const q = dados.Orcamento_quadros;
   assert.deepEqual([q[0].Sem_chassi, q[0].Vidro, q[0].Chapa], [true, 'V1', '']);
-  assert.deepEqual([q[1].Sem_chassi, q[1].Vidro], [false, '']);
+  assert.deepEqual([q[1].Sem_chassi, q[1].Vidro], [false, 'V1']);
   assert.equal(dados.Orcamentos[0].Quadros, 'tela sem chassi 150 x 70; tela 150 x 70');
   const aberto = js(ctx.appSync()).orcamentos_abertos[0];
   assert.deepEqual(aberto.quadros.map((x) => x.sem_chassi), [true, false]);

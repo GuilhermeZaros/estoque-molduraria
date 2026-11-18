@@ -387,7 +387,7 @@ test('lista de abertos: mais novo primeiro e busca por nome, telefone ou número
 const tela = (mudar) => ({ ...quadroVazio('tela'), largura: '150', altura: '70', ...mudar });
 const comChassi = { ...pacote, chassi_m: 18.9 };
 
-test('tela: chassi pelo perímetro com as travas; moldura opcional; vidro, fundo, paspatur e espelho não entram', () => {
+test('tela: chassi pelo perímetro com as travas; moldura e vidro opcionais; fundo, paspatur e espelho não entram', () => {
   const so = calcularQuadro(comChassi, tela());
   expect(so.ok).toBe(true);
   expect(so.calc.itens.map((it) => [it.categoria, it.valor])).toEqual([['chassi', 109.7]]);
@@ -395,9 +395,9 @@ test('tela: chassi pelo perímetro com as travas; moldura opcional; vidro, fundo
   const com = calcularQuadro(comChassi, tela({
     moldura: 'M1', vidro: 'VID-001', chapa: 'CHA-001', espelho: 'ESP-001', paspatur: '5', objeto_alto: true, quantidade: 2
   }));
-  expect(com.calc.itens.map((it) => it.categoria)).toEqual(['chassi', 'moldura']);
-  expect(com.calc.valor_unitario).toBe(241.7);
-  expect(com.calc.valor_total).toBe(483.4);
+  expect(com.calc.itens.map((it) => it.categoria)).toEqual(['chassi', 'moldura', 'vidro']);
+  expect(com.calc.valor_unitario).toBe(430.7);
+  expect(com.calc.valor_total).toBe(861.4);
   expect(com.calc.pintura_chapa).toBe(0);
   expect(com.externa).toEqual({ largura: 150, altura: 70 });
   expect(calcularQuadro(comChassi, tela({ largura: '' })).erro).toBe('Informe a largura e a altura da tela.');
