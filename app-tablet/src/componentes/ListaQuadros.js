@@ -8,6 +8,7 @@ function materiais(pacote, q, r) {
   const partes = [];
   const chassi = q.tipo === 'tela' && r && r.ok ? r.calc.itens.find((it) => it.categoria === 'chassi') : null;
   if (chassi) partes.push(chassi.travas ? 'chassi com ' + (chassi.travas > 1 ? chassi.travas + ' travas' : '1 trava') : 'chassi sem trava');
+  else if (q.tipo === 'tela' && q.sem_chassi) partes.push('sem chassi');
   const moldura = q.moldura ? pacote.molduras.find((m) => m.codigo === q.moldura) : null;
   if (moldura) partes.push(moldura.nome);
   const fora = q.moldura_fora ? pacote.molduras.find((m) => m.codigo === q.moldura_fora) : null;

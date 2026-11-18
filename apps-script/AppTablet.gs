@@ -208,9 +208,11 @@ function _calcularOrcamentoApp(q, precoChassi) {
   var borda = _bordaDoQuadro(q);
   var servicos = _servicosDoQuadro(q.servicos);
   if (_tipoDoQuadro(q) === 'tela') {
+    var semChassi = _ehDisponivel(q.sem_chassi);
     var tela = orcamentoPorCodigos({
-      moldura: q.moldura, molduraFora: q.moldura_fora, largura: q.largura_cm, altura: q.altura_cm,
-      chassiPrecoM: Number(precoChassi) > 0 ? Number(precoChassi) : _precoChassiAtual()
+      moldura: q.moldura, molduraFora: q.moldura_fora, vidro: semChassi ? q.vidro : '',
+      largura: q.largura_cm, altura: q.altura_cm,
+      chassiPrecoM: semChassi ? 0 : Number(precoChassi) > 0 ? Number(precoChassi) : _precoChassiAtual()
     });
     return _totaisOrcamentoApp(tela, q.quantidade, servicos);
   }
@@ -262,6 +264,7 @@ function _linhaDoQuadro(id, ref, q, c, n) {
   var tipo = _tipoDoQuadro(q);
   var borda = _bordaDoQuadro(q);
   var tela = tipo === 'tela';
+  var semChassi = tela && _ehDisponivel(q.sem_chassi);
   var duplo = !tela && _ehDisponivel(q.vidro_duplo);
   return {
     Orcamento: id, Ref_app: ref, N: n, Tipo: tipo,
@@ -270,13 +273,14 @@ function _linhaDoQuadro(id, ref, q, c, n) {
     Margem_cm: borda.paspatur ? 0 : borda.cm,
     Quantidade: c.quantidade,
     Paspatur_cm: borda.paspatur ? borda.cm : 0,
-    Moldura: String(q.moldura || ''), Vidro: tela ? '' : String(q.vidro || ''),
+    Moldura: String(q.moldura || ''), Vidro: tela && !semChassi ? '' : String(q.vidro || ''),
     Chapa: duplo || tela ? '' : String(q.chapa || ''), Espelho: tela ? '' : String(q.espelho || ''),
     Vidro_duplo: duplo, Objeto_alto: !tela && _ehDisponivel(q.objeto_alto),
     Valor_calculado: c.valor_total, Consumo_m: Number((c.consumo_moldura_m + c.consumo_fora_m).toFixed(3)),
     Servicos: c.servicos.length ? JSON.stringify(c.servicos) : '',
     Descricao: String(q.descricao || '').trim(),
-    Moldura_fora: String(q.moldura_fora || '')
+    Moldura_fora: String(q.moldura_fora || ''),
+    Sem_chassi: semChassi
   };
 }
 

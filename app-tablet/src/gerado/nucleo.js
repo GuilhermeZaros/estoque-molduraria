@@ -360,7 +360,7 @@ function _resumoQuadros(quadros) {
     if (tipo === 'camiseta') txt = 'camiseta ' + (q.tamanho ? q.tamanho : medida);
     if (tipo === 'objeto') txt = 'objeto' + (medida ? ' ' + medida : '');
     if (tipo === 'reforma') txt = 'reforma' + (medida ? ' ' + medida : '');
-    if (tipo === 'tela') txt = 'tela' + (medida ? ' ' + medida : '');
+    if (tipo === 'tela') txt = (_ehDisponivel(q.sem_chassi) ? 'tela sem chassi' : 'tela') + (medida ? ' ' + medida : '');
     var nomes = _servicosDoQuadro(q.servicos).map(function (s) { return s.descricao; }).filter(function (d) { return d; });
     if (nomes.length) txt += ' (' + nomes.join(', ') + ')';
     return (qtd > 1 ? qtd + 'x ' : '') + txt;

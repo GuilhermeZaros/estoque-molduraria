@@ -72,6 +72,7 @@ function quadroSalvo(q) {
     espelho: q.espelho || '',
     vidro_duplo: !!q.vidro_duplo,
     objeto_alto: !!q.objeto_alto,
+    sem_chassi: !!q.sem_chassi,
     valor_calculado: Number(q.valor_calculado) || 0,
     consumo_m: Number(q.consumo_m) || 0,
     servicos: servicosDoQuadro(q.servicos)

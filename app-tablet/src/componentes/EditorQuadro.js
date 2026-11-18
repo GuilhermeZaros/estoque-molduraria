@@ -108,6 +108,7 @@ export function EditorQuadro({ q, n, total, pacote, r, aviso, avisoFora, aoMudar
   const reforma = q.tipo === 'reforma';
   const tela = q.tipo === 'tela';
   const travas = travasDaTela(q);
+  const semChassi = tela && !!q.sem_chassi;
   const duas = !!q.moldura_fora || comFora;
   const moldura = q.moldura ? pacote.molduras.find((m) => m.codigo === q.moldura) : null;
   const molduras = moldurasDoOrcamento(pacote);
@@ -130,9 +131,18 @@ export function EditorQuadro({ q, n, total, pacote, r, aviso, avisoFora, aoMudar
         <GrupoPilulas opcoes={TIPOS_QUADRO} valor={q.tipo} aoMudar={aoTrocarTipo} />
         {reforma ? <Text style={s.nota}>O quadro é do cliente. Nada é obrigatório: marque só o que for trocar ou fazer.</Text> : null}
         {tela ? (
-          <Text style={s.nota}>
-            Pano esticado no chassi, a {formatarReais(precoDoChassi(pacote))} o metro. A partir de 1 m no lado maior leva 1 trava; a partir de 1,50 m, 2 travas.
-          </Text>
+          <>
+            <GrupoPilulas
+              opcoes={[{ valor: false, titulo: 'Com chassi' }, { valor: true, titulo: 'Sem chassi (já vem esticada)' }]}
+              valor={semChassi}
+              aoMudar={(v) => aoMudar(v ? { sem_chassi: true } : { sem_chassi: false, vidro: '' })}
+            />
+            <Text style={s.nota}>
+              {semChassi
+                ? 'A tela do cliente já vem esticada: não cobra chassi nem trava. Escolha a moldura e, se for, o vidro.'
+                : 'Pano esticado no chassi, a ' + formatarReais(precoDoChassi(pacote)) + ' o metro. A partir de 1 m no lado maior leva 1 trava; a partir de 1,50 m, 2 travas.'}
+            </Text>
+          </>
         ) : null}
       </Cartao>
 
@@ -173,7 +183,7 @@ export function EditorQuadro({ q, n, total, pacote, r, aviso, avisoFora, aoMudar
         pacote={pacote}
         rotulo={duas ? 'Buscar moldura de dentro (código ou nome)' : 'Buscar moldura (código ou nome)'}
         aviso={aviso}
-        nota={tela && !moldura ? 'Moldura é opcional. Sem moldura, a tela vai só no chassi.' : ''}
+        nota={tela && !semChassi && !moldura ? 'Moldura é opcional. Sem moldura, a tela vai só no chassi.' : ''}
         aoEscolher={(codigo) => aoMudar({ moldura: codigo })}
         aoTirar={() => aoMudar({ moldura: '' })}>
         {moldura && !duas ? (
@@ -196,14 +206,14 @@ export function EditorQuadro({ q, n, total, pacote, r, aviso, avisoFora, aoMudar
         </EscolhaMoldura>
       ) : null}
 
-      {!tela ? (
+      {!tela || semChassi ? (
         <Cartao titulo={'VIDRO' + novo}>
           <GrupoPilulas
             opcoes={opcoes(materiaisDe(pacote, 'vidro'), 'Sem vidro')}
             valor={q.vidro}
             aoMudar={(v) => aoMudar(v ? { vidro: v } : { vidro: '', vidro_duplo: false })}
           />
-          {q.vidro && !objeto ? (
+          {q.vidro && !objeto && !tela ? (
             <Interruptor
               titulo="2 vidros (sem fundo)"
               dica={'Pra quadro que mostra os dois lados. Leva silicone (' + formatarReais(SILICONE_POR_METRO) + ' o metro) e não leva paspatur.'}

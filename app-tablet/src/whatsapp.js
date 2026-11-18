@@ -34,7 +34,9 @@ export function linhasDoQuadro(q, varios, ajustado) {
   const novo = q.tipo === 'reforma' ? ' novo' : '';
   const linhas = [tituloQuadro(q, varios)];
   if (q.tipo === 'tela') {
-    linhas.push('Esticada no chassi' + (q.travas > 0 ? ', com ' + (q.travas > 1 ? q.travas + ' travas' : '1 trava') : ''));
+    linhas.push(q.sem_chassi
+      ? 'A tela já vem esticada (sem chassi novo)'
+      : 'Esticada no chassi' + (q.travas > 0 ? ', com ' + (q.travas > 1 ? q.travas + ' travas' : '1 trava') : ''));
   }
   const lado = q.moldura_fora ? ' por dentro' : '';
   if (q.moldura) linhas.push((novo ? 'Moldura nova' : 'Moldura') + lado + ': ' + q.moldura);

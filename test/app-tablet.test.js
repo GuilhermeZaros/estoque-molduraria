@@ -300,7 +300,7 @@ test('appSync: abertos levam os quadros; orçamento antigo vira 1 quadro', () =>
   assert.deepEqual(antigo.quadros, [{
     tipo: 'quadro', tamanho: '', largura_cm: 30, altura_cm: 40, margem_cm: 0, quantidade: 2, paspatur_cm: 5,
     moldura: 'M1', moldura_fora: '', vidro: 'V1', chapa: '', espelho: '', vidro_duplo: false, objeto_alto: false,
-    valor_calculado: 300, consumo_m: 4, servicos: [], descricao: ''
+    valor_calculado: 300, consumo_m: 4, servicos: [], descricao: '', sem_chassi: false
   }]);
   const novo = abertos.find((o) => o.ref_app === 'ref-00000001');
   assert.equal(novo.id, 'ORC-0002');
@@ -1282,4 +1282,21 @@ test('lote: várias gravações numa chamada, para no primeiro erro e devolve o 
   assert.equal(parou.pacote, undefined);
   assert.equal(dados.Entradas.length, 1);
   assert.throws(() => ctx.appExecutarLote({ lote: new Array(21).fill({}) }), /grande demais/);
+});
+
+test('tela sem chassi: servidor não cobra chassi, aceita vidro e grava Sem_chassi', () => {
+  const { ctx, dados } = montar({ Molduras: [moldura(27)], Vidros: [vidro], Chapas: [chapa] });
+  const c = js(ctx._calcularOrcamentoApp(tela({ sem_chassi: true, moldura: 'M1', vidro: 'V1', chapa: 'C1' })));
+  assert.deepEqual(c.itens.map((i) => i.categoria), ['moldura', 'vidro']);
+  assert.equal(c.itens[0].valor, 255.2);
+  js(ctx.appExecutar({
+    id_op: 'op-00000095', acao: 'salvarOrcamento',
+    dados: pedidoVarios([tela({ sem_chassi: true, moldura: 'M1', vidro: 'V1', chapa: 'C1' }), tela({ vidro: 'V1' })])
+  }));
+  const q = dados.Orcamento_quadros;
+  assert.deepEqual([q[0].Sem_chassi, q[0].Vidro, q[0].Chapa], [true, 'V1', '']);
+  assert.deepEqual([q[1].Sem_chassi, q[1].Vidro], [false, '']);
+  assert.equal(dados.Orcamentos[0].Quadros, 'tela sem chassi 150 x 70; tela 150 x 70');
+  const aberto = js(ctx.appSync()).orcamentos_abertos[0];
+  assert.deepEqual(aberto.quadros.map((x) => x.sem_chassi), [true, false]);
 });

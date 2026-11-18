@@ -151,6 +151,13 @@ function linhaDosServicos(q) {
 }
 
 export function detalhesDoQuadro(pacote, q) {
+  if (q.tipo === 'tela' && q.sem_chassi) {
+    const vidroTela = q.vidro ? nomeMaterial(pacote, q.vidro) || q.vidro : '';
+    return [
+      linha('Chassi', 'Não leva, a tela já vem esticada'), ...linhasDasMolduras(pacote, q),
+      ...(vidroTela ? [linha('Vidro', vidroTela)] : []), ...linhaDosServicos(q)
+    ];
+  }
   if (q.tipo === 'tela') return [linhaDoChassi(q), ...linhasDasMolduras(pacote, q), ...linhaDosServicos(q)];
   const nome = (codigo) => (codigo ? nomeMaterial(pacote, codigo) || codigo : '');
   const objeto = q.tipo === 'objeto' || q.tipo === 'camiseta';

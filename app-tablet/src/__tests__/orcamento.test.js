@@ -1,7 +1,7 @@
 import {
   orcamentoVazio, quadroVazio, duplicarQuadro, trocarTipo, mudarQuadro, servicoVazio, deAberto,
   moldurasDoOrcamento, materiaisDe, calcularQuadro, calcularPedido, avisoMoldura, avisosDoPedido, dadosParaApi,
-  dadosDoTexto, filtrarAbertos, rotuloQuadro
+  dadosDoTexto, filtrarAbertos, rotuloQuadro, travasDaTela
 } from '../orcamento';
 
 const mold = (codigo, estoque_m, extra = {}) => ({
@@ -295,17 +295,17 @@ test('dados pra planilha: um item por quadro, chapa some com 2 vidros, objeto le
     {
       tipo: 'quadro', largura_cm: 40, altura_cm: 50, margem_cm: 0, quantidade: 1, paspatur_cm: 0,
       moldura: 'M1', moldura_fora: '', vidro: 'VID-001', chapa: '', espelho: '', vidro_duplo: true, objeto_alto: false,
-      valor_calculado: rr.quadros[0].calc.valor_total, consumo_m: rr.quadros[0].calc.consumo_moldura_m, servicos: [], descricao: ''
+      valor_calculado: rr.quadros[0].calc.valor_total, consumo_m: rr.quadros[0].calc.consumo_moldura_m, servicos: [], descricao: '', sem_chassi: false
     },
     {
       tipo: 'objeto', largura_cm: 52, altura_cm: 72, margem_cm: 4, quantidade: 1, paspatur_cm: 0,
       moldura: 'M1', moldura_fora: '', vidro: 'VID-001', chapa: 'CHA-001', espelho: '', vidro_duplo: false, objeto_alto: true,
-      valor_calculado: 243.6, consumo_m: rr.quadros[1].calc.consumo_moldura_m, servicos: [], descricao: ''
+      valor_calculado: 243.6, consumo_m: rr.quadros[1].calc.consumo_moldura_m, servicos: [], descricao: '', sem_chassi: false
     },
     {
       tipo: 'reforma', largura_cm: 0, altura_cm: 0, margem_cm: 0, quantidade: 1, paspatur_cm: 0,
       moldura: '', moldura_fora: '', vidro: '', chapa: '', espelho: '', vidro_duplo: false, objeto_alto: false,
-      valor_calculado: 30, consumo_m: 0, servicos: [{ descricao: 'Limpar vidros', valor: 30 }], descricao: ''
+      valor_calculado: 30, consumo_m: 0, servicos: [{ descricao: 'Limpar vidros', valor: 30 }], descricao: '', sem_chassi: false
     }
   ]);
 });
@@ -449,4 +449,15 @@ test('duas molduras: a de fora é cobrada na medida de fora da de dentro, soma a
   expect(dadosDoTexto(p, f, rr).quadros[0]).toMatchObject({ moldura: 'Moldura M1', moldura_fora: 'Moldura M4' });
   expect(calcularQuadro(p, quadro({ moldura_fora: 'M4' })).erro).toBe('Escolha a moldura de dentro antes da moldura de fora.');
   expect(deAberto({ ref_app: 'r', quadros: [{ tipo: 'quadro', largura_cm: 30, altura_cm: 40, moldura: 'M1', moldura_fora: 'M4' }] }).quadros[0].moldura_fora).toBe('M4');
+});
+
+test('tela sem chassi: não cobra chassi nem trava; moldura e vidro entram', () => {
+  const r = calcularQuadro(comChassi, tela({ sem_chassi: true, moldura: 'M1', vidro: 'VID-001', chapa: 'CHA-001', paspatur: '5' }));
+  expect(r.ok).toBe(true);
+  expect(r.calc.itens.map((it) => it.categoria)).toEqual(['moldura', 'vidro']);
+  expect(r.calc.itens[0].valor).toBe(132);
+  expect(r.externa).toEqual({ largura: 150, altura: 70 });
+  expect(travasDaTela(tela({ sem_chassi: true }))).toBe(null);
+  expect(calcularQuadro(comChassi, tela({ sem_chassi: true })).erro).toBe('Sem chassi, escolha a moldura ou o vidro.');
+  expect(calcularQuadro(comChassi, tela({ sem_chassi: true, moldura: 'M1' })).calc.valor_unitario).toBe(132);
 });

@@ -49,7 +49,7 @@ export function quadroVazio(tipo = 'quadro', pacote) {
   const q = {
     chave: novaChave(), tipo, largura: '', altura: '', margem: '', margem_outra: false, quantidade: 1, paspatur: '',
     borda_outra: false, moldura: '', moldura_fora: '', vidro: '', chapa: '', espelho: '', vidro_duplo: false, objeto_alto: false, servicos: [],
-    descricao: ''
+    descricao: '', sem_chassi: false
   };
   if (tipo !== 'objeto') return q;
   return {
@@ -64,7 +64,7 @@ export function duplicarQuadro(q) {
 
 const SO_A_MOLDURA = {
   vidro: '', chapa: '', espelho: '', paspatur: '', borda_outra: false, margem: '', margem_outra: false,
-  vidro_duplo: false, objeto_alto: false
+  vidro_duplo: false, objeto_alto: false, sem_chassi: false
 };
 
 export function trocarTipo(q, tipo, pacote) {
@@ -130,7 +130,8 @@ function deQuadroSalvo(x) {
     vidro_duplo: !!x.vidro_duplo,
     objeto_alto: !!x.objeto_alto,
     servicos: servicosDoQuadro(x.servicos).map((s) => ({ ...servicoVazio(), descricao: s.descricao, valor: numeroOuVazio(s.valor) })),
-    descricao: String(x.descricao || '')
+    descricao: String(x.descricao || ''),
+    sem_chassi: tipo === 'tela' && !!x.sem_chassi
   };
 }
 
@@ -184,7 +185,7 @@ export function precoDoChassi(pacote) {
 export function travasDaTela(q) {
   const l = lerNumero(q.largura);
   const a = lerNumero(q.altura);
-  return q.tipo === 'tela' && l > 0 && a > 0 ? travasDoChassi(l, a) : null;
+  return q.tipo === 'tela' && !q.sem_chassi && l > 0 && a > 0 ? travasDoChassi(l, a) : null;
 }
 
 export function calcularQuadro(pacote, q) {
@@ -193,6 +194,7 @@ export function calcularQuadro(pacote, q) {
   const temMedida = largura > 0 && altura > 0;
   const reforma = q.tipo === 'reforma';
   const tela = q.tipo === 'tela';
+  const semChassi = tela && !!q.sem_chassi;
   if (!reforma && !temMedida) return { ok: false, erro: erroDeMedida(q.tipo) };
   const usaMargem = q.tipo === 'objeto' || !!q.vidro_duplo;
   if (Number.isNaN(lerNumero(usaMargem ? q.margem : q.paspatur))) {
@@ -222,16 +224,17 @@ export function calcularQuadro(pacote, q) {
   }
   for (const categoria of MATERIAIS) {
     const codigo = q[categoria];
-    if (!codigo || tela || (categoria === 'chapa' && q.vidro_duplo)) continue;
+    if (!codigo || (tela && !(semChassi && categoria === 'vidro')) || (categoria === 'chapa' && q.vidro_duplo)) continue;
     const mat = (pacote.materiais || []).find((m) => m.categoria === categoria && String(m.codigo) === String(codigo));
     if (!mat) return { ok: false, erro: 'O item ' + codigo + ' não está mais no catálogo.' };
     itens.push({ categoria, nome: mat.nome, preco: Number(mat.preco), perfilCm: 0 });
   }
   if (!reforma && !tela && !itens.length) return { ok: false, erro: 'Escolha pelo menos a moldura, o vidro, o fundo ou o espelho.' };
+  if (semChassi && !itens.length) return { ok: false, erro: 'Sem chassi, escolha a moldura ou o vidro.' };
   if (reforma && !temMedida && (itens.length || borda.paspatur)) return { ok: false, erro: erroDeMedida(q.tipo) };
   const externa = temMedida ? medidaExterna(largura, altura, borda.cm) : { largura: 0, altura: 0 };
   const orc = calcularOrcamento(externa.largura, externa.altura, itens, tela
-    ? { chassiPrecoM: precoDoChassi(pacote) }
+    ? (semChassi ? {} : { chassiPrecoM: precoDoChassi(pacote) })
     : {
       objetoAlto: !!q.objeto_alto,
       vidroDuplo: !!q.vidro_duplo,
@@ -331,7 +334,8 @@ function quadroParaApi(q, r) {
     valor_calculado: r.calc.valor_total,
     consumo_m: r.calc.consumo_moldura_m,
     servicos: r.calc.servicos,
-    descricao: String(q.descricao || '').trim()
+    descricao: String(q.descricao || '').trim(),
+    sem_chassi: q.tipo === 'tela' && !!q.sem_chassi
   };
 }
 
@@ -372,6 +376,7 @@ export function dadosDoTexto(pacote, f, rr) {
         fundo: q.chapa && !q.vidro_duplo ? nomeMaterial(pacote, q.chapa) : '',
         espelho: q.espelho ? nomeMaterial(pacote, q.espelho) : '',
         travas: q.tipo === 'tela' ? (travasDaTela(q) || { quantidade: 0 }).quantidade : 0,
+        sem_chassi: q.tipo === 'tela' && !!q.sem_chassi,
         valor_total: r.calc.valor_total,
         valor_unitario: r.calc.valor_unitario,
         servicos: r.calc.servicos
