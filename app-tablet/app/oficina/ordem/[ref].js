@@ -97,6 +97,7 @@ export default function OrdemAberta() {
         fotos={fotos}
         nome={nome}
         aoTirar={ativa && podeTirar ? () => camera.tirar(n, fotos.length) : null}
+        aoEscolher={ativa && podeTirar ? () => camera.escolher(n, fotos.length) : null}
         aoApagar={ativa ? (f) => central.registrar('tirarFotoOrdem', dadosDeTirarFoto(o, f)) : null}
         ocupado={camera.ocupado === n}
         erro={camera.erro && camera.erro.quadro === n ? camera.erro.texto : ''}

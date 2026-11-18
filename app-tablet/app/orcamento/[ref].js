@@ -284,6 +284,7 @@ export default function EditorOrcamento() {
                     fotos={lista}
                     nome={'quadro ' + (j + 1) + ', ' + rotuloQuadro(q)}
                     aoTirar={() => camera.tirar(q.chave, lista.length)}
+                    aoEscolher={() => camera.escolher(q.chave, lista.length)}
                     aoApagar={(foto) => apagarFoto(q.chave, foto)}
                     ocupado={camera.ocupado === q.chave}
                     erro={camera.erro && camera.erro.quadro === q.chave ? camera.erro.texto : ''}

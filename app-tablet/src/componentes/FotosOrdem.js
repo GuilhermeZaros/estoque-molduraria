@@ -26,7 +26,7 @@ export function useCameraDaOrdem(ordem, aoFoto) {
       const foto = await prepararFoto(asset);
       await aoFotoRef.current(quadro, Crypto.randomUUID(), foto.uri);
     } catch (e) {
-      setErro({ quadro, texto: 'Não consegui preparar a foto. Tire de novo.' });
+      setErro({ quadro, texto: 'Não consegui preparar a foto. Tente de novo.' });
     }
     setOcupado(null);
   }, []);
@@ -41,12 +41,32 @@ export function useCameraDaOrdem(ordem, aoFoto) {
     })().catch(() => null);
   }, [ordem, usar]);
 
-  const tirar = async (quadro, quantas) => {
+  const cabe = (quadro, quantas) => {
     setErro(null);
-    if (quantas >= LIMITE_FOTOS) {
-      setErro({ quadro, texto: 'Chegou no limite de ' + LIMITE_FOTOS + ' fotos. Apague uma pra pôr outra.' });
-      return;
+    if (quantas < LIMITE_FOTOS) return true;
+    setErro({ quadro, texto: 'Chegou no limite de ' + LIMITE_FOTOS + ' fotos. Apague uma pra pôr outra.' });
+    return false;
+  };
+
+  const escolher = async (quadro, quantas) => {
+    if (!cabe(quadro, quantas)) return;
+    const sobra = LIMITE_FOTOS - quantas;
+    await guardado.gravar('pendente', { ordem, quadro }).catch(() => null);
+    let resultado = null;
+    try {
+      resultado = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'], quality: 1, allowsMultipleSelection: sobra > 1, selectionLimit: sobra
+      });
+    } catch (e) {
+      setErro({ quadro, texto: 'Não consegui abrir a galeria. Tente de novo.' });
     }
+    await guardado.apagar('pendente').catch(() => null);
+    if (!resultado || resultado.canceled) return;
+    for (const asset of (resultado.assets || []).slice(0, sobra)) await usar(asset, quadro);
+  };
+
+  const tirar = async (quadro, quantas) => {
+    if (!cabe(quadro, quantas)) return;
     const permissao = await ImagePicker.requestCameraPermissionsAsync();
     if (!permissao.granted) {
       setErro({ quadro, texto: 'O app está sem permissão pra câmera. Libere nas configurações do tablet.' });
@@ -58,10 +78,10 @@ export function useCameraDaOrdem(ordem, aoFoto) {
     usar(primeiraFoto(resultado), quadro);
   };
 
-  return { tirar, ocupado, erro };
+  return { tirar, escolher, ocupado, erro };
 }
 
-export function BlocoFotos({ fotos, nome, aoTirar, aoApagar, ocupado = false, erro = '', textoApagar = 'A foto sai da ordem e não dá pra desfazer.' }) {
+export function BlocoFotos({ fotos, nome, aoTirar, aoEscolher, aoApagar, ocupado = false, erro = '', textoApagar = 'A foto sai da ordem e não dá pra desfazer.' }) {
   const [vendo, setVendo] = useState(null);
   const [apagando, setApagando] = useState(null);
   const confirmar = () => {
@@ -100,15 +120,28 @@ export function BlocoFotos({ fotos, nome, aoTirar, aoApagar, ocupado = false, er
       ) : null}
       {erro ? <Text style={s.erro} accessibilityLiveRegion="polite">{erro}</Text> : null}
       {aoTirar ? (
-        <Botao
-          icone="camera-outline"
-          titulo={ocupado ? 'Preparando a foto…' : 'Tirar foto'}
-          rotulo={'Tirar foto, ' + nome}
-          variante="ouro"
-          onPress={aoTirar}
-          desativado={ocupado}
-          estilo={s.camera}
-        />
+        <View style={s.botoesFoto}>
+          <Botao
+            icone="camera-outline"
+            titulo={ocupado ? 'Preparando a foto…' : 'Tirar foto'}
+            rotulo={'Tirar foto com a câmera, ' + nome}
+            variante="ouro"
+            onPress={aoTirar}
+            desativado={ocupado}
+            estilo={s.camera}
+          />
+          {aoEscolher ? (
+            <Botao
+              icone="image-multiple-outline"
+              titulo="Escolher da galeria"
+              rotulo={'Escolher foto da galeria, ' + nome}
+              variante="contorno"
+              onPress={aoEscolher}
+              desativado={ocupado}
+              estilo={s.camera}
+            />
+          ) : null}
+        </View>
       ) : null}
       <VerFotos fotos={fotos} inicio={vendo} aoFechar={() => setVendo(null)} />
       <Dialogo visivel={!!apagando} titulo="Apagar esta foto?" aoFechar={() => setApagando(null)}>
@@ -179,7 +212,8 @@ const s = StyleSheet.create({
   item: { width: 160, gap: 8 },
   foto: { width: 160, height: 160, borderRadius: 12, backgroundColor: cores.marinhoClaro },
   apagar: { minHeight: 48, paddingHorizontal: 10 },
-  camera: { alignSelf: 'flex-start', minWidth: 240 },
+  botoesFoto: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  camera: { minWidth: 240 },
   dica: { fontSize: tamanho.pequeno, color: cores.apagado },
   erro: { fontSize: tamanho.pequeno, color: cores.vermelho, fontWeight: '700' },
   previa: { width: 200, height: 200, borderRadius: 12, alignSelf: 'center', backgroundColor: cores.marinhoClaro },

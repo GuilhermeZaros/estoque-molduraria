@@ -32,7 +32,7 @@ export default function Cadastro() {
     try {
       setFoto(await prepararFoto(asset));
     } catch (e) {
-      setErro('Não consegui preparar a foto. Tire de novo.');
+      setErro('Não consegui preparar a foto. Tente de novo.');
     }
     setOcupado(false);
   };
@@ -52,6 +52,15 @@ export default function Cadastro() {
       return;
     }
     usarFoto(primeiraFoto(await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 1 })));
+  };
+
+  const escolherFoto = async () => {
+    setErro('');
+    try {
+      usarFoto(primeiraFoto(await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 })));
+    } catch (e) {
+      setErro('Não consegui abrir a galeria. Tente de novo.');
+    }
   };
 
   const salvar = async () => {
@@ -95,7 +104,8 @@ export default function Cadastro() {
           <View style={[s.foto, s.semFoto]}><Text style={s.semFotoTexto}>Sem foto ainda</Text></View>
         )}
         <View style={s.fotoAcoes}>
-          <Botao titulo={foto ? 'Tirar outra foto' : 'Tirar foto'} variante="ouro" onPress={tirarFoto} desativado={ocupado} />
+          <Botao icone="camera-outline" titulo={foto ? 'Tirar outra foto' : 'Tirar foto'} variante="ouro" onPress={tirarFoto} desativado={ocupado} />
+          <Botao icone="image-multiple-outline" titulo="Escolher da galeria" variante="contorno" onPress={escolherFoto} desativado={ocupado} />
           <Text style={s.dica}>Sem foto a Julia não consegue mostrar a moldura pro cliente.</Text>
         </View>
       </View>
