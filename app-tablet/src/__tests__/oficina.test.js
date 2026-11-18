@@ -2,7 +2,7 @@ import {
   prazoDe, lerData, prazoVencido, deOrdem, validarOrdem, dadosDaOrdem, descricaoDosQuadros, resumoOficina,
   chaveDaOrdem, alvoDaOrdem, mesesRecentes, textoPrazo, ordenarProducao, textoAviso, fotosDaOrdem, fotosDoQuadro,
   ordemVazia, LIMITE_FOTOS, tituloDoQuadro, detalhesDoQuadro, dadosDaFoto, dadosDeTirarFoto, acrescimoDoQuadro, fotosDaVenda,
-  opcoesDoLadoAMais, metrosDoLadoAMais, novoIdQuebra, dadosDoLadoAMais, dadosDeTirarLadoAMais, quebrasDoQuadro, textoDaQuebra
+  opcoesDoLadoAMais, metrosDoLadoAMais, novoIdQuebra, dadosDoLadoAMais, dadosDeTirarLadoAMais, quebrasDoQuadro, textoDaQuebra, cortesDaOrdem, pedacoDoLadoAMais
 } from '../oficina';
 import { nomeCasinha } from '../gerado/nucleo';
 
@@ -300,4 +300,38 @@ test('lado a mais: lados de cada moldura, metros com a perda, dados e texto', ()
   expect(quebrasDoQuadro(o, 1).length).toBe(1);
   expect(quebrasDoQuadro(o, 2)).toEqual([]);
   expect(textoDaQuebra(pacote, o.quebras[0])).toBe('Quebrou 2 lados de 60 cm · Lisa branca 2 cm');
+});
+
+test('cortes da ordem: pedaço primeiro, vara nova depois e o que falta no fim', () => {
+  const pacote = { molduras: [{ codigo: '101', nome: 'Lisa preta', local: 'CR1-E1', perfil_cm: 2, estoque_m: 2, pedacos: [] }] };
+  const o = {
+    quadros: [{}, {}],
+    cortes: [{
+      codigo: '101',
+      usos: [
+        { de: 'vara', varas: 1, tamanho_m: 2.7, sobra_m: 0.5, lados: [{ cm: 60, quadro: 1, fora: false }, { cm: 60, quadro: 1, fora: false }] },
+        { de: 'pedaco', varas: 0, tamanho_m: 1, sobra_m: 0, lados: [{ cm: 40, quadro: 2, fora: false }] }
+      ],
+      faltam: [{ cm: 40, quadro: 2, fora: true }]
+    }]
+  };
+  expect(cortesDaOrdem(pacote, o)).toEqual([{
+    codigo: '101',
+    titulo: 'Lisa preta (101)',
+    lugar: 'Fica em: ' + nomeCasinha('CR1-E1'),
+    linhas: [
+      { tipo: 'pedaco', titulo: 'Use o pedaço de 1,00 m', detalhe: 'Corta 1 lado de 40 cm do quadro 2. Não sobra pedaço que preste.' },
+      { tipo: 'vara', titulo: 'Vara nova de 2,70 m', detalhe: 'Corta 2 lados de 60 cm do quadro 1. Sobra 0,50 m, guarde no estoque.' },
+      { tipo: 'falta', titulo: 'Falta moldura', detalhe: '1 lado de 40 cm do quadro 2 (moldura de fora): espera a encomenda chegar.' }
+    ]
+  }]);
+  expect(cortesDaOrdem(pacote, { quadros: [] })).toEqual([]);
+});
+
+test('lado a mais avisa qual pedaço dá pra usar', () => {
+  const pacote = { molduras: [{ codigo: '101', perfil_cm: 2, estoque_m: 3.5, pedacos: [0.8] }, { codigo: '202', perfil_cm: 2, estoque_m: 0.3, pedacos: [0.3] }] };
+  expect(pedacoDoLadoAMais(pacote, '101', 60, 1)).toEqual({ falta: false, texto: 'Dá pra usar o pedaço de 0,80 m.' });
+  expect(pedacoDoLadoAMais(pacote, '101', 60, 3)).toEqual({ falta: false, texto: 'Dá pra usar o pedaço de 0,80 m.' });
+  expect(pedacoDoLadoAMais(pacote, '101', 100, 1)).toEqual({ falta: false, texto: 'Corte de uma vara nova.' });
+  expect(pedacoDoLadoAMais(pacote, '202', 60, 1)).toEqual({ falta: true, texto: 'Não tem moldura que dê pra esse lado no estoque.' });
 });

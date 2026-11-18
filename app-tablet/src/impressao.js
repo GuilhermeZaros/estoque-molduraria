@@ -1,6 +1,6 @@
 import { formatarReais, momentoDe } from './formato';
 import { linhasDoQuadro } from './whatsapp';
-import { lerData, textoData, tituloDoQuadro, detalhesDoQuadro, fotosDoQuadro, acrescimoDoQuadro } from './oficina';
+import { lerData, textoData, tituloDoQuadro, detalhesDoQuadro, fotosDoQuadro, acrescimoDoQuadro, cortesDaOrdem } from './oficina';
 
 export const FORMATOS = [
   { valor: 'a4', titulo: 'Folha A4', largura: 595, altura: 842 },
@@ -80,7 +80,8 @@ function modeloOrdem(pacote, o, fotos) {
       ['Valor', Number(o.valor) > 0 ? formatarReais(o.valor) + (o.pago ? ' (pago)' : '') : o.pago ? 'Pago' : '']
     ].filter((c) => c[1]),
     prazo: prazo ? { data: textoData(prazo), dia: DIAS[prazo.getDay()] } : null,
-    blocos
+    blocos,
+    cortes: cortesDaOrdem(pacote, o)
   };
 }
 
@@ -120,6 +121,12 @@ body { font-family: Helvetica, Arial, sans-serif; color: #1f2933; font-size: 10.
 .cab h2 { margin: 0; font-size: 13pt; color: #13294b; }
 .pronto { flex: none; display: flex; align-items: center; gap: 5pt; font-size: 10pt; font-weight: bold; }
 .caixa { display: inline-block; width: 13pt; height: 13pt; border: 1.5pt solid #1f2933; border-radius: 2pt; }
+.cortes { border: 1pt solid #1f2933; border-radius: 4pt; padding: 6pt 10pt; margin-bottom: 10pt; }
+.cortes h2 { font-size: 13pt; margin: 0 0 4pt; }
+.corte-moldura { margin-bottom: 4pt; }
+.corte { margin: 2pt 0 0; font-size: 10.5pt; padding-left: 6pt; border-left: 3pt solid #1f2933; }
+.corte.pedaco { border-left-color: #047857; }
+.corte.falta { border-left-color: #b91c1c; }
 .cresce { border: 2.5pt solid #b91c1c; border-left-width: 8pt; border-radius: 4pt; padding: 6pt 10pt; margin-bottom: 9pt; color: #991b1b; }
 .cresce .rot { color: #b91c1c; letter-spacing: 1.5pt; }
 .cresce b { display: block; font-size: 14pt; color: #1f2933; }
@@ -211,7 +218,12 @@ function ordemA4(m, loja) {
     + (b.descricao ? '<div class="descricao"><span class="rot">Descrição</span><p>' + esc(b.descricao) + '</p></div>' : '')
     + (b.detalhes.length ? '<table>' + b.detalhes.map(linhaDeMaterial).join('') + '</table>' : '')
     + '</div></div></section>').join('');
-  return topoA4(m, loja) + '<div class="ficha">' + camposA4(m.campos) + prazo + '</div>' + blocos;
+  const cortes = (m.cortes || []).length
+    ? '<section class="cortes"><h2>Cortes da moldura</h2>' + m.cortes.map((c) => '<div class="corte-moldura"><b>' + esc(c.titulo) + '</b>'
+      + c.linhas.map((l) => '<p class="corte ' + l.tipo + '"><b>' + esc(l.titulo) + '</b> ' + esc(l.detalhe) + '</p>').join('') + '</div>').join('')
+      + '</section>'
+    : '';
+  return topoA4(m, loja) + '<div class="ficha">' + camposA4(m.campos) + prazo + '</div>' + cortes + blocos;
 }
 
 function criarCupom(f) {
@@ -268,6 +280,14 @@ function ordemCupom(m, loja, f) {
   const c = criarCupom(f);
   topoCupom(c, m, loja);
   c.linha(m.prazo ? 'PRAZO ' + m.prazo.data + ' (' + m.prazo.dia + ')' : 'Sem prazo', 'prazo', 1.45, 0.8);
+  if ((m.cortes || []).length) {
+    c.sep();
+    c.linha('CORTES DA MOLDURA', 'b');
+    m.cortes.forEach((x) => {
+      c.linha(x.titulo, 'b');
+      x.linhas.forEach((l) => c.linha('- ' + l.titulo + ': ' + l.detalhe));
+    });
+  }
   m.blocos.forEach((b) => {
     c.sep();
     c.linha(b.titulo, 'b');

@@ -114,13 +114,13 @@ test('salvar orçamento entra nos abertos sem número e depois pega o número da
   expect(p2.orcamentos_abertos[0].data_criacao).toBe('2026-11-03T12:00:00.000Z');
 });
 
-test('fechar venda tira dos abertos, desconta até zerar e manda a falta pra compras', () => {
+test('fechar venda tira dos abertos, corta do pedaço o que cabe e manda o lado que falta pra compras', () => {
   const aberto = aplicarOperacao(base, op('salvarOrcamento', dadosOrc));
-  const p = aplicarOperacao(aberto, op('fecharVenda', { ...dadosOrc, consumo_m: 3.5, encomendar: true }));
+  const p = aplicarOperacao(aberto, op('fecharVenda', { ...dadosOrc, encomendar: true }));
   expect(p.orcamentos_abertos).toHaveLength(0);
-  expect(achar(p, '101').estoque_m).toBe(0);
+  expect(achar(p, '101')).toMatchObject({ estoque_m: 0.383, pedacos: [0.383] });
   const nova = p.compras_pendentes[p.compras_pendentes.length - 1];
-  expect(nova).toMatchObject({ moldura: '101', metros_faltando: 1.5, cliente: 'Maria' });
+  expect(nova).toMatchObject({ moldura: '101', metros_faltando: 0.472, cliente: 'Maria' });
 });
 
 test('fechar venda com resposta usa estoque, falta e compra da planilha', () => {
@@ -170,11 +170,11 @@ test('salvar no formato antigo vira um quadro', () => {
 
 test('fechar com vários quadros desconta cada moldura e cria uma compra por falta', () => {
   const p = aplicarOperacao(base, op('fecharVenda', { ...dadosVarios, encomendar: true }));
-  expect(achar(p, '101').estoque_m).toBe(0);
-  expect(achar(p, '202').estoque_m).toBe(7);
+  expect(achar(p, '101')).toMatchObject({ estoque_m: 0, pedacos: [] });
+  expect(achar(p, '202')).toMatchObject({ estoque_m: 6.91, pedacos: [1.355, 0.155] });
   const novas = p.compras_pendentes.slice(2);
   expect(novas).toHaveLength(1);
-  expect(novas[0]).toMatchObject({ moldura: '101', metros_faltando: 1, cliente: 'Ana' });
+  expect(novas[0]).toMatchObject({ moldura: '101', metros_faltando: 1.934, cliente: 'Ana' });
 });
 
 test('fechar com vários quadros e resposta usa o que a planilha mandou de cada moldura', () => {
@@ -308,8 +308,10 @@ test('lado a mais: põe na ordem, baixa a moldura uma vez só e tirar devolve', 
   const comOrdem = { ...base, oficina: [{ id: 'OS-001', ref_app: 'orc-r1', cliente: 'Rita', quebras: [] }] };
   const dados = { id: 'OS-001', quadro: 1, fora: false, lado_cm: 60, quantidade: 2, id_quebra: 'qb-1', moldura: '202', metros: 1.38 };
   const p = aplicarOperacao(comOrdem, op('ladoAMais', dados));
-  expect(achar(p, '202').estoque_m).toBe(8.62);
-  expect(p.oficina[0].quebras.map((x) => [x.id, x.quantidade, x.metros])).toEqual([['qb-1', 2, 1.38]]);
+  expect(achar(p, '202')).toMatchObject({ estoque_m: 8.656, pedacos: [0.556] });
+  expect(p.oficina[0].quebras.map((x) => [x.id, x.quantidade, x.metros, x.corte])).toEqual([
+    ['qb-1', 2, 1.344, { usou: [1.9], varas: 0, sobras: [0.556] }]
+  ]);
   expect(aplicarOperacao(p, op('ladoAMais', dados))).toBe(p);
   const doServidor = aplicarOperacao(comOrdem, op('ladoAMais', dados), {
     quebra: { ...dados, id: 'qb-1', metros: 1.4 }, novo_estoque_m: 8.6
@@ -319,4 +321,21 @@ test('lado a mais: põe na ordem, baixa a moldura uma vez só e tirar devolve', 
   expect(achar(tirado, '202').estoque_m).toBe(10);
   expect(tirado.oficina[0].quebras).toEqual([]);
   expect(aplicarOperacao(tirado, op('tirarLadoAMais', { id: 'OS-001', id_quebra: 'qb-1' }))).toBe(tirado);
+});
+
+test('contar com pedaços guarda cada pedaço na moldura', () => {
+  const p = aplicarOperacao(base, op('ajustarMoldura', { codigo: '202', metros: 8.2, pedacos: [1, 0.8, 1] }));
+  expect(achar(p, '202')).toMatchObject({ estoque_m: 8.2, pedacos: [1, 1, 0.8] });
+  const c = aplicarOperacao(base, op('contarCasinha', { casinha: 'CR1-E1', itens: [{ codigo: '101', metros: 3.5, pedacos: [0.8] }] }));
+  expect(achar(c, '101')).toMatchObject({ estoque_m: 3.5, pedacos: [0.8] });
+});
+
+test('venda com oficina leva pra ordem o plano de corte com o pedaço que dá pra usar', () => {
+  const comPedaco = { ...base, oficina: [], molduras: [{ ...base.molduras[0], estoque_m: 3.7, pedacos: [1] }] };
+  const d = { ref_app: 'ref-0000-0030', cliente: 'Lia', quadros: [quadroApi()], oficina: { descricao: '20 x 30' } };
+  const p = aplicarOperacao(comPedaco, op('fecharVenda', d));
+  expect(p.oficina[0].cortes[0].usos.map((u) => [u.de, u.tamanho_m, u.lados.map((l) => l.cm)])).toEqual([
+    ['pedaco', 1, [30, 20, 20]], ['vara', 2.7, [30]]
+  ]);
+  expect(achar(p, '101')).toMatchObject({ estoque_m: 2.327, pedacos: [2.327] });
 });

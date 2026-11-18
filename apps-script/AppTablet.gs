@@ -377,10 +377,29 @@ function _rotuloHistorico(q, i) {
   return txt;
 }
 
-function _registrarVendaApp(o, d, molduras, quando) {
+function _parteQueFalta(planos) {
+  var total = {};
+  var falta = {};
+  var chave = function (c, l) { return c + '|' + (l.quadro || 0) + '|' + (l.fora ? 1 : 0); };
+  planos.forEach(function (pl) {
+    pl.usos.forEach(function (u) {
+      u.lados.forEach(function (l) { var k = chave(pl.codigo, l); total[k] = (total[k] || 0) + l.m; });
+    });
+    pl.faltam.forEach(function (l) {
+      var k = chave(pl.codigo, l);
+      total[k] = (total[k] || 0) + l.m;
+      falta[k] = (falta[k] || 0) + l.m;
+    });
+  });
+  return function (codigo, quadro, fora) {
+    var k = codigo + '|' + quadro + '|' + (fora ? 1 : 0);
+    return total[k] > 0 ? (falta[k] || 0) / total[k] : 0;
+  };
+}
+
+function _registrarVendaApp(o, d, planos, quando) {
   var p = o.pedido;
-  var restante = {};
-  molduras.forEach(function (m) { restante[m.codigo] = m.baixa_m; });
+  var parteQueFalta = _parteQueFalta(planos);
   var partes = [];
   var linhas = [];
   var taxa = 0;
@@ -400,11 +419,9 @@ function _registrarVendaApp(o, d, molduras, quando) {
       if (l.moldura) {
         var codigo = it.por_fora ? codigoFora : codigoMoldura;
         var precisa = it.por_fora ? c.consumo_fora_m : c.consumo_moldura_m;
-        var usa = Math.min(restante[codigo] || 0, precisa);
-        restante[codigo] = Number(((restante[codigo] || 0) - usa).toFixed(3));
         l.codigo = codigo;
-        l.baixa = Number(usa.toFixed(3));
-        l.falta = Number((precisa - usa).toFixed(3));
+        l.falta = Number((precisa * parteQueFalta(codigo, i + 1, !!it.por_fora)).toFixed(3));
+        l.baixa = Number((precisa - l.falta).toFixed(3));
       }
       linhas.push(l);
     });
@@ -449,30 +466,68 @@ function _registrarVendaApp(o, d, molduras, quando) {
   }
 }
 
+function _estoqueDaLinha(dados) {
+  return _estoqueEmPecas(dados.Estoque_atual_m, dados.Pedacos);
+}
+
+function _camposDoEstoque(estoque) {
+  return { Estoque_atual_m: _totalDasPecas(estoque), Pedacos: _textoPedacos(estoque.pedacos) };
+}
+
+function _gravarEstoque(dados, estoque, extra) {
+  garantirColunas(ABAS.MOLDURAS, CABECALHOS.Molduras);
+  var campos = _camposDoEstoque(estoque);
+  Object.keys(extra || {}).forEach(function (k) { campos[k] = extra[k]; });
+  atualizarCampos(ABAS.MOLDURAS, dados._linha, campos);
+  return campos.Estoque_atual_m;
+}
+
+function _estoqueContado(metros, pedacos) {
+  if (!Array.isArray(pedacos)) return _estoqueEmPecas(metros, '');
+  var lista = _lerPedacos(pedacos);
+  if (lista.length !== pedacos.filter(function (x) { return Number(x) > 0; }).length) {
+    throw new Error('Pedaço inválido: cada um vai de 0,01 a 2,70 m.');
+  }
+  if (_somaPedacos(lista) > Number(metros) + 0.0005) throw new Error('Os pedaços passam do total contado.');
+  return _estoqueEmPecas(metros, lista);
+}
+
+function _planosDeCorte(p) {
+  var molds = {};
+  _consumoPorMoldura(_usosDeMoldura(p.quadros, p.calcs)).forEach(function (c) {
+    var mold = _molduraOuErro(c.codigo);
+    molds[c.codigo] = {
+      mold: mold, perfil_cm: _perfilDaMoldura(mold),
+      estoque_m: mold.dados.Estoque_atual_m, pedacos: mold.dados.Pedacos
+    };
+  });
+  return _cortesDoPedido(p.quadros, molds).map(function (plano) {
+    return { codigo: plano.codigo, mold: molds[plano.codigo].mold, plano: plano };
+  });
+}
+
 function _appFecharVenda(d) {
   _orcamentoEditavel(d.ref_app);
   var p = _calcularPedidoApp(d);
-  var planos = _consumoPorMoldura(_usosDeMoldura(p.quadros, p.calcs)).map(function (c) {
-    var mold = _molduraOuErro(c.codigo);
-    return { codigo: c.codigo, mold: mold, plano: _planejarBaixaMoldura(mold.dados.Estoque_atual_m, c.metros) };
-  });
-  var faltando = planos.filter(function (m) { return m.plano.falta > 0; });
+  var planos = _planosDeCorte(p);
+  var faltando = planos.filter(function (m) { return m.plano.falta_m > 0; });
   if (faltando.length && !_ehDisponivel(d.encomendar)) {
     throw new Error((faltando.length > 1 ? 'As molduras não dão: ' : 'A moldura não dá: ') +
-      faltando.map(function (m) { return m.mold.dados.Nome + ' faltam ' + m.plano.falta + ' m'; }).join('; ') +
+      faltando.map(function (m) { return m.mold.dados.Nome + ' faltam ' + m.plano.falta_m + ' m'; }).join('; ') +
       '. Confirme a encomenda pra fechar.');
   }
   var o = _upsertOrcamento(d, p);
   var quando = new Date();
   var molduras = planos.map(function (m) {
-    atualizarCampos(ABAS.MOLDURAS, m.mold.dados._linha, { Estoque_atual_m: m.plano.novo_estoque });
-    var compraId = m.plano.falta > 0 ? _registrarCompra(m.mold.dados, m.plano.falta, o.id, String(d.cliente || '')) : '';
+    _gravarEstoque(m.mold.dados, m.plano.novo);
+    var compraId = m.plano.falta_m > 0 ? _registrarCompra(m.mold.dados, m.plano.falta_m, o.id, String(d.cliente || '')) : '';
     return {
-      codigo: m.codigo, baixa_m: m.plano.baixa, falta_m: m.plano.falta,
-      novo_estoque_m: m.plano.novo_estoque, compra_id: compraId
+      codigo: m.codigo, baixa_m: m.plano.baixa_m, falta_m: m.plano.falta_m,
+      novo_estoque_m: m.plano.novo_estoque_m, pedacos: m.plano.novo.pedacos, compra_id: compraId
     };
   });
-  _registrarVendaApp(o, d, molduras, quando);
+  var cortes = _resumoDosCortes(planos.map(function (m) { return m.plano; }));
+  _registrarVendaApp(o, d, planos.map(function (m) { return m.plano; }), quando);
   var baixa = 0;
   var falta = 0;
   molduras.forEach(function (m) { baixa += m.baixa_m; falta += m.falta_m; });
@@ -485,7 +540,7 @@ function _appFecharVenda(d) {
   var ordemId = d.oficina ? _criarOrdemNucleo({
     ref_app: String(d.oficina.ref_app || ('orc-' + d.ref_app)), cliente: String(d.cliente || '').trim() || o.id,
     telefone: d.telefone, descricao: d.oficina.descricao, prazo: d.oficina.prazo, valor: o.valor_final,
-    obs: 'Orçamento ' + o.id, pago: pago
+    obs: 'Orçamento ' + o.id, pago: pago, cortes: cortes
   }, 'app').id : '';
   var entradaId = pago && Number(o.valor_final) > 0
     ? _lancarEntrada(o.valor_final, String(d.cliente || '').trim() || o.id,
@@ -495,7 +550,7 @@ function _appFecharVenda(d) {
   return {
     id: o.id, valor_final: o.valor_final, baixa_m: Number(baixa.toFixed(3)), falta_m: falta,
     novo_estoque_m: uma ? uma.novo_estoque_m : null, compra_id: uma ? uma.compra_id : '', molduras: molduras,
-    ordem_id: ordemId, entrada_id: entradaId
+    ordem_id: ordemId, entrada_id: entradaId, cortes: cortes
   };
 }
 
@@ -513,8 +568,8 @@ function _appEntradaMoldura(d) {
   var p = _molduraOuErro(d.codigo);
   var faltas = _faltasPendentesDe(lerAba(ABAS_APP.COMPRAS), p.dados.Codigo);
   var ab = _abaterFaltas(metros, faltas);
-  var novo = Number(((Number(p.dados.Estoque_atual_m) || 0) + ab.vai_pro_estoque).toFixed(3));
-  atualizarCampos(ABAS.MOLDURAS, p.dados._linha, { Estoque_atual_m: novo });
+  var estoque = _somarVarasEPedacos(_estoqueDaLinha(p.dados), ab.vai_pro_estoque);
+  var novo = _gravarEstoque(p.dados, estoque);
   var agora = new Date();
   faltas.forEach(function (f) {
     if (ab.atendidas.indexOf(f.id) >= 0) {
@@ -528,7 +583,7 @@ function _appEntradaMoldura(d) {
     codigo: p.dados.Codigo
   });
   return {
-    codigo: String(p.dados.Codigo), novo_estoque_m: novo,
+    codigo: String(p.dados.Codigo), novo_estoque_m: novo, pedacos: estoque.pedacos,
     separado_m: ab.abatido, compras_atendidas: ab.atendidas
   };
 }
@@ -537,28 +592,28 @@ function _appAjustarMoldura(d) {
   var metros = _metros(d.metros, true);
   var p = _molduraOuErro(d.codigo);
   var antes = Number(p.dados.Estoque_atual_m) || 0;
-  atualizarCampos(ABAS.MOLDURAS, p.dados._linha, { Estoque_atual_m: metros, Contado_em: new Date() });
+  var estoque = _estoqueContado(metros, d.pedacos);
+  _gravarEstoque(p.dados, estoque, { Contado_em: new Date() });
   registrarHistorico({
     tipo: 'ajuste', categoria: 'moldura', produto: p.dados.Nome,
     quantidade: Number((metros - antes).toFixed(3)), unidade: 'm',
     observacoes: 'contado ' + metros + ' m (antes ' + antes + ' m)' + (d.atendente ? '; ' + d.atendente : ''),
     codigo: p.dados.Codigo
   });
-  return { codigo: String(p.dados.Codigo), novo_estoque_m: metros, antes_m: antes };
+  return { codigo: String(p.dados.Codigo), novo_estoque_m: metros, antes_m: antes, pedacos: estoque.pedacos };
 }
 
 function _appContarCasinha(d) {
   var casinha = _normalizarCasinha(d.casinha);
   if (!_casinhaValida(casinha)) throw new Error('Casinha inválida: ' + d.casinha);
   var itens = (d.itens || []).map(function (it) {
-    return { p: _molduraOuErro(it.codigo), metros: _metros(it.metros, true) };
+    var metros = _metros(it.metros, true);
+    return { p: _molduraOuErro(it.codigo), metros: metros, estoque: _estoqueContado(metros, it.pedacos) };
   });
   var agora = new Date();
   itens.forEach(function (it) {
     var antes = Number(it.p.dados.Estoque_atual_m) || 0;
-    atualizarCampos(ABAS.MOLDURAS, it.p.dados._linha, {
-      Estoque_atual_m: it.metros, Local: casinha, Contado_em: agora
-    });
+    _gravarEstoque(it.p.dados, it.estoque, { Local: casinha, Contado_em: agora });
     registrarHistorico({
       tipo: 'contagem', categoria: 'moldura', produto: it.p.dados.Nome,
       quantidade: Number((it.metros - antes).toFixed(3)), unidade: 'm',
@@ -660,14 +715,16 @@ function _appTirarFotoOrdem(d) {
 
 function _appCadastrarMoldura(d) {
   var m = _validarNovaMoldura(d);
+  var estoque = _estoqueContado(m.metros, d.pedacos);
   if (buscarProduto(m.codigo)) throw new Error('Já existe um produto com o código ' + m.codigo + '.');
   var foto = d.foto_base64 ? _salvarFotoMoldura(m.codigo, d.foto_base64, d.foto_tipo) : '';
   var agora = new Date();
+  garantirColunas(ABAS.MOLDURAS, CABECALHOS.Molduras);
   anexarLinha(ABAS.MOLDURAS, {
     Codigo: m.codigo, Nome: m.nome, Marca: m.marca, Estilo: m.estilo, Cor: m.cor,
     Largura_perfil_cm: m.perfil_cm, Valor_por_metro: m.preco_m || '', Custo_por_metro: m.custo_m || '', Foto_URL: foto,
     Estoque_atual_m: m.metros, Disponivel: m.disponivel, Local: m.casinha,
-    Contado_em: m.casinha ? agora : ''
+    Contado_em: m.casinha ? agora : '', Pedacos: _textoPedacos(estoque.pedacos)
   });
   registrarHistorico({
     tipo: 'contagem', categoria: 'moldura', produto: m.nome, quantidade: m.metros, unidade: 'm',
@@ -685,7 +742,7 @@ function _appZerarNaoEncontradas(d) {
     var cod = String(m.Codigo);
     if (pedidos.indexOf(cod) < 0 || _normalizarCasinha(m.Local)) return;
     var antes = Number(m.Estoque_atual_m) || 0;
-    atualizarCampos(ABAS.MOLDURAS, m._linha, { Estoque_atual_m: 0, Contado_em: agora });
+    _gravarEstoque(m, { varas: 0, pedacos: [] }, { Contado_em: agora });
     registrarHistorico({
       tipo: 'ajuste', categoria: 'moldura', produto: m.Nome, quantidade: -antes, unidade: 'm',
       observacoes: 'não achada no inventário (antes ' + antes + ' m)', codigo: cod
@@ -722,20 +779,20 @@ function _appLadoAMais(d) {
   if (!lados.some(function (x) { return Math.abs(x - lado) < 0.05; })) throw new Error('Esse lado não é deste quadro.');
   var quantidade = Math.round(Number(d.quantidade) || 0);
   if (quantidade < 1 || quantidade > LADOS_A_MAIS_MAXIMO) throw new Error('Quantidade de lados inválida.');
-  var plano = _planejarBaixaMoldura(p.dados.Estoque_atual_m, quantidade * consumoLadoM(lado, _perfilDaMoldura(p)));
-  atualizarCampos(ABAS.MOLDURAS, p.dados._linha, { Estoque_atual_m: plano.novo_estoque });
+  var plano = _corteDoLadoAMais(_estoqueDaLinha(p.dados), lado, _perfilDaMoldura(p), quantidade);
+  var novo = _gravarEstoque(p.dados, plano.novo);
   var quebra = {
     id: idQuebra, quadro: n, fora: fora, moldura: String(p.dados.Codigo), lado_cm: lado,
-    quantidade: quantidade, metros: plano.baixa, data: new Date().toISOString()
+    quantidade: quantidade, metros: plano.baixa_m, data: new Date().toISOString(), corte: _desfazerDoCorte(plano)
   };
   quebras.push(quebra);
   atualizarCampos(ABAS_FIN.OFICINA, o._linha, { Quebras: JSON.stringify(quebras) });
   registrarHistorico({
-    tipo: 'quebra', categoria: 'moldura', produto: p.dados.Nome, quantidade: plano.baixa, unidade: 'm',
+    tipo: 'quebra', categoria: 'moldura', produto: p.dados.Nome, quantidade: plano.baixa_m, unidade: 'm',
     observacoes: 'ordem ' + o.ID + ': quebrou ' + _textoQuebra(quebra) + (d.atendente ? '; ' + d.atendente : ''),
     codigo: p.dados.Codigo
   });
-  return { id: String(o.ID), quebra: quebra, novo_estoque_m: plano.novo_estoque };
+  return { id: String(o.ID), quebra: quebra, novo_estoque_m: novo, pedacos: plano.novo.pedacos, falta_m: plano.falta_m };
 }
 
 function _appTirarLadoAMais(d) {
@@ -746,8 +803,8 @@ function _appTirarLadoAMais(d) {
   var quebra = quebras.filter(function (x) { return x.id === idQuebra; })[0];
   if (!quebra) return { id: String(o.ID), devolvido_m: 0 };
   var p = _molduraOuErro(quebra.moldura);
-  var novo = Number(((Number(p.dados.Estoque_atual_m) || 0) + quebra.metros).toFixed(3));
-  atualizarCampos(ABAS.MOLDURAS, p.dados._linha, { Estoque_atual_m: novo });
+  var estoque = _devolverCorte(_estoqueDaLinha(p.dados), quebra);
+  var novo = _gravarEstoque(p.dados, estoque);
   atualizarCampos(ABAS_FIN.OFICINA, o._linha, {
     Quebras: JSON.stringify(quebras.filter(function (x) { return x.id !== idQuebra; }))
   });
@@ -756,7 +813,7 @@ function _appTirarLadoAMais(d) {
     observacoes: 'ordem ' + o.ID + ': tirou o lado a mais (' + _textoQuebra(quebra) + ')' + (d.atendente ? '; ' + d.atendente : ''),
     codigo: p.dados.Codigo
   });
-  return { id: String(o.ID), devolvido_m: quebra.metros, novo_estoque_m: novo };
+  return { id: String(o.ID), devolvido_m: quebra.metros, novo_estoque_m: novo, pedacos: estoque.pedacos };
 }
 
 function _appEditarMoldura(d) {

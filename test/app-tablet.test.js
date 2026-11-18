@@ -161,7 +161,7 @@ test('fecharVenda: moldura que não dá exige confirmar a encomenda e não grava
   const { ctx, dados } = montar({ Molduras: [moldura(2.7)], Vidros: [vidro] });
   assert.throws(
     () => ctx.appExecutar({ id_op: 'op-00000020', acao: 'fecharVenda', dados: pedidoOrc() }),
-    /faltam 0\.726 m/
+    /faltam 1\.006 m/
   );
   assert.equal(dados.Molduras[0].Estoque_atual_m, 2.7);
   assert.equal(dados.Orcamentos.length, 0);
@@ -173,30 +173,40 @@ test('fecharVenda: moldura que não dá exige confirmar a encomenda e não grava
 test('fecharVenda: baixa até zerar, a falta vai pra Compras e o orçamento fecha', () => {
   const { ctx, dados } = montar({ Molduras: [moldura(2.7)], Vidros: [vidro] });
   const r = js(ctx.appExecutar({ id_op: 'op-00000021', acao: 'fecharVenda', dados: pedidoOrc({ encomendar: true }) }));
+  const corte = { codigo: 'M1', faltam: [{ cm: 90, quadro: 1, fora: false }], usos: [{
+    de: 'vara', varas: 1, tamanho_m: 2.7, sobra_m: 0.28,
+    lados: [{ cm: 90, quadro: 1, fora: false }, { cm: 60, quadro: 1, fora: false }, { cm: 60, quadro: 1, fora: false }]
+  }] };
   assert.deepEqual(r.resultado, {
-    id: 'ORC-0001', valor_final: 271.2, baixa_m: 2.7, falta_m: 0.726, novo_estoque_m: 0, compra_id: 'CMP-0001',
-    molduras: [{ codigo: 'M1', baixa_m: 2.7, falta_m: 0.726, novo_estoque_m: 0, compra_id: 'CMP-0001' }],
-    ordem_id: '', entrada_id: ''
+    id: 'ORC-0001', valor_final: 271.2, baixa_m: 2.42, falta_m: 1.006, novo_estoque_m: 0.28, compra_id: 'CMP-0001',
+    molduras: [{ codigo: 'M1', baixa_m: 2.42, falta_m: 1.006, novo_estoque_m: 0.28, pedacos: [0.28], compra_id: 'CMP-0001' }],
+    ordem_id: '', entrada_id: '', cortes: [corte]
   });
-  assert.equal(dados.Molduras[0].Estoque_atual_m, 0);
+  assert.equal(dados.Molduras[0].Estoque_atual_m, 0.28);
+  assert.equal(dados.Molduras[0].Pedacos, '0,28 m');
+  assert.deepEqual(js(ctx.appSync()).molduras[0].pedacos, [0.28]);
   assert.equal(dados.Compras.length, 1);
-  assert.equal(dados.Compras[0].Metros_faltando, 0.726);
+  assert.equal(dados.Compras[0].Metros_faltando, 1.006);
   assert.equal(dados.Compras[0].Status, 'pendente');
   assert.equal(dados.Compras[0].Orcamento_id, 'ORC-0001');
   assert.equal(dados.Compras[0].Marca, 'Moldurarte');
   assert.equal(dados.Orcamentos[0].Status, 'fechado');
-  assert.equal(dados.Orcamentos[0].Falta_m, 0.726);
+  assert.equal(dados.Orcamentos[0].Falta_m, 1.006);
   assert.equal(dados.Orcamentos[0].Fechado_por, 'Ana');
   const vendas = dados.Historico.filter((h) => h.Tipo_movimentacao === 'venda');
   assert.deepEqual(vendas.map((h) => h.Codigo), ['M1', 'V1']);
-  assert.equal(vendas[0].Quantidade, 2.7);
+  assert.equal(vendas[0].Quantidade, 2.419);
   assert.equal(Number((vendas[0].Valor + vendas[1].Valor).toFixed(2)), 271.2);
 });
 
-test('fecharVenda: com moldura sobrando baixa o consumo, não cria compra e vale o valor ajustado', () => {
+test('fecharVenda: com moldura sobrando usa o pedaço primeiro, não cria compra e vale o valor ajustado', () => {
   const { ctx, dados } = montar({ Molduras: [moldura(12.3)], Vidros: [vidro] });
   const r = js(ctx.appExecutar({ id_op: 'op-00000022', acao: 'fecharVenda', dados: pedidoOrc({ valor_final: 250 }) }));
-  assert.equal(r.resultado.novo_estoque_m, 8.874);
+  assert.deepEqual(r.resultado.cortes[0].usos.map((u) => [u.de, u.tamanho_m, u.lados.map((l) => l.cm), u.sobra_m]), [
+    ['pedaco', 1.5, [60, 60], 0], ['vara', 2.7, [90, 90], 0.687]
+  ]);
+  assert.equal(r.resultado.novo_estoque_m, 8.787);
+  assert.equal(dados.Molduras[0].Pedacos, '0,687 m');
   assert.equal(r.resultado.compra_id, '');
   assert.equal(r.resultado.valor_final, 250);
   assert.equal(dados.Compras.length, 0);
@@ -212,7 +222,7 @@ test('fecharVenda: fecha o orçamento salvo antes pelo ref_app; fechado não rea
   assert.equal(dados.Orcamentos[0].Status, 'fechado');
   assert.throws(() => ctx.appExecutar({ id_op: 'op-00000025', acao: 'salvarOrcamento', dados: pedidoOrc() }), /já foi fechado/);
   assert.throws(() => ctx.appExecutar({ id_op: 'op-00000026', acao: 'fecharVenda', dados: pedidoOrc() }), /já foi fechado/);
-  assert.equal(dados.Molduras[0].Estoque_atual_m, 8.874);
+  assert.equal(dados.Molduras[0].Estoque_atual_m, 8.787);
 });
 
 const caixa = (estoque) => moldura(estoque, {
@@ -316,23 +326,25 @@ test('fecharVenda: vários quadros somam a moldura repetida e cada falta vira um
   const camiseta = js(ctx._calcularOrcamentoApp({ largura_cm: 60, altura_cm: 80, moldura: 'M2', vidro: 'V1', chapa: 'C1', objeto_alto: true }));
   assert.throws(
     () => ctx.appExecutar({ id_op: 'op-00000036', acao: 'fecharVenda', dados: pedidoVarios() }),
-    /Madeira lisa 3cm faltam 2\.078 m; Caixa preta 5cm faltam/
+    /Madeira lisa 3cm faltam 2\.219 m; Caixa preta 5cm faltam/
   );
   assert.equal(dados.Orcamentos.length, 0);
   const r = js(ctx.appExecutar({ id_op: 'op-00000037', acao: 'fecharVenda', dados: pedidoVarios(undefined, { encomendar: true }) }));
   assert.deepEqual(r.resultado.molduras, [
-    { codigo: 'M1', baixa_m: 5, falta_m: 2.078, novo_estoque_m: 0, compra_id: 'CMP-0001' },
-    { codigo: 'M2', baixa_m: 0, falta_m: camiseta.consumo_moldura_m, novo_estoque_m: 0, compra_id: 'CMP-0002' }
+    { codigo: 'M1', baixa_m: 5, falta_m: 2.219, novo_estoque_m: 0, pedacos: [], compra_id: 'CMP-0001' },
+    { codigo: 'M2', baixa_m: 0, falta_m: camiseta.consumo_moldura_m, novo_estoque_m: 0, pedacos: [], compra_id: 'CMP-0002' }
   ]);
-  assert.equal(r.resultado.falta_m, Number((2.078 + camiseta.consumo_moldura_m).toFixed(3)));
+  assert.deepEqual(r.resultado.cortes[0].faltam.map((l) => [l.quadro, l.cm]), [[1, 90], [1, 60], [2, 40]]);
+  assert.equal(r.resultado.falta_m, Number((2.219 + camiseta.consumo_moldura_m).toFixed(3)));
   assert.equal(r.resultado.novo_estoque_m, null);
   assert.deepEqual(dados.Molduras.map((m) => m.Estoque_atual_m), [0, 0]);
   assert.deepEqual(dados.Compras.map((c) => [c.Moldura, c.Orcamento_id, c.Cliente]), [['M1', 'ORC-0001', 'Maria'], ['M2', 'ORC-0001', 'Maria']]);
   assert.equal(dados.Orcamentos[0].Status, 'fechado');
   const vendas = dados.Historico.filter((h) => h.Tipo_movimentacao === 'venda');
   assert.deepEqual(vendas.map((h) => h.Codigo), ['M1', 'V1', 'M1', '', 'V1', 'M2', 'V1', 'C1', 'C1']);
-  assert.deepEqual(vendas.filter((h) => h.Codigo === 'M1').map((h) => h.Quantidade), [3.426, 1.574]);
-  assert.match(vendas[2].Observacoes, /quadro 2; faltou 2\.078 m/);
+  assert.deepEqual(vendas.filter((h) => h.Codigo === 'M1').map((h) => h.Quantidade), [1.713, 3.145]);
+  assert.match(vendas[0].Observacoes, /quadro 1; faltou 1\.713 m/);
+  assert.match(vendas[2].Observacoes, /quadro 2; faltou 0\.507 m/);
   assert.equal(vendas[3].Categoria, 'paspatur');
   assert.match(vendas[4].Observacoes, /quadro 3 \(reforma\)/);
   assert.match(vendas[5].Observacoes, /quadro 4 \(camiseta M\)/);
@@ -483,7 +495,7 @@ test('entradaMoldura: soma no estoque e registra a entrada', () => {
   const r = js(ctx.appExecutar({
     id_op: 'op-00000030', acao: 'entradaMoldura', dados: { codigo: 'M1', metros: '20', atendente: 'Ana' }
   }));
-  assert.deepEqual(r.resultado, { codigo: 'M1', novo_estoque_m: 25, separado_m: 0, compras_atendidas: [] });
+  assert.deepEqual(r.resultado, { codigo: 'M1', novo_estoque_m: 25, pedacos: [2.3, 1.1], separado_m: 0, compras_atendidas: [] });
   assert.equal(dados.Molduras[0].Estoque_atual_m, 25);
   assert.equal(dados.Historico[0].Tipo_movimentacao, 'entrada');
   assert.equal(dados.Historico[0].Quantidade, 20);
@@ -528,7 +540,7 @@ test('entradaMoldura: recusa metros zerados e código que não existe', () => {
 test('ajustarMoldura: grava o número contado e a diferença no histórico', () => {
   const { ctx, dados } = montar({ Molduras: [moldura(27)] });
   const r = js(ctx.appExecutar({ id_op: 'op-00000035', acao: 'ajustarMoldura', dados: { codigo: 'M1', metros: '5,4' } }));
-  assert.deepEqual(r.resultado, { codigo: 'M1', novo_estoque_m: 5.4, antes_m: 27 });
+  assert.deepEqual(r.resultado, { codigo: 'M1', novo_estoque_m: 5.4, antes_m: 27, pedacos: [] });
   assert.equal(dados.Molduras[0].Estoque_atual_m, 5.4);
   assert.ok(dados.Molduras[0].Contado_em);
   assert.equal(dados.Historico[0].Tipo_movimentacao, 'ajuste');
@@ -1100,7 +1112,8 @@ test('fecharVenda: tela registra o chassi com as travas, sem baixa, e baixa a mo
   assert.equal(vendas[0].Observacoes, 'Orçamento ORC-0001 (app); perímetro 4,40 m + 2 travas de 0,70 m = 5,80 m x R$ 18,90/m; sem baixa de estoque');
   assert.equal(vendas[0].Codigo, '');
   assert.equal(Number((vendas[0].Valor + vendas[1].Valor).toFixed(2)), Number(((109.7 + 255.2) * 2).toFixed(2)));
-  assert.equal(dados.Molduras[0].Estoque_atual_m, Number((27 - 9.652).toFixed(3)));
+  assert.equal(dados.Molduras[0].Estoque_atual_m, 17.346);
+  assert.deepEqual(dados.Molduras[0].Pedacos, '1,093 + 1,093 + 1,093 + 0,287 + 0,28 m');
 });
 
 test('duas molduras: a de fora é cobrada por fora da de dentro, grava a coluna e baixa as duas', () => {
@@ -1114,14 +1127,13 @@ test('duas molduras: a de fora é cobrada por fora da de dentro, grava a coluna 
   assert.equal(c.consumo_fora_m, ctx.consumoMolduraM(46, 56, 5));
   assert.throws(() => ctx._calcularOrcamentoApp({ ...q, moldura: '' }), /moldura de dentro antes/);
   const r = js(ctx.appExecutar({ id_op: 'op-00000095', acao: 'fecharVenda', dados: pedidoVarios([q]) }));
-  assert.deepEqual(r.resultado.molduras.map((m) => [m.codigo, m.baixa_m]), [['M1', c.consumo_moldura_m], ['M2', c.consumo_fora_m]]);
+  assert.deepEqual(r.resultado.molduras.map((m) => [m.codigo, m.baixa_m]), [['M1', c.consumo_moldura_m], ['M2', 2.74]]);
+  assert.equal(c.consumo_fora_m, 2.739);
   assert.equal(dados.Orcamento_quadros[0].Moldura_fora, 'M2');
   assert.equal(dados.Orcamento_quadros[0].Consumo_m, Number((c.consumo_moldura_m + c.consumo_fora_m).toFixed(3)));
   const vendas = dados.Historico.filter((h) => h.Categoria === 'moldura');
   assert.deepEqual(vendas.map((h) => [h.Codigo, h.Quantidade]), [['M1', c.consumo_moldura_m], ['M2', c.consumo_fora_m]]);
-  assert.deepEqual(dados.Molduras.map((m) => m.Estoque_atual_m), [
-    Number((27 - c.consumo_moldura_m).toFixed(3)), Number((27 - c.consumo_fora_m).toFixed(3))
-  ]);
+  assert.deepEqual(dados.Molduras.map((m) => m.Estoque_atual_m), [Number((27 - c.consumo_moldura_m).toFixed(3)), 24.26]);
 });
 
 test('fecharVenda pago: a ordem nasce paga, a entrada entra na hora e a entrega não lança de novo', () => {
@@ -1344,15 +1356,16 @@ test('lado a mais na ordem: baixa a moldura com a perda, não repete, valida o l
   assert.deepEqual(js(ctx.appSync()).oficina[0].quebras.map((x) => x.id), ['qb-2']);
 });
 
-test('lado a mais com pouco estoque: baixa só o que tem e fica zero', () => {
+test('lado a mais com pedaço curto demais: não corta nada e avisa a falta', () => {
   const { ctx, dados } = montar({
     Molduras: [moldura(0.5)],
     Orcamento_quadros: [{ Orcamento: 'ORC-0007', Ref_app: 'r7', N: 1, Tipo: 'quadro', Largura_cm: 60, Altura_cm: 40, Quantidade: 1, Moldura: 'M1' }],
     Oficina: [ordem({ Ref_app: 'orc-r7' })]
   });
   const r = js(ctx.appExecutar({ id_op: 'op-00000510', acao: 'ladoAMais', dados: { ref_app: 'orc-r7', quadro: 1, lado_cm: 40, quantidade: 3, id_quebra: 'qb-9' } }));
-  assert.equal(r.resultado.quebra.metros, 0.5);
-  assert.equal(dados.Molduras[0].Estoque_atual_m, 0);
+  assert.equal(r.resultado.quebra.metros, 0);
+  assert.equal(r.resultado.falta_m, 1.518);
+  assert.equal(dados.Molduras[0].Estoque_atual_m, 0.5);
 });
 
 test('editarMoldura: muda tudo menos código e estoque; custo volta no appSync; sem preço sai do catálogo', () => {
@@ -1387,4 +1400,77 @@ test('cadastrarMoldura grava o preço de custo', () => {
     dados: { codigo: 'N1', nome: 'Nova', perfil_cm: 2, preco_m: 40, custo_m: '15,4', metros: 2.7, casinha: '' }
   });
   assert.equal(dados.Molduras[0].Custo_por_metro, 15.4);
+});
+
+test('pedaços: a planilha guarda cada pedaço e o appSync manda as varas separadas dos pedaços', () => {
+  const { ctx } = montar({ Molduras: [moldura(7.8, { Pedacos: '1 + 0,8 + 0,6 m' }), moldura(5, { Codigo: 'M2' })] });
+  assert.deepEqual(js(ctx._estoqueEmPecas(7.8, '1 + 0,8 + 0,6 m')), { varas: 2, pedacos: [1, 0.8, 0.6] });
+  assert.deepEqual(js(ctx._estoqueEmPecas(5, '')), { varas: 1, pedacos: [2.3] });
+  assert.deepEqual(js(ctx._estoqueEmPecas(0.5, 0.8)), { varas: 0, pedacos: [0.5] });
+  assert.deepEqual(js(ctx.appSync()).molduras.map((m) => m.pedacos), [[1, 0.8, 0.6], [2.3]]);
+});
+
+test('pedaços: contar com pedaços soltos grava cada um e recusa pedaço que passa do total', () => {
+  const { ctx, dados } = montar({ Molduras: [moldura(27)] });
+  const r = js(ctx.appExecutar({
+    id_op: 'op-00000700', acao: 'ajustarMoldura', dados: { codigo: 'M1', metros: 8.2, pedacos: [1, 0.8, 1] }
+  }));
+  assert.deepEqual(r.resultado.pedacos, [1, 1, 0.8]);
+  assert.equal(dados.Molduras[0].Estoque_atual_m, 8.2);
+  assert.equal(dados.Molduras[0].Pedacos, '1 + 1 + 0,8 m');
+  ctx.appExecutar({
+    id_op: 'op-00000701', acao: 'contarCasinha',
+    dados: { casinha: 'CR1-E1', itens: [{ codigo: 'M1', metros: 3.2, pedacos: [0.5] }] }
+  });
+  assert.equal(dados.Molduras[0].Pedacos, '0,5 m');
+  assert.throws(() => ctx.appExecutar({
+    id_op: 'op-00000702', acao: 'ajustarMoldura', dados: { codigo: 'M1', metros: 1, pedacos: [0.8, 0.8] }
+  }), /passam do total/);
+});
+
+test('pedaços: a venda corta do pedaço que serve, a sobra volta como pedaço e a ordem guarda o corte', () => {
+  const { ctx, dados } = montar({ Molduras: [moldura(7.25, { Pedacos: '0,75 + 1,1 m' })], Vidros: [vidro] });
+  const q = { tipo: 'quadro', largura_cm: 40, altura_cm: 30, quantidade: 1, moldura: 'M1', vidro: 'V1' };
+  const r = js(ctx.appExecutar({
+    id_op: 'op-00000710', acao: 'fecharVenda',
+    dados: { ref_app: 'ref-00000710', atendente: 'Ana', cliente: 'Rita', quadros: [q], oficina: { descricao: 'Quadro 40 x 30' } }
+  }));
+  assert.deepEqual(r.resultado.cortes[0].usos.map((u) => [u.de, u.tamanho_m, u.lados.map((l) => l.cm), u.sobra_m]), [
+    ['pedaco', 0.75, [40], 0.243], ['pedaco', 1.1, [40, 30], 0.187], ['vara', 2.7, [30], 2.293]
+  ]);
+  assert.equal(dados.Molduras[0].Pedacos, '2,293 + 0,243 + 0,187 m');
+  assert.equal(dados.Molduras[0].Estoque_atual_m, 5.423);
+  const noApp = js(ctx.appSync());
+  assert.deepEqual(noApp.molduras[0].pedacos, [2.293, 0.243, 0.187]);
+  assert.deepEqual(noApp.oficina[0].cortes, r.resultado.cortes);
+});
+
+test('pedaços: lado a mais sai do pedaço e tirar o lado devolve o pedaço como era', () => {
+  const { ctx, dados } = montar({
+    Molduras: [moldura(3.3, { Pedacos: '0,6 m' })],
+    Orcamento_quadros: [{ Orcamento: 'ORC-0007', Ref_app: 'r7', N: 1, Tipo: 'quadro', Largura_cm: 40, Altura_cm: 30, Quantidade: 1, Moldura: 'M1' }],
+    Oficina: [ordem({ Ref_app: 'orc-r7' })]
+  });
+  const r = js(ctx.appExecutar({ id_op: 'op-00000720', acao: 'ladoAMais', dados: { id: 'OS-001', quadro: 1, lado_cm: 40, quantidade: 1, id_quebra: 'qb-1' } }));
+  assert.equal(r.resultado.quebra.metros, 0.6);
+  assert.deepEqual(r.resultado.quebra.corte, { usou: [0.6], varas: 0, sobras: [] });
+  assert.equal(dados.Molduras[0].Pedacos, '');
+  assert.equal(dados.Molduras[0].Estoque_atual_m, 2.7);
+  ctx.appExecutar({ id_op: 'op-00000721', acao: 'tirarLadoAMais', dados: { id: 'OS-001', id_quebra: 'qb-1' } });
+  assert.equal(dados.Molduras[0].Pedacos, '0,6 m');
+  assert.equal(dados.Molduras[0].Estoque_atual_m, 3.3);
+});
+
+test('corte: vara inteira pros lados que não cabem nos pedaços e lado maior que a vara usa emenda', () => {
+  const { ctx } = montar({});
+  const lados = (cms, perfil = 3) => cms.map((cm) => ({ cm, m: ctx._consumoLadoExato(cm, perfil) }));
+  const p = js(ctx._planejarCorte({ varas: 1, pedacos: [] }, lados([90, 90, 60, 60])));
+  assert.deepEqual(p.usos.map((u) => u.lados.map((l) => l.cm)), [[90, 60, 60]]);
+  assert.deepEqual(p.faltam.map((l) => l.cm), [90]);
+  const longo = js(ctx._planejarCorte({ varas: 3, pedacos: [] }, lados([300])));
+  assert.deepEqual(longo.usos.map((u) => [u.de, u.varas, u.tamanho_m]), [['vara', 2, 5.4]]);
+  assert.deepEqual(longo.novo, { varas: 1, pedacos: [2.293] });
+  const sobraPequena = js(ctx._planejarCorte({ varas: 0, pedacos: [0.55] }, lados([40])));
+  assert.deepEqual(sobraPequena.novo, { varas: 0, pedacos: [] });
+  assert.equal(sobraPequena.usos[0].perda_m, 0.043);
 });

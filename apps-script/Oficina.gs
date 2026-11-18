@@ -51,7 +51,8 @@ function _ordemParaApp(o, quadrosPorRef) {
     data_criacao: _isoOuTexto(o.Data_criacao), data_pronto: _isoOuTexto(o.Data_pronto),
     data_entrega: _isoOuTexto(o.Data_entrega), fotos: _fotosDaLinha(o.Fotos), pago: _ehVerdade(o.Pago),
     quadros: _quadrosDaOrdem(o, quadrosPorRef),
-    quebras: _lerQuebras(o.Quebras)
+    quebras: _lerQuebras(o.Quebras),
+    cortes: _lerCortes(o.Cortes)
   };
 }
 
@@ -77,7 +78,10 @@ function _lerQuebras(v) {
       id: String(x.id), quadro: Math.round(Number(x.quadro) || 0), fora: x.fora === true,
       moldura: String(x.moldura || ''), lado_cm: Number(x.lado_cm) || 0,
       quantidade: Math.max(1, Math.round(Number(x.quantidade) || 1)), metros: Number(x.metros) || 0,
-      data: String(x.data || '')
+      data: String(x.data || ''),
+      corte: x.corte && typeof x.corte === 'object' ? {
+        usou: _lerPedacos(x.corte.usou), varas: Math.max(0, Math.round(Number(x.corte.varas) || 0)), sobras: _lerPedacos(x.corte.sobras)
+      } : null
     };
   });
 }
@@ -203,6 +207,7 @@ function _criarOrdemNucleo(d, quem) {
     linha.Pago = true;
     linha.Lancado_financeiro = true;
   }
+  if (Array.isArray(d.cortes) && d.cortes.length) linha.Cortes = JSON.stringify(d.cortes);
   Object.keys(campos).forEach(function (k) { linha[k] = campos[k]; });
   anexarLinha(ABAS_FIN.OFICINA, linha);
   return { id: id };

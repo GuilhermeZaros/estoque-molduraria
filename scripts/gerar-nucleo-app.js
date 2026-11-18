@@ -13,7 +13,10 @@ const PECAS = {
   'AppNucleo.gs': ['LADOS_CORREDOR', '_casinhasDoDeposito', '_normalizarCasinha', '_casinhaValida',
     '_nomeCasinha', '_corEstoque', '_metros', '_abaterFaltas', '_validarNovaMoldura', '_medidaExterna',
     '_servicosDoQuadro', '_totaisOrcamentoApp', '_ehObjeto', '_ehTela', '_planejarBaixaMoldura', '_quadrosDoPedido', '_bordaDoQuadro', '_usosDeMoldura', '_consumoPorMoldura',
-    '_numeroCurto', '_resumoQuadros', 'TAXAS_MAQUININHA', '_recebimento', '_ladosDaMoldura', '_textoQuebra']
+    '_numeroCurto', '_resumoQuadros', 'TAXAS_MAQUININHA', '_recebimento', '_ladosDaMoldura', '_textoQuebra',
+    'SOBRA_MINIMA_M', '_lerPedacos', '_textoPedacos', '_somaPedacos', '_estoqueEmPecas', '_totalDasPecas', '_somarVarasEPedacos',
+    '_melhorEncaixe', '_planejarCorte', '_consumoLadoExato', '_ladosDoQuadro', '_cortesDoPedido', '_resumoDosCortes',
+    '_corteDoLadoAMais', '_desfazerDoCorte', '_devolverCorte']
 };
 
 function extrair(src, nome, arquivo) {

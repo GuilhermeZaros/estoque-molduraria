@@ -1,17 +1,17 @@
-import { VARA_PADRAO_M, metros, desencabecoM } from './gerado/nucleo';
+import { VARA_PADRAO_M, metros, desencabecoM, estoqueEmPecas } from './gerado/nucleo';
 
 export function formatarMetros(m) {
   return (Number(m) || 0).toFixed(2).replace('.', ',') + ' m';
 }
 
-export function varasTexto(m) {
-  const total = Math.max(0, Number(m) || 0);
-  const varas = Math.floor((total + 0.0005) / VARA_PADRAO_M);
-  const resto = Number((total - varas * VARA_PADRAO_M).toFixed(2));
-  const pedaco = resto >= 0.01 ? formatarMetros(resto) : '';
-  if (!varas) return pedaco ? 'só pedaço de ' + pedaco : 'sem estoque';
-  const nome = varas === 1 ? '1 vara' : varas + ' varas';
-  return pedaco ? nome + ' + ' + pedaco : nome;
+export function varasTexto(m, pedacos) {
+  const e = estoqueEmPecas(m, pedacos);
+  const lista = e.pedacos.map(formatarMetros);
+  if (!e.varas) {
+    if (!lista.length) return 'sem estoque';
+    return (lista.length === 1 ? 'só pedaço de ' : 'só pedaços de ') + lista.join(' + ');
+  }
+  return [e.varas === 1 ? '1 vara' : e.varas + ' varas', ...lista].join(' + ');
 }
 
 export function pedacoVazio() {
@@ -56,6 +56,14 @@ export function totalMetros(valor, perfilCm) {
   }
   const soltos = pedacos.reduce((soma, p) => soma + p.liquido, 0);
   return Number((varas * VARA_PADRAO_M + extra + soltos).toFixed(3));
+}
+
+export function pedacosDoValor(valor, perfilCm) {
+  const v = valor || {};
+  if (!Array.isArray(v.pedacos)) return undefined;
+  const lidos = v.pedacos.map((p) => lerPedaco(p, perfilCm)).filter(Boolean);
+  if (lidos.some((p) => !p.ok)) return undefined;
+  return lidos.map((p) => p.liquido).filter((x) => x >= 0.01);
 }
 
 export function valorInicial(m) {

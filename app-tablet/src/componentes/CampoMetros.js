@@ -1,7 +1,7 @@
 import { View, Text, TextInput, StyleSheet } from 'react-native';
 import { Botao } from './Botao';
 import { GrupoPilulas } from './Pilula';
-import { totalMetros, formatarMetros, varasTexto, pedacoVazio, lerPedaco, numeroDoPerfil } from '../varas';
+import { totalMetros, formatarMetros, varasTexto, pedacoVazio, lerPedaco, numeroDoPerfil, pedacosDoValor } from '../varas';
 import { cores, tamanho } from '../tema';
 
 const PONTAS = [
@@ -98,7 +98,7 @@ export function CampoMetros({ valor, aoMudar, rotulo, pedacos: comPedacos = fals
       <Text style={[s.total, total == null && s.totalVazio]} accessibilityLiveRegion="polite">
         {total == null
           ? (comPedacos ? 'Digite as varas ou os pedaços' : 'Digite as varas ou os metros')
-          : 'Total: ' + formatarMetros(total) + ' (' + varasTexto(total) + ')'}
+          : 'Total: ' + formatarMetros(total) + ' (' + varasTexto(total, comPedacos ? pedacosDoValor(v, perfilCm) : undefined) + ')'}
       </Text>
     </View>
   );

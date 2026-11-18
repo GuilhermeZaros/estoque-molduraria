@@ -4,7 +4,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEstado, central } from '../../src/estado';
 import { moldurasPorCasinha, operacoesPraColocar } from '../../src/mapa';
 import { casinhaValida, nomeCasinha, normalizarCasinha } from '../../src/gerado/nucleo';
-import { totalMetros, formatarMetros, varasTexto } from '../../src/varas';
+import { totalMetros, formatarMetros, varasTexto, pedacosDoValor } from '../../src/varas';
 import { CartaoMoldura } from '../../src/componentes/CartaoMoldura';
 import { Botao } from '../../src/componentes/Botao';
 import { Dialogo } from '../../src/componentes/Dialogo';
@@ -28,11 +28,12 @@ export default function TelaCasinha() {
 
   const m = aberto ? aberto.moldura : null;
   const total = totalMetros(valor, m ? m.perfil_cm : 0);
+  const pedacos = pedacosDoValor(valor, m ? m.perfil_cm : 0);
   const abrir = (tipo, moldura) => { setValor(VAZIO); setAberto({ tipo, moldura }); };
   const fechar = () => setAberto(null);
   const gravar = (acao, dados) => { central.registrar(acao, dados); fechar(); };
   const colocar = async () => {
-    for (const op of operacoesPraColocar(m.codigo, casinha, total)) await central.registrar(op.acao, op.dados);
+    for (const op of operacoesPraColocar(m.codigo, casinha, total, pedacos)) await central.registrar(op.acao, op.dados);
     fechar();
   };
   const cadastrarNova = () => { setBuscando(false); router.push({ pathname: '/cadastro', params: { casinha } }); };
@@ -86,9 +87,9 @@ export default function TelaCasinha() {
       </Dialogo>
 
       <Dialogo visivel={!!aberto && aberto.tipo === 'corrigir'} titulo="Corrigir a quantidade" aoFechar={fechar}>
-        {m ? <Text style={s.qual}>{m.codigo} · {m.nome}: no sistema {formatarMetros(m.estoque_m)} ({varasTexto(m.estoque_m)})</Text> : null}
+        {m ? <Text style={s.qual}>{m.codigo} · {m.nome}: no sistema {formatarMetros(m.estoque_m)} ({varasTexto(m.estoque_m, m.pedacos)})</Text> : null}
         <CampoMetros valor={valor} aoMudar={setValor} rotulo="Quanto tem de verdade" pedacos perfilCm={m ? m.perfil_cm : 0} />
-        <Botao titulo="Gravar o número contado" desativado={total == null} onPress={() => gravar('ajustarMoldura', { codigo: m.codigo, metros: total })} />
+        <Botao titulo="Gravar o número contado" desativado={total == null} onPress={() => gravar('ajustarMoldura', { codigo: m.codigo, metros: total, pedacos })} />
         <Botao titulo="Cancelar" variante="contorno" onPress={fechar} />
       </Dialogo>
 

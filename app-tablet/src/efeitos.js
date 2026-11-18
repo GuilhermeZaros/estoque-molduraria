@@ -1,6 +1,7 @@
 import {
-  abaterFaltas, normalizarCasinha, planejarBaixaMoldura, validarNovaMoldura, quadrosDoPedido, consumoPorMoldura, resumoQuadros,
-  servicosDoQuadro
+  abaterFaltas, normalizarCasinha, validarNovaMoldura, quadrosDoPedido, resumoQuadros, servicosDoQuadro,
+  estoqueEmPecas, totalDasPecas, somarVarasEPedacos, cortesDoPedido, resumoDosCortes, corteDoLadoAMais, desfazerDoCorte,
+  devolverCorte
 } from './gerado/nucleo';
 import { fotosDaOrdem } from './oficina';
 
@@ -11,27 +12,45 @@ function trocarMoldura(pacote, codigo, mudar) {
   };
 }
 
+function estoqueDe(m) {
+  return estoqueEmPecas(m.estoque_m, m.pedacos || '');
+}
+
+function comEstoque(e) {
+  return { estoque_m: totalDasPecas(e), pedacos: e.pedacos };
+}
+
+function doServidor(r, local) {
+  return r && r.novo_estoque_m != null
+    ? { estoque_m: r.novo_estoque_m, pedacos: estoqueEmPecas(r.novo_estoque_m, r.pedacos || '').pedacos }
+    : comEstoque(local);
+}
+
+export function planosDaVenda(pacote, d) {
+  const molduras = {};
+  (pacote.molduras || []).forEach((m) => {
+    molduras[m.codigo] = { perfil_cm: m.perfil_cm, estoque_m: m.estoque_m, pedacos: m.pedacos || '' };
+  });
+  return cortesDoPedido(quadrosDoPedido(d), molduras);
+}
+
 function entrada(pacote, d, r) {
   const faltas = pacote.compras_pendentes
     .filter((c) => c.moldura === String(d.codigo))
     .map((c) => ({ id: c.id, metros: c.metros_faltando }));
   const abate = abaterFaltas(Number(d.metros), faltas);
   const atendidas = r && r.compras_atendidas ? r.compras_atendidas : abate.atendidas;
-  const comEstoque = trocarMoldura(pacote, d.codigo, (m) => ({
-    estoque_m: r && r.novo_estoque_m != null
-      ? r.novo_estoque_m
-      : Number((m.estoque_m + abate.vai_pro_estoque).toFixed(3))
-  }));
-  return { ...comEstoque, compras_pendentes: comEstoque.compras_pendentes.filter((c) => !atendidas.includes(c.id)) };
+  const p = trocarMoldura(pacote, d.codigo, (m) => doServidor(r, somarVarasEPedacos(estoqueDe(m), abate.vai_pro_estoque)));
+  return { ...p, compras_pendentes: p.compras_pendentes.filter((c) => !atendidas.includes(c.id)) };
 }
 
 function contagem(pacote, d) {
   const casinha = normalizarCasinha(d.casinha);
-  const contados = new Map((d.itens || []).map((it) => [String(it.codigo), Number(it.metros)]));
+  const contados = new Map((d.itens || []).map((it) => [String(it.codigo), estoqueEmPecas(Number(it.metros), it.pedacos || '')]));
   return {
     ...pacote,
     molduras: pacote.molduras.map((m) => (contados.has(m.codigo)
-      ? { ...m, local: casinha, estoque_m: contados.get(m.codigo) }
+      ? { ...m, local: casinha, ...comEstoque(contados.get(m.codigo)) }
       : m)),
     casinhas_contadas: pacote.casinhas_contadas.includes(casinha)
       ? pacote.casinhas_contadas
@@ -49,7 +68,7 @@ function cadastro(pacote, d, r, extra) {
   if (pacote.molduras.some((m) => m.codigo === v.codigo)) return pacote;
   const nova = {
     codigo: v.codigo, nome: v.nome, marca: v.marca, estilo: v.estilo, cor: v.cor,
-    perfil_cm: v.perfil_cm, preco_m: v.preco_m, custo_m: v.custo_m, estoque_m: v.metros,
+    perfil_cm: v.perfil_cm, preco_m: v.preco_m, custo_m: v.custo_m, ...comEstoque(estoqueEmPecas(v.metros, d.pedacos || '')),
     foto_url: (r && r.foto_url) || (extra && extra.foto_uri) || '',
     local: v.casinha,
     disponivel: r && r.disponivel != null ? r.disponivel : v.disponivel
@@ -124,17 +143,14 @@ function salvarOrcamento(pacote, d, r, criadaEm) {
   };
 }
 
-function fecharVenda(pacote, d, r, idOp) {
-  const consumos = consumoPorMoldura(quadrosDoPedido(d).map((q) => ({ moldura: q.moldura, consumo: q.consumo_m })));
+function fecharVenda(pacote, d, r, idOp, planos) {
   let p = { ...pacote, orcamentos_abertos: (pacote.orcamentos_abertos || []).filter((o) => o.ref_app !== d.ref_app) };
-  consumos.forEach((c, i) => {
-    const mold = p.molduras.find((m) => m.codigo === c.codigo);
+  planos.forEach((plano, i) => {
+    const mold = p.molduras.find((m) => m.codigo === plano.codigo);
     if (!mold) return;
-    const daPlanilha = r ? (r.molduras ? r.molduras.find((x) => x.codigo === c.codigo) : consumos.length === 1 ? r : null) : null;
-    const plano = planejarBaixaMoldura(mold.estoque_m, c.metros);
-    const novoEstoque = daPlanilha && daPlanilha.novo_estoque_m != null ? daPlanilha.novo_estoque_m : plano.novo_estoque;
-    const falta = daPlanilha && daPlanilha.falta_m != null ? daPlanilha.falta_m : plano.falta;
-    p = trocarMoldura(p, mold.codigo, () => ({ estoque_m: novoEstoque }));
+    const daPlanilha = r ? (r.molduras ? r.molduras.find((x) => x.codigo === plano.codigo) : planos.length === 1 ? r : null) : null;
+    const falta = daPlanilha && daPlanilha.falta_m != null ? daPlanilha.falta_m : plano.falta_m;
+    p = trocarMoldura(p, mold.codigo, () => doServidor(daPlanilha, plano.novo));
     if (!(falta > 0)) return;
     p = {
       ...p,
@@ -172,7 +188,8 @@ function criarOrdem(pacote, d, r, criadaEm) {
     data_criacao: criadaEm || '',
     data_pronto: '',
     fotos: [],
-    quadros: d.quadros || []
+    quadros: d.quadros || [],
+    cortes: d.cortes || []
   };
   const resto = (pacote.oficina || []).filter((o) => !(d.ref_app && o.ref_app === d.ref_app));
   return { ...pacote, oficina: [ordem, ...resto] };
@@ -207,17 +224,19 @@ function tirarFoto(pacote, d) {
 function ladoAMais(pacote, d, r) {
   const bate = bateOrdem(d);
   const ordem = (pacote.oficina || []).find(bate);
+  const mold = pacote.molduras.find((m) => m.codigo === String(d.moldura || ''));
+  const plano = mold
+    ? corteDoLadoAMais(estoqueDe(mold), Number(d.lado_cm) || 0, Number(mold.perfil_cm) || 0, Number(d.quantidade) || 1)
+    : null;
   const quebra = (r && r.quebra) || {
     id: d.id_quebra, quadro: Number(d.quadro) || 0, fora: !!d.fora, moldura: String(d.moldura || ''),
-    lado_cm: Number(d.lado_cm) || 0, quantidade: Number(d.quantidade) || 1, metros: Number(d.metros) || 0, data: ''
+    lado_cm: Number(d.lado_cm) || 0, quantidade: Number(d.quantidade) || 1,
+    metros: plano ? plano.baixa_m : 0, data: '', corte: plano ? desfazerDoCorte(plano) : null
   };
   if (!ordem || (ordem.quebras || []).some((x) => x.id === quebra.id)) return pacote;
   const comOrdem = mudarOrdem(pacote, d, (o) => ({ quebras: [...(o.quebras || []), quebra] }));
-  return trocarMoldura(comOrdem, quebra.moldura, (m) => ({
-    estoque_m: r && r.novo_estoque_m != null
-      ? r.novo_estoque_m
-      : Number(Math.max(0, (Number(m.estoque_m) || 0) - quebra.metros).toFixed(3))
-  }));
+  if (!plano) return comOrdem;
+  return trocarMoldura(comOrdem, quebra.moldura, () => doServidor(r, plano.novo));
 }
 
 function tirarLadoAMais(pacote, d, r) {
@@ -225,11 +244,7 @@ function tirarLadoAMais(pacote, d, r) {
   const quebra = ordem ? (ordem.quebras || []).find((x) => x.id === d.id_quebra) : null;
   if (!quebra) return pacote;
   const semEla = mudarOrdem(pacote, d, (o) => ({ quebras: (o.quebras || []).filter((x) => x.id !== quebra.id) }));
-  return trocarMoldura(semEla, quebra.moldura, (m) => ({
-    estoque_m: r && r.novo_estoque_m != null
-      ? r.novo_estoque_m
-      : Number(((Number(m.estoque_m) || 0) + quebra.metros).toFixed(3))
-  }));
+  return trocarMoldura(semEla, quebra.moldura, (m) => doServidor(r, devolverCorte(estoqueDe(m), quebra)));
 }
 
 function entregarOrdem(pacote, d) {
@@ -237,7 +252,7 @@ function entregarOrdem(pacote, d) {
   return { ...pacote, oficina: (pacote.oficina || []).filter((o) => !bate(o)) };
 }
 
-function ordemDaVenda(pacote, d, r, criadaEm) {
+function ordemDaVenda(pacote, d, r, criadaEm, planos) {
   if (!d.oficina) return pacote;
   const valor = r && r.valor_final != null ? r.valor_final : Number(d.valor_final) > 0 ? Number(d.valor_final) : Number(d.valor_calculado) || 0;
   return criarOrdem(pacote, {
@@ -248,7 +263,8 @@ function ordemDaVenda(pacote, d, r, criadaEm) {
     prazo: d.oficina.prazo || '',
     valor,
     pago: !!d.pago,
-    quadros: d.quadros || []
+    quadros: d.quadros || [],
+    cortes: (r && r.cortes) || resumoDosCortes(planos)
   }, r && r.ordem_id ? { id: r.ordem_id } : null, criadaEm);
 }
 
@@ -260,7 +276,7 @@ function zerarNaoEncontradas(pacote, d) {
   const codigos = new Set((d.codigos || []).map(String));
   return {
     ...pacote,
-    molduras: pacote.molduras.map((m) => (codigos.has(m.codigo) && !normalizarCasinha(m.local) ? { ...m, estoque_m: 0 } : m))
+    molduras: pacote.molduras.map((m) => (codigos.has(m.codigo) && !normalizarCasinha(m.local) ? { ...m, estoque_m: 0, pedacos: [] } : m))
   };
 }
 
@@ -268,13 +284,16 @@ export function aplicarOperacao(pacote, op, resultado) {
   const d = op.dados || {};
   switch (op.acao) {
     case 'entradaMoldura': return entrada(pacote, d, resultado);
-    case 'ajustarMoldura': return trocarMoldura(pacote, d.codigo, () => ({ estoque_m: Number(d.metros) }));
+    case 'ajustarMoldura': return trocarMoldura(pacote, d.codigo, () => comEstoque(estoqueEmPecas(Number(d.metros), d.pedacos || '')));
     case 'contarCasinha': return contagem(pacote, d);
     case 'moverMoldura': return trocarMoldura(pacote, d.codigo, () => ({ local: normalizarCasinha(d.casinha) }));
     case 'cadastrarMoldura': return cadastro(pacote, d, resultado, op.extra);
     case 'editarMoldura': return edicao(pacote, d, resultado, op.extra);
     case 'salvarOrcamento': return salvarOrcamento(pacote, d, resultado, op.criada_em);
-    case 'fecharVenda': return ordemDaVenda(fecharVenda(pacote, d, resultado, op.id_op), d, resultado, op.criada_em);
+    case 'fecharVenda': {
+      const planos = planosDaVenda(pacote, d);
+      return ordemDaVenda(fecharVenda(pacote, d, resultado, op.id_op, planos), d, resultado, op.criada_em, planos);
+    }
     case 'descartarOrcamento': return descartarOrcamento(pacote, d);
     case 'zerarNaoEncontradas': return zerarNaoEncontradas(pacote, d);
     case 'criarOrdem': return criarOrdem(pacote, d, resultado, op.criada_em);

@@ -411,6 +411,239 @@ function _textoQuebra(x) {
   return n + (n > 1 ? ' lados' : ' lado') + ' de ' + _numeroDaConta(x.lado_cm) + ' cm' + (x.fora ? ' (moldura de fora)' : '');
 }
 
+var SOBRA_MINIMA_M = 0.10;
+
+function _lerPedacos(v) {
+  var lista;
+  if (Array.isArray(v)) lista = v;
+  else if (typeof v === 'number') lista = [v];
+  else lista = String(v == null ? '' : v).replace(/m/gi, '').split(/[;+]/);
+  return lista.map(function (x) {
+    return typeof x === 'number' ? x : Number(String(x == null ? '' : x).trim().replace(',', '.'));
+  }).filter(function (x) {
+    return isFinite(x) && x >= 0.01 && x <= VARA_PADRAO_M + 0.0005;
+  }).map(function (x) {
+    return Number(Number(x).toFixed(3));
+  }).sort(function (a, b) { return b - a; });
+}
+
+function _textoPedacos(lista) {
+  var ok = _lerPedacos(lista);
+  if (!ok.length) return '';
+  return ok.map(function (x) { return String(Number(x.toFixed(3))).replace('.', ','); }).join(' + ') + ' m';
+}
+
+function _somaPedacos(lista) {
+  return Number((lista || []).reduce(function (s, x) { return s + (Number(x) || 0); }, 0).toFixed(3));
+}
+
+function _estoqueEmPecas(totalM, pedacos) {
+  var total = Math.max(0, Number(totalM) || 0);
+  var lista = _lerPedacos(pedacos);
+  if (_somaPedacos(lista) > total + 0.0005) lista = [];
+  var resto = total - _somaPedacos(lista);
+  var varas = Math.max(0, Math.floor((resto + 0.01) / VARA_PADRAO_M));
+  var sobra = Number(Math.max(0, resto - varas * VARA_PADRAO_M).toFixed(3));
+  if (sobra >= 0.01) lista = _lerPedacos(lista.concat([sobra]));
+  return { varas: varas, pedacos: lista };
+}
+
+function _totalDasPecas(e) {
+  return Number(((Number(e.varas) || 0) * VARA_PADRAO_M + _somaPedacos(e.pedacos)).toFixed(3));
+}
+
+function _somarVarasEPedacos(e, metros) {
+  var m = Math.max(0, Number(metros) || 0);
+  var varas = Math.floor((m + 0.0005) / VARA_PADRAO_M);
+  var resto = Number((m - varas * VARA_PADRAO_M).toFixed(3));
+  return { varas: e.varas + varas, pedacos: _lerPedacos(e.pedacos.concat(resto >= 0.01 ? [resto] : [])) };
+}
+
+function _melhorEncaixe(capacidade, lados) {
+  var grupos = [];
+  lados.forEach(function (l, i) {
+    var g = grupos.filter(function (x) { return Math.abs(x.m - l.m) < 1e-9; })[0];
+    if (!g) { g = { m: l.m, idx: [] }; grupos.push(g); }
+    g.idx.push(i);
+  });
+  grupos.sort(function (a, b) { return b.m - a.m; });
+  var melhor = { usado: 0, conta: [] };
+  var conta = [];
+  var passos = 0;
+  var limite = capacidade + 0.0005;
+  function busca(k, usado) {
+    if (++passos > 20000) return;
+    if (usado > melhor.usado + 1e-9) melhor = { usado: usado, conta: conta.slice() };
+    if (k >= grupos.length) return;
+    var g = grupos[k];
+    var max = Math.min(g.idx.length, Math.floor((limite - usado) / g.m + 1e-9));
+    for (var n = max; n >= 0; n--) {
+      conta[k] = n;
+      busca(k + 1, usado + n * g.m);
+    }
+    conta[k] = 0;
+  }
+  busca(0, 0);
+  var escolhidos = [];
+  melhor.conta.forEach(function (n, k) {
+    for (var i = 0; i < n; i++) escolhidos.push(grupos[k].idx[i]);
+  });
+  return escolhidos;
+}
+
+function _planejarCorte(estoque, lados) {
+  var varas = Math.max(0, Number(estoque.varas) || 0);
+  var restam = (lados || []).slice();
+  var pecas = [];
+  var usar = function (peca, indices) {
+    var tirar = indices.slice().sort(function (a, b) { return b - a; });
+    tirar.forEach(function (i) {
+      peca.lados.push(restam[i]);
+      peca.m = Math.max(0, peca.m - restam[i].m);
+      restam.splice(i, 1);
+    });
+    peca.lados.sort(function (a, b) { return b.m - a.m; });
+  };
+  _lerPedacos(estoque.pedacos).slice().reverse().forEach(function (x) {
+    var peca = { de: 'pedaco', tamanho_m: x, m: x, lados: [] };
+    pecas.push(peca);
+    if (restam.length) usar(peca, _melhorEncaixe(x, restam));
+  });
+  restam.sort(function (a, b) { return b.m - a.m; });
+  while (restam.length && restam[0].m > VARA_PADRAO_M + 0.0005) {
+    var precisa = Math.ceil(restam[0].m / VARA_PADRAO_M - 1e-9);
+    if (varas < precisa) break;
+    varas -= precisa;
+    var longa = Number((precisa * VARA_PADRAO_M).toFixed(3));
+    var emenda = { de: 'vara', varas: precisa, tamanho_m: longa, m: longa, lados: [] };
+    pecas.push(emenda);
+    usar(emenda, [0]);
+  }
+  while (restam.length && varas > 0) {
+    var cabem = _melhorEncaixe(VARA_PADRAO_M, restam);
+    if (!cabem.length) break;
+    varas--;
+    var vara = { de: 'vara', varas: 1, tamanho_m: VARA_PADRAO_M, m: VARA_PADRAO_M, lados: [] };
+    pecas.push(vara);
+    usar(vara, cabem);
+  }
+  var faltam = restam;
+  pecas.forEach(function (p) { p.m = Math.floor(p.m * 1000 + 1e-6) / 1000; });
+  var usos = pecas.filter(function (p) { return p.lados.length; }).map(function (p) {
+    return {
+      de: p.de, varas: p.varas || 0, tamanho_m: p.tamanho_m, lados: p.lados,
+      sobra_m: p.m >= SOBRA_MINIMA_M ? p.m : 0, perda_m: p.m >= SOBRA_MINIMA_M ? 0 : p.m
+    };
+  });
+  var ficam = pecas.filter(function (p) { return p.lados.length ? p.m >= SOBRA_MINIMA_M : true; })
+    .map(function (p) { return p.m; });
+  var novo = { varas: varas, pedacos: _lerPedacos(ficam) };
+  var antes = _totalDasPecas({ varas: estoque.varas, pedacos: _lerPedacos(estoque.pedacos) });
+  var falta = faltam.reduce(function (s, l) { return s + l.m; }, 0);
+  return {
+    usos: usos, faltam: faltam, novo: novo,
+    baixa_m: Number((antes - _totalDasPecas(novo)).toFixed(3)),
+    falta_m: Number(falta.toFixed(3)),
+    novo_estoque_m: _totalDasPecas(novo)
+  };
+}
+
+function _consumoLadoExato(ladoCm, perfilCm) {
+  var p = Math.max(0, Number(perfilCm) || 0) / 100;
+  var lado = Number(ladoCm) / 100;
+  return p > 0 ? lado + 2 * p + Math.SQRT2 * p + 2 * KERF_M : lado;
+}
+
+function _ladosDoQuadro(q, perfilCm, perfilDentroCm, fora) {
+  var ext = _medidaExterna(q.largura_cm, q.altura_cm, _bordaDoQuadro(q).cm);
+  var soma = fora ? 2 * Math.max(0, Number(perfilDentroCm) || 0) : 0;
+  var l = Number((Number(ext.largura) + soma).toFixed(1));
+  var a = Number((Number(ext.altura) + soma).toFixed(1));
+  if (!(l > 0) || !(a > 0)) return [];
+  var qtd = Math.max(1, Math.round(Number(q.quantidade) || 1));
+  var out = [];
+  for (var i = 0; i < qtd; i++) {
+    [l, l, a, a].forEach(function (cm) { out.push({ cm: cm, m: _consumoLadoExato(cm, perfilCm) }); });
+  }
+  return out;
+}
+
+function _cortesDoPedido(quadros, molduras) {
+  var porCodigo = {};
+  var ordem = [];
+  var perfil = function (c) { return molduras[c] ? Number(molduras[c].perfil_cm) || 0 : 0; };
+  (quadros || []).forEach(function (q, i) {
+    var usos = [];
+    var dentro = String(q.moldura == null ? '' : q.moldura).trim();
+    var fora = String(q.moldura_fora == null ? '' : q.moldura_fora).trim();
+    if (dentro) usos.push({ codigo: dentro, fora: false });
+    if (fora) usos.push({ codigo: fora, fora: true });
+    usos.forEach(function (u) {
+      if (!molduras[u.codigo]) return;
+      if (!porCodigo[u.codigo]) { porCodigo[u.codigo] = []; ordem.push(u.codigo); }
+      _ladosDoQuadro(q, perfil(u.codigo), u.fora ? perfil(dentro) : 0, u.fora).forEach(function (l) {
+        porCodigo[u.codigo].push({ cm: l.cm, m: l.m, quadro: i + 1, fora: u.fora });
+      });
+    });
+  });
+  return ordem.map(function (c) {
+    var m = molduras[c];
+    var plano = _planejarCorte(_estoqueEmPecas(m.estoque_m, m.pedacos), porCodigo[c]);
+    plano.codigo = c;
+    return plano;
+  });
+}
+
+function _resumoDosCortes(planos) {
+  return (planos || []).map(function (p) {
+    return {
+      codigo: p.codigo,
+      usos: p.usos.map(function (u) {
+        return {
+          de: u.de, varas: u.varas || 0, tamanho_m: u.tamanho_m, sobra_m: u.sobra_m,
+          lados: u.lados.map(function (l) { return { cm: l.cm, quadro: l.quadro || 0, fora: !!l.fora }; })
+        };
+      }),
+      faltam: p.faltam.map(function (l) { return { cm: l.cm, quadro: l.quadro || 0, fora: !!l.fora }; })
+    };
+  });
+}
+
+function _corteDoLadoAMais(estoque, ladoCm, perfilCm, quantidade) {
+  var lados = [];
+  for (var i = 0; i < quantidade; i++) lados.push({ cm: Number(ladoCm), m: consumoLadoM(ladoCm, perfilCm) });
+  return _planejarCorte(estoque, lados);
+}
+
+function _desfazerDoCorte(plano) {
+  var usou = [];
+  var varas = 0;
+  var sobras = [];
+  plano.usos.forEach(function (u) {
+    if (u.de === 'vara') varas += u.varas || 1;
+    else usou.push(u.tamanho_m);
+    if (u.sobra_m > 0) sobras.push(u.sobra_m);
+  });
+  return { usou: usou, varas: varas, sobras: sobras };
+}
+
+function _devolverCorte(estoque, quebra) {
+  var c = quebra && quebra.corte;
+  var lista = estoque.pedacos.slice();
+  if (c && Array.isArray(c.sobras)) {
+    var achou = c.sobras.every(function (x) {
+      for (var i = 0; i < lista.length; i++) {
+        if (Math.abs(lista[i] - x) < 0.0015) { lista.splice(i, 1); return true; }
+      }
+      return false;
+    });
+    if (achou) {
+      return { varas: estoque.varas + (Number(c.varas) || 0), pedacos: _lerPedacos(lista.concat(c.usou || [])) };
+    }
+  }
+  return { varas: estoque.varas, pedacos: _lerPedacos(estoque.pedacos.concat([Number(quebra.metros) || 0])) };
+}
+
 export {
   KERF_M,
   VARA_PADRAO_M,
@@ -453,5 +686,21 @@ export {
   TAXAS_MAQUININHA,
   _recebimento as recebimento,
   _ladosDaMoldura as ladosDaMoldura,
-  _textoQuebra as textoQuebra
+  _textoQuebra as textoQuebra,
+  SOBRA_MINIMA_M,
+  _lerPedacos as lerPedacos,
+  _textoPedacos as textoPedacos,
+  _somaPedacos as somaPedacos,
+  _estoqueEmPecas as estoqueEmPecas,
+  _totalDasPecas as totalDasPecas,
+  _somarVarasEPedacos as somarVarasEPedacos,
+  _melhorEncaixe as melhorEncaixe,
+  _planejarCorte as planejarCorte,
+  _consumoLadoExato as consumoLadoExato,
+  _ladosDoQuadro as ladosDoQuadro,
+  _cortesDoPedido as cortesDoPedido,
+  _resumoDosCortes as resumoDosCortes,
+  _corteDoLadoAMais as corteDoLadoAMais,
+  _desfazerDoCorte as desfazerDoCorte,
+  _devolverCorte as devolverCorte
 };

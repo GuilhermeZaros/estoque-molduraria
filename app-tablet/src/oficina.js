@@ -1,6 +1,8 @@
 import { lerValor, formatarNumero } from './formato';
 import { rotuloQuadro, nomeMaterial, travasDaTela } from './orcamento';
-import { nomeCasinha, bordaDoQuadro, medidaExterna, travasDoChassi, ladosDaMoldura, textoQuebra, consumoLadoM } from './gerado/nucleo';
+import {
+  nomeCasinha, bordaDoQuadro, medidaExterna, travasDoChassi, ladosDaMoldura, textoQuebra, consumoLadoM, corteDoLadoAMais, estoqueEmPecas
+} from './gerado/nucleo';
 
 export const PRAZOS = [
   { dias: 0, titulo: 'Hoje' },
@@ -120,6 +122,58 @@ export function dadosDoLadoAMais(pacote, o, quadro, escolha, id) {
     quantidade: escolha.quantidade, id_quebra: id, moldura: escolha.codigo,
     metros: metrosDoLadoAMais(pacote, escolha.codigo, escolha.lado_cm, escolha.quantidade)
   };
+}
+
+const metrosTxt = (m) => (Number(m) || 0).toFixed(2).replace('.', ',') + ' m';
+
+function textoDosLados(lados, variosQuadros) {
+  const grupos = [];
+  (lados || []).forEach((l) => {
+    const g = grupos.find((x) => x.cm === l.cm && x.quadro === l.quadro && x.fora === l.fora);
+    if (g) g.n++;
+    else grupos.push({ cm: l.cm, quadro: l.quadro, fora: l.fora, n: 1 });
+  });
+  return juntarTexto(grupos.map((g) => (g.n > 1 ? g.n + ' lados' : '1 lado') + ' de ' + formatarNumero(g.cm) + ' cm'
+    + (variosQuadros && g.quadro ? ' do quadro ' + g.quadro : '') + (g.fora ? ' (moldura de fora)' : '')));
+}
+
+function juntarTexto(lista) {
+  return lista.length > 1 ? lista.slice(0, -1).join(', ') + ' e ' + lista[lista.length - 1] : lista[0] || '';
+}
+
+export function cortesDaOrdem(pacote, o) {
+  const varios = ((o && o.quadros) || []).length > 1;
+  return ((o && o.cortes) || []).filter((c) => (c.usos || []).length || (c.faltam || []).length).map((c) => {
+    const m = molduraDe(pacote, c.codigo);
+    const linhas = [...(c.usos || [])]
+      .sort((a, b) => (a.de === b.de ? 0 : a.de === 'pedaco' ? -1 : 1))
+      .map((u) => {
+        const sobra = u.sobra_m > 0 ? 'Sobra ' + metrosTxt(u.sobra_m) + ', guarde no estoque.' : 'Não sobra pedaço que preste.';
+        const titulo = u.de === 'pedaco'
+          ? 'Use o pedaço de ' + metrosTxt(u.tamanho_m)
+          : (u.varas > 1 ? u.varas + ' varas emendadas' : 'Vara nova de 2,70 m');
+        return { tipo: u.de, titulo, detalhe: 'Corta ' + textoDosLados(u.lados, varios) + '. ' + sobra };
+      });
+    if ((c.faltam || []).length) {
+      linhas.push({ tipo: 'falta', titulo: 'Falta moldura', detalhe: textoDosLados(c.faltam, varios) + ': espera a encomenda chegar.' });
+    }
+    return {
+      codigo: c.codigo,
+      titulo: (m ? m.nome + ' (' + c.codigo + ')' : c.codigo),
+      lugar: m && m.local ? 'Fica em: ' + nomeCasinha(m.local) : '',
+      linhas
+    };
+  });
+}
+
+export function pedacoDoLadoAMais(pacote, codigo, ladoCm, quantidade) {
+  const m = molduraDe(pacote, codigo);
+  if (!m) return null;
+  const plano = corteDoLadoAMais(estoqueEmPecas(m.estoque_m, m.pedacos || ''), Number(ladoCm) || 0, Number(m.perfil_cm) || 0, Number(quantidade) || 1);
+  const pedacos = plano.usos.filter((u) => u.de === 'pedaco');
+  if (plano.faltam.length) return { falta: true, texto: 'Não tem moldura que dê pra esse lado no estoque.' };
+  if (!pedacos.length) return { falta: false, texto: 'Corte de uma vara nova.' };
+  return { falta: false, texto: 'Dá pra usar ' + juntarTexto(pedacos.map((u) => 'o pedaço de ' + metrosTxt(u.tamanho_m))) + '.' };
 }
 
 export function dadosDeTirarLadoAMais(o, x) {

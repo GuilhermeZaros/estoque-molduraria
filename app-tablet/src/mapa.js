@@ -75,8 +75,8 @@ export function resumoGrupo(grupo, porCasinha) {
   return r;
 }
 
-export function operacoesPraColocar(codigo, casinha, metros) {
+export function operacoesPraColocar(codigo, casinha, metros, pedacos) {
   const ops = [{ acao: 'moverMoldura', dados: { codigo, casinha: normalizarCasinha(casinha) } }];
-  if (metros != null) ops.push({ acao: 'ajustarMoldura', dados: { codigo, metros } });
+  if (metros != null) ops.push({ acao: 'ajustarMoldura', dados: pedacos ? { codigo, metros, pedacos } : { codigo, metros } });
   return ops;
 }

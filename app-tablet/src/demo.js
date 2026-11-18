@@ -1,10 +1,10 @@
-import { aplicarOperacao } from './efeitos';
-import { consumoPorMoldura, planejarBaixaMoldura, quadrosDoPedido } from './gerado/nucleo';
+import { aplicarOperacao, planosDaVenda } from './efeitos';
+import { resumoDosCortes, cortesDoPedido } from './gerado/nucleo';
 import { criarFinanceiroDemo } from './demoFinanceiro';
 import { textoData } from './oficina';
 
-const moldura = (codigo, nome, marca, perfil_cm, estoque_m, local, preco_m = 30) => ({
-  codigo, nome, marca, estilo: '', cor: '', perfil_cm, preco_m, estoque_m, foto_url: '', local, disponivel: true
+const moldura = (codigo, nome, marca, perfil_cm, estoque_m, local, preco_m = 30, pedacos = []) => ({
+  codigo, nome, marca, estilo: '', cor: '', perfil_cm, preco_m, estoque_m, foto_url: '', local, disponivel: true, pedacos
 });
 
 const material = (codigo, nome, categoria, preco) => ({
@@ -26,10 +26,10 @@ const quadroDemo = (mudar) => ({
 export const PACOTE_DEMO = {
   gerado_em: '2026-10-30T12:00:00.000Z',
   molduras: [
-    moldura('D-101', 'Lisa preta 2 cm', 'Moldurarte', 2, 12.4, 'CR1-E1', 28),
+    moldura('D-101', 'Lisa preta 2 cm', 'Moldurarte', 2, 10.7, 'CR1-E1', 28, [1, 0.8, 0.8]),
     moldura('D-102', 'Lisa branca 2 cm', 'Moldurarte', 2, 3.1, 'CR1-E1', 28),
     moldura('D-103', 'Clássica dourada', 'Artmold', 3.5, 1.2, 'CR1-E2', 65),
-    moldura('D-104', 'Rústica natural', 'Ruberti', 4, 9, 'CR1-F3', 48),
+    moldura('D-104', 'Rústica natural', 'Ruberti', 4, 9, 'CR1-F3', 48, [1.3, 1.2, 1.1]),
     moldura('D-105', 'Filete prata', 'Molduras Aguiar', 1, 0.6, 'CR3-D1', 22),
     moldura('D-106', 'Caixa preta funda', 'Artmold', 3, 6.5, 'CR3-D1', 55),
     moldura('D-107', 'Provençal branca', 'Ruberti', 5, 15.2, 'PR1-2', 72),
@@ -115,6 +115,13 @@ export const PACOTE_DEMO = {
   ]
 };
 
+function cortesDemo(ordem) {
+  const molduras = {};
+  PACOTE_DEMO.molduras.forEach((m) => { molduras[m.codigo] = { perfil_cm: m.perfil_cm, estoque_m: m.estoque_m, pedacos: m.pedacos }; });
+  ordem.cortes = resumoDosCortes(cortesDoPedido(ordem.quadros, molduras));
+}
+cortesDemo(PACOTE_DEMO.oficina[0]);
+
 const HISTORICO_DEMO = [
   ordemDemo({ id: 'OS-012', cliente: 'Escola Arco-Íris', descricao: '10x 30 x 40 diplomas', prazo: '25/10/2026', valor: 980, status: 'entregue', data_criacao: '2026-10-15T10:00:00.000Z' }),
   ordemDemo({ id: 'OS-011', cliente: 'Galeria Norte', descricao: 'Reforma de 3 telas', prazo: '20/10/2026', valor: 450, status: 'entregue', data_criacao: '2026-10-08T15:00:00.000Z' }),
@@ -158,18 +165,14 @@ export function criarApiDemo() {
     const aberto = pacote.orcamentos_abertos.find((o) => o.ref_app === d.ref_app);
     const id = aberto && aberto.id ? aberto.id : numero('ORC', proximoOrcamento++);
     if (op.acao === 'salvarOrcamento') return { id };
-    const consumos = consumoPorMoldura(quadrosDoPedido(d).map((q) => ({ moldura: q.moldura, consumo: q.consumo_m })));
-    const molduras = consumos.map((c) => {
-      const mold = pacote.molduras.find((m) => m.codigo === c.codigo);
-      const plano = planejarBaixaMoldura(mold ? mold.estoque_m : 0, c.metros);
-      return {
-        codigo: c.codigo, baixa_m: plano.baixa, falta_m: plano.falta, novo_estoque_m: plano.novo_estoque,
-        compra_id: plano.falta > 0 ? numero('CMP', proximaCompra++) : ''
-      };
-    });
+    const planos = planosDaVenda(pacote, d);
+    const molduras = planos.map((plano) => ({
+      codigo: plano.codigo, baixa_m: plano.baixa_m, falta_m: plano.falta_m, novo_estoque_m: plano.novo_estoque_m,
+      pedacos: plano.novo.pedacos, compra_id: plano.falta_m > 0 ? numero('CMP', proximaCompra++) : ''
+    }));
     const valor_final = Number(d.valor_final) > 0 ? Number(d.valor_final) : Number(d.valor_calculado) || 0;
     if (d.pago) financeiro.entradaDaOficina({ valor: valor_final, cliente: d.cliente }, hoje, d.forma);
-    return { id, valor_final, molduras, ordem_id: d.oficina ? novaOrdem() : '' };
+    return { id, valor_final, molduras, ordem_id: d.oficina ? novaOrdem() : '', cortes: resumoDosCortes(planos) };
   }
   return {
     async buscarPacote() {

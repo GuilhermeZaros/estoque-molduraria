@@ -23,7 +23,7 @@ var CABECALHOS = {
   Molduras: ['Codigo', 'Nome', 'Marca', 'Estilo', 'Cor', 'Acabamento',
              'Largura_perfil_cm', 'Valor_por_metro', 'Preco_minimo', 'Foto_URL',
              'Descricao', 'Tags', 'Estoque_atual_m', 'Estoque_minimo_m', 'Disponivel',
-             'Custo_por_metro', 'Local', 'Contado_em'],
+             'Custo_por_metro', 'Local', 'Contado_em', 'Pedacos'],
   Vidros:   ['Codigo', 'Nome', 'Tipo', 'Espessura_mm', 'Valor_por_m2', 'Preco_minimo',
              'Descricao', 'Estoque_atual_m2', 'Estoque_minimo_m2', 'Disponivel',
              'Custo_por_m2'],
@@ -70,7 +70,7 @@ var CABECALHOS_FIN = {
   // Oficina: ordens de serviço (texto livre). Protegida do seed, como o resto do financeiro.
   Oficina:      ['ID', 'Data_criacao', 'Cliente', 'Telefone', 'Descricao', 'Prazo', 'Valor',
                  'Status', 'Aviso', 'Data_aviso', 'Data_pronto', 'Data_entrega',
-                 'Lancado_financeiro', 'Criado_por', 'Finalizado_por', 'Obs', 'Ref_app', 'Fotos', 'Pago', 'Quebras']
+                 'Lancado_financeiro', 'Criado_por', 'Finalizado_por', 'Obs', 'Ref_app', 'Fotos', 'Pago', 'Quebras', 'Cortes']
 };
 
 // Enum fixo de categorias de SAÍDA. O que vier fora cai em 'Outros' (com aviso no log).

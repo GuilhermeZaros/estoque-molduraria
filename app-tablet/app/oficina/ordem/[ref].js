@@ -7,7 +7,7 @@ import { formatarMetros } from '../../../src/varas';
 import {
   STATUS_ORDEM, chaveDaOrdem, emAndamento, prazoVencido, textoPrazo, fotosDoQuadro, tituloDoQuadro, detalhesDoQuadro,
   dadosDaFoto, dadosDeTirarFoto, acrescimoDoQuadro, opcoesDoLadoAMais, metrosDoLadoAMais, novoIdQuebra,
-  dadosDoLadoAMais, dadosDeTirarLadoAMais, quebrasDoQuadro, textoDaQuebra
+  dadosDoLadoAMais, dadosDeTirarLadoAMais, quebrasDoQuadro, textoDaQuebra, cortesDaOrdem, pedacoDoLadoAMais
 } from '../../../src/oficina';
 import { ordemLembrada } from '../../../src/ordemAberta';
 import { numeroWhatsApp, linkWhatsApp } from '../../../src/whatsapp';
@@ -44,6 +44,38 @@ function QuadroCresce({ a }) {
         <Text style={s.cresceConta}>{a.conta}</Text>
       </View>
     </View>
+  );
+}
+
+const ESTILO_CORTE = {
+  pedaco: { aviso: AVISO.verde, icone: 'recycle' },
+  vara: { aviso: { fundo: cores.cartao, borda: cores.marinho, texto: cores.marinho }, icone: 'content-cut' },
+  falta: { aviso: AVISO.vermelho, icone: 'alert-circle-outline' }
+};
+
+function BlocoCortes({ cortes }) {
+  return (
+    <Cartao>
+      <Text style={s.tituloQuadro} accessibilityRole="header">Cortes da moldura</Text>
+      {cortes.map((c) => (
+        <View key={c.codigo} style={s.corteMoldura}>
+          <Text style={s.corteNome}>{c.titulo}</Text>
+          {c.lugar ? <Text style={s.detalhe}>{c.lugar}</Text> : null}
+          {c.linhas.map((l, i) => {
+            const e = ESTILO_CORTE[l.tipo];
+            return (
+              <View key={i} style={[s.corte, { backgroundColor: e.aviso.fundo, borderLeftColor: e.aviso.borda }]}>
+                <Icone nome={e.icone} tamanho={28} cor={e.aviso.borda} />
+                <View style={s.corteTextos}>
+                  <Text style={[s.corteTitulo, { color: e.aviso.texto }]}>{l.titulo}</Text>
+                  <Text style={s.corteDetalhe}>{l.detalhe}</Text>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      ))}
+    </Cartao>
   );
 }
 
@@ -105,7 +137,9 @@ export default function OrdemAberta() {
     );
   };
   const semQuadro = fotosDoQuadro(o, 0);
+  const cortes = cortesDaOrdem(visivel, o);
   const escolhida = lado ? lado.opcoes[lado.qual] : null;
+  const pedacoLado = escolhida ? pedacoDoLadoAMais(visivel, escolhida.codigo, lado.lado_cm, lado.quantidade) : null;
   const abrirLado = (quadro, opcoes) => setLado({ quadro, opcoes, qual: 0, lado_cm: opcoes[0].lados[0] || 0, quantidade: 1 });
   const registrarLado = () => {
     central.registrar('ladoAMais', dadosDoLadoAMais(visivel, o, lado.quadro, {
@@ -185,6 +219,8 @@ export default function OrdemAberta() {
 
       {!ativa ? <Text style={s.aviso}>Essa ordem já saiu da oficina. Aqui é só pra ver.</Text> : null}
 
+      {cortes.length ? <BlocoCortes cortes={cortes} /> : null}
+
       {quadros.map((q, i) => {
         const titulo = tituloDoQuadro(q, i, quadros.length);
         return (
@@ -246,6 +282,7 @@ export default function OrdemAberta() {
             <Text style={s.ladoNota}>
               Sai do estoque {formatarMetros(metrosDoLadoAMais(visivel, escolhida.codigo, lado.lado_cm, lado.quantidade))}, já com a perda do corte. O cliente não paga a mais.
             </Text>
+            {pedacoLado ? <Text style={[s.ladoNota, pedacoLado.falta && s.ladoFalta]}>{pedacoLado.texto}</Text> : null}
             <Botao titulo="Registrar" onPress={registrarLado} />
             <Botao titulo="Cancelar" variante="contorno" onPress={() => setLado(null)} />
           </>
@@ -316,6 +353,13 @@ const s = StyleSheet.create({
   ladoBotaoPasso: { minWidth: tamanho.toque, paddingHorizontal: 0 },
   ladoQuantidade: { minWidth: 48, textAlign: 'center', fontSize: 28, fontWeight: '800', color: cores.marinho },
   ladoNota: { fontSize: tamanho.pequeno, fontWeight: '600', color: cores.marinho },
+  ladoFalta: { color: AVISO.vermelho.texto, fontWeight: '800' },
+  corteMoldura: { gap: 8 },
+  corteNome: { fontSize: tamanho.texto, fontWeight: '800', color: cores.tinta },
+  corte: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: tamanho.raio, borderLeftWidth: 6 },
+  corteTextos: { flex: 1, gap: 2 },
+  corteTitulo: { fontSize: tamanho.texto, fontWeight: '800' },
+  corteDetalhe: { fontSize: tamanho.pequeno, fontWeight: '600', color: cores.tinta },
   sumiu: { flex: 1, padding: 24, gap: 16, alignItems: 'flex-start' },
   texto: { fontSize: tamanho.texto, color: cores.tinta }
 });

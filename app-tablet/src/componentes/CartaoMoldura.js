@@ -23,7 +23,7 @@ export function CartaoMoldura({ moldura, children, mostrarEstado = true }) {
           {mostrarEstado ? (
             <View style={s.estoque}>
               <Text style={s.metros}>{formatarMetros(moldura.estoque_m)}</Text>
-              <Text style={s.varas}>{varasTexto(moldura.estoque_m)}</Text>
+              <Text style={s.varas}>{varasTexto(moldura.estoque_m, moldura.pedacos)}</Text>
               <Text style={[s.estado, { backgroundColor: c.fundo, color: c.texto }]}>{c.nome}</Text>
             </View>
           ) : null}

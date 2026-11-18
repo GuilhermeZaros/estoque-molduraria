@@ -1,4 +1,4 @@
-import { formatarMetros, varasTexto, totalMetros, valorInicial, lerPedaco, pedacoVazio, numeroDoPerfil } from '../varas';
+import { formatarMetros, varasTexto, totalMetros, valorInicial, lerPedaco, pedacoVazio, numeroDoPerfil, pedacosDoValor } from '../varas';
 
 test('formatarMetros em pt-BR', () => {
   expect(formatarMetros(9.3)).toBe('9,30 m');
@@ -49,4 +49,17 @@ test('pedaços soltos: soma cada um e desconta a ponta só do que não está des
   expect(lerPedaco(pedacoVazio(), 2)).toBeNull();
   expect(numeroDoPerfil('4,5')).toBe(4.5);
   expect(numeroDoPerfil('')).toBe(0);
+});
+
+test('varasTexto mostra cada pedaço separado, sem somar com as varas', () => {
+  expect(varasTexto(8.2, [1, 0.8, 1])).toBe('2 varas + 1,00 m + 1,00 m + 0,80 m');
+  expect(varasTexto(1.8, [1, 0.8])).toBe('só pedaços de 1,00 m + 0,80 m');
+  expect(varasTexto(5.4, [])).toBe('2 varas');
+});
+
+test('pedacosDoValor devolve cada pedaço já sem a ponta', () => {
+  expect(pedacosDoValor({ varas: '2', pedacos: [{ metros: '1', desencabecado: true }, { metros: '0,8', desencabecado: true }] }, 2)).toEqual([1, 0.8]);
+  expect(pedacosDoValor({ varas: '1', pedacos: [{ metros: '0,5', desencabecado: false }] }, 2)).toEqual([0.47]);
+  expect(pedacosDoValor({ varas: '1', pedacos: [] }, 2)).toEqual([]);
+  expect(pedacosDoValor({ varas: '1', extra: '0,5' }, 2)).toBeUndefined();
 });

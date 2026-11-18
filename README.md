@@ -45,6 +45,7 @@ Os dois projetos só conversam pela URL do Web App. Um não importa código do o
 - Moldura é cobrada pelo perímetro (metro linear). Vidro, chapa e espelho, pela área (m²).
 - Com paspatur o quadro inteiro cresce: moldura, vidro e chapa são calculados no tamanho de fora (foto mais duas vezes a borda).
 - A baixa da moldura usa o consumo real na vara de 2,70 m: perímetro, cantos, a perda dos cortes em 45° e a da serra. O cliente continua pagando pelo perímetro.
+- O estoque guarda as varas inteiras e cada pedaço separado (por exemplo, 2 varas + 1,00 m + 0,80 m), sem somar os pedaços numa vara. Na venda, os lados do quadro saem primeiro dos pedaços que servem e depois de vara nova; a sobra que passa de 10 cm volta como pedaço. A ordem da oficina mostra qual pedaço usar em cada lado.
 - O estoque nunca fica negativo. Se a venda fecha sem moldura suficiente, a falta vira encomenda na lista de compras.
 
 ## O que tem em cada pasta

@@ -6,7 +6,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useEstado, central } from '../src/estado';
 import { nomeCasinha, normalizarCasinha, validarNovaMoldura } from '../src/gerado/nucleo';
 import { prepararFoto, primeiraFoto } from '../src/foto';
-import { totalMetros, numeroDoPerfil } from '../src/varas';
+import { totalMetros, numeroDoPerfil, pedacosDoValor } from '../src/varas';
 import { camposDaMoldura } from '../src/edicao';
 import { Botao } from '../src/componentes/Botao';
 import { Campo } from '../src/componentes/Campo';
@@ -128,7 +128,8 @@ export default function Cadastro() {
     }
     const dados = {
       codigo: m.codigo, nome: m.nome, marca: m.marca, estilo: m.estilo, cor: m.cor,
-      perfil_cm: m.perfil_cm, preco_m: m.preco_m, custo_m: m.custo_m, metros: m.metros, casinha: m.casinha
+      perfil_cm: m.perfil_cm, preco_m: m.preco_m, custo_m: m.custo_m, metros: m.metros, casinha: m.casinha,
+      pedacos: pedacosDoValor(metros, numeroDoPerfil(campos.perfil_cm)) || []
     };
     if (foto) {
       dados.foto_base64 = foto.base64;
