@@ -1,6 +1,6 @@
 import {
   calcularOrcamento, medidaExterna, totaisOrcamentoApp, planejarBaixaMoldura, nomeCasinha, VARA_PADRAO_M,
-  quadrosDoPedido, bordaDoQuadro, consumoPorMoldura, servicosDoQuadro, travasDoChassi, PRECO_CHASSI_M
+  quadrosDoPedido, bordaDoQuadro, consumoPorMoldura, servicosDoQuadro, travasDoChassi, PRECO_CHASSI_M, usosDeMoldura
 } from './gerado/nucleo';
 import { formatarMetros } from './varas';
 import { formatarNumero, lerNumero, momentoDe } from './formato';
@@ -48,7 +48,7 @@ export function servicoVazio() {
 export function quadroVazio(tipo = 'quadro', pacote) {
   const q = {
     chave: novaChave(), tipo, largura: '', altura: '', margem: '', margem_outra: false, quantidade: 1, paspatur: '',
-    borda_outra: false, moldura: '', vidro: '', chapa: '', espelho: '', vidro_duplo: false, objeto_alto: false, servicos: [],
+    borda_outra: false, moldura: '', moldura_fora: '', vidro: '', chapa: '', espelho: '', vidro_duplo: false, objeto_alto: false, servicos: [],
     descricao: ''
   };
   if (tipo !== 'objeto') return q;
@@ -123,6 +123,7 @@ function deQuadroSalvo(x) {
     paspatur: numeroOuVazio(x.paspatur_cm),
     borda_outra: Number(x.paspatur_cm) > 0 && !BORDAS_PASPATUR.includes(Number(x.paspatur_cm)),
     moldura: String(x.moldura || ''),
+    moldura_fora: String(x.moldura_fora || ''),
     vidro: String(x.vidro || ''),
     chapa: String(x.chapa || ''),
     espelho: String(x.espelho || ''),
@@ -204,10 +205,20 @@ export function calcularQuadro(pacote, q) {
   if (servicos.erro) return { ok: false, erro: servicos.erro };
   const itens = [];
   let moldura = null;
+  let molduraFora = null;
   if (q.moldura) {
     moldura = (pacote.molduras || []).find((m) => m.codigo === String(q.moldura)) || null;
     if (!moldura) return { ok: false, erro: 'A moldura ' + q.moldura + ' não está mais no catálogo.' };
     itens.push({ categoria: 'moldura', nome: moldura.nome, preco: Number(moldura.preco_m), perfilCm: Number(moldura.perfil_cm) || 0 });
+  }
+  if (q.moldura_fora) {
+    if (!moldura) return { ok: false, erro: 'Escolha a moldura de dentro antes da moldura de fora.' };
+    molduraFora = (pacote.molduras || []).find((m) => m.codigo === String(q.moldura_fora)) || null;
+    if (!molduraFora) return { ok: false, erro: 'A moldura ' + q.moldura_fora + ' não está mais no catálogo.' };
+    itens.push({
+      categoria: 'moldura', nome: molduraFora.nome, preco: Number(molduraFora.preco_m), perfilCm: Number(molduraFora.perfil_cm) || 0,
+      porFora: true, foraCm: Number(moldura.perfil_cm) || 0
+    });
   }
   for (const categoria of MATERIAIS) {
     const codigo = q[categoria];
@@ -228,7 +239,10 @@ export function calcularQuadro(pacote, q) {
       paspaturPrecoM2: borda.paspatur ? Number(pacote.paspatur_m2) || 0 : 0
     });
   return {
-    ok: true, tipo: q.tipo, largura: temMedida ? largura : 0, altura: temMedida ? altura : 0, externa, moldura,
+    ok: true, tipo: q.tipo, largura: temMedida ? largura : 0, altura: temMedida ? altura : 0, externa, moldura, molduraFora,
+    fora: molduraFora && temMedida
+      ? { largura: externa.largura + 2 * (Number(moldura.perfil_cm) || 0), altura: externa.altura + 2 * (Number(moldura.perfil_cm) || 0) }
+      : null,
     borda: borda.paspatur ? borda.cm : 0,
     margem: borda.paspatur ? 0 : borda.cm,
     calc: totaisOrcamentoApp(orc, q.quantidade, servicos.lista)
@@ -254,9 +268,7 @@ export function calcularPedido(pacote, f) {
     quantidade,
     valor_total: valorTotal,
     valor_final: digitado > 0 ? Number(digitado.toFixed(2)) : valorTotal,
-    molduras: consumoPorMoldura(f.quadros.map((q, i) => (quadros[i].ok
-      ? { moldura: q.moldura, consumo: quadros[i].calc.consumo_moldura_m }
-      : { moldura: '' })))
+    molduras: consumoPorMoldura(usosDeMoldura(f.quadros, quadros.map((r) => (r.ok ? r.calc : null))))
   };
 }
 
@@ -295,7 +307,7 @@ export function avisosDoPedido(pacote, f, rr) {
     const moldura = (pacote.molduras || []).find((m) => m.codigo === c.codigo);
     const aviso = avisoMoldura(moldura, c.metros);
     if (!aviso) return;
-    const quadros = f.quadros.map((q, i) => (String(q.moldura) === c.codigo ? i + 1 : 0)).filter(Boolean);
+    const quadros = f.quadros.map((q, i) => (String(q.moldura) === c.codigo || String(q.moldura_fora || '') === c.codigo ? i + 1 : 0)).filter(Boolean);
     avisos.set(c.codigo, { ...aviso, moldura, quadros });
   });
   return avisos;
@@ -310,6 +322,7 @@ function quadroParaApi(q, r) {
     quantidade: r.calc.quantidade,
     paspatur_cm: r.borda,
     moldura: q.moldura || '',
+    moldura_fora: q.moldura ? q.moldura_fora || '' : '',
     vidro: q.vidro || '',
     chapa: q.vidro_duplo ? '' : q.chapa || '',
     espelho: q.espelho || '',
@@ -353,6 +366,7 @@ export function dadosDoTexto(pacote, f, rr) {
         externa: r.externa,
         quantidade: r.calc.quantidade,
         moldura: r.moldura ? r.moldura.nome : '',
+        moldura_fora: r.molduraFora ? r.molduraFora.nome : '',
         vidro: q.vidro ? nomeMaterial(pacote, q.vidro) : '',
         vidro_duplo: !!q.vidro_duplo,
         fundo: q.chapa && !q.vidro_duplo ? nomeMaterial(pacote, q.chapa) : '',

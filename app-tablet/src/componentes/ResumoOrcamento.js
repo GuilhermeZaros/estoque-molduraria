@@ -14,6 +14,11 @@ function nomeDoItem(it, r, vidroDuplo) {
   return it.item;
 }
 
+function rotuloDoItem(it, fora) {
+  if (it.categoria === 'moldura' && fora) return it.por_fora ? 'Moldura por fora' : 'Moldura por dentro';
+  return NOMES[it.categoria] || it.categoria;
+}
+
 function Linha({ rotulo, item, valor }) {
   return (
     <View style={s.linha}>
@@ -39,13 +44,14 @@ export function DetalheQuadro({ r, vidroDuplo }) {
   if (!r || !r.ok) return <Erro texto={r ? r.erro : 'Carregando...'} />;
   const q = r.calc.quantidade;
   const servicos = r.calc.servicos || [];
+  const fora = r.calc.itens.some((it) => it.por_fora);
   const vazio = !r.calc.itens.length && !r.calc.pintura_chapa && !servicos.length;
   return (
     <View style={s.caixa}>
       {vazio ? <Text style={s.cada}>Nada marcado ainda.</Text> : null}
       <View style={s.linhas}>
         {r.calc.itens.map((it, i) => (
-          <Linha key={it.categoria + i} rotulo={NOMES[it.categoria] || it.categoria} item={nomeDoItem(it, r, vidroDuplo)} valor={it.valor * q} />
+          <Linha key={it.categoria + i} rotulo={rotuloDoItem(it, fora)} item={nomeDoItem(it, r, vidroDuplo)} valor={it.valor * q} />
         ))}
         {r.calc.pintura_chapa ? <Linha rotulo="Pintura da chapa" valor={r.calc.pintura_chapa * q} /> : null}
         {servicos.map((sv, i) => (

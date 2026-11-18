@@ -94,36 +94,59 @@ export function tituloDoQuadro(q, i, total) {
 
 const linha = (rotulo, valor, detalhe = '') => ({ rotulo, valor: valor || 'Não vai', detalhe, nao: !valor });
 
-function linhaDaMoldura(pacote, codigo) {
-  if (!codigo) return linha('Moldura', '');
+function linhaDaMoldura(pacote, codigo, rotulo = 'Moldura') {
+  if (!codigo) return linha(rotulo, '');
   const m = (pacote.molduras || []).find((x) => x.codigo === codigo);
-  if (!m) return linha('Moldura', codigo);
+  if (!m) return linha(rotulo, codigo);
   const casinha = m.local ? nomeCasinha(m.local) : '';
-  return linha('Moldura', m.nome + ' (' + codigo + ')', casinha ? 'Fica em: ' + casinha : 'Ainda sem casinha');
+  return linha(rotulo, m.nome + ' (' + codigo + ')', casinha ? 'Fica em: ' + casinha : 'Ainda sem casinha');
+}
+
+function linhasDasMolduras(pacote, q) {
+  if (!q.moldura || !q.moldura_fora) return [linhaDaMoldura(pacote, q.moldura)];
+  return [linhaDaMoldura(pacote, q.moldura, 'Moldura por dentro'), linhaDaMoldura(pacote, q.moldura_fora, 'Moldura por fora')];
+}
+
+function perfilDaMoldura(pacote, codigo) {
+  const m = ((pacote && pacote.molduras) || []).find((x) => x.codigo === codigo);
+  return m ? Number(m.perfil_cm) || 0 : 0;
 }
 
 const medidaCm = (l, a) => formatarNumero(l) + ' x ' + formatarNumero(a) + ' cm';
 const juntar = (lista) => (lista.length > 1 ? lista.slice(0, -1).join(', ') + ' e ' + lista[lista.length - 1] : lista[0]);
 
-export function acrescimoDoQuadro(q) {
+export function acrescimoDoQuadro(q, pacote) {
   const l = Number(q.largura_cm) || 0;
   const a = Number(q.altura_cm) || 0;
   const borda = bordaDoQuadro(q);
-  if (!(borda.cm > 0) || !(l > 0) || !(a > 0)) return null;
+  const temFora = !!(q.moldura && q.moldura_fora);
+  if ((!(borda.cm > 0) && !temFora) || !(l > 0) || !(a > 0)) return null;
   const objeto = q.tipo === 'objeto' || q.tipo === 'camiseta';
   const final = medidaExterna(l, a, borda.cm);
   const cm = formatarNumero(borda.cm) + ' cm';
+  const contas = [];
+  if (borda.cm > 0) {
+    contas.push((objeto ? 'Objeto ' : 'Foto ') + medidaCm(l, a) + ' + '
+      + (borda.paspatur ? 'paspatur de ' + cm + ' de cada lado' : 'borda de ' + cm + (objeto ? ' em volta' : ' de cada lado')));
+  }
+  let fora = '';
+  if (temFora) {
+    const perfil = perfilDaMoldura(pacote, q.moldura);
+    fora = ' e a moldura de fora em ' + medidaCm(final.largura + 2 * perfil, final.altura + 2 * perfil);
+    contas.push(perfil > 0
+      ? (contas.length ? 'moldura de fora: ' : 'Moldura de fora: ') + medidaCm(final.largura, final.altura) + ' + ' + formatarNumero(perfil) + ' cm da moldura de dentro de cada lado'
+      : (contas.length ? 'a' : 'A') + ' moldura de dentro está sem perfil cadastrado: confira a medida da de fora');
+  }
   const pecas = [
-    q.moldura && 'a moldura',
+    q.moldura && (temFora ? 'a moldura de dentro' : 'a moldura'),
     q.vidro && (q.vidro_duplo ? 'os 2 vidros' : 'o vidro'),
     q.chapa && !q.vidro_duplo && 'a chapa',
     q.espelho && 'o espelho',
     borda.paspatur && 'o paspatur'
   ].filter(Boolean);
   return {
-    cortar: (pecas.length ? 'Cortar ' + juntar(pecas) + ' em ' : 'O quadro fica ') + medidaCm(final.largura, final.altura),
-    conta: (objeto ? 'Objeto ' : 'Foto ') + medidaCm(l, a) + ' + '
-      + (borda.paspatur ? 'paspatur de ' + cm + ' de cada lado' : 'borda de ' + cm + (objeto ? ' em volta' : ' de cada lado'))
+    cortar: (pecas.length ? 'Cortar ' + juntar(pecas) + ' em ' : 'O quadro fica ') + medidaCm(final.largura, final.altura) + fora,
+    conta: contas.join('; ')
   };
 }
 
@@ -145,7 +168,7 @@ function linhaDosServicos(q) {
 }
 
 export function detalhesDoQuadro(pacote, q) {
-  if (q.tipo === 'tela') return [linhaDoChassi(q), linhaDaMoldura(pacote, q.moldura), ...linhaDosServicos(q)];
+  if (q.tipo === 'tela') return [linhaDoChassi(q), ...linhasDasMolduras(pacote, q), ...linhaDosServicos(q)];
   const nome = (codigo) => (codigo ? nomeMaterial(pacote, codigo) || codigo : '');
   const objeto = q.tipo === 'objeto' || q.tipo === 'camiseta';
   const margem = Number(q.margem_cm) || 0;
@@ -153,7 +176,7 @@ export function detalhesDoQuadro(pacote, q) {
   const duplo = vidro && q.vidro_duplo ? ' (2 vidros' + (margem > 0 ? ', borda ' + formatarNumero(margem) + ' cm' : '') + ')' : '';
   const chapa = q.vidro_duplo ? '' : nome(q.chapa);
   const linhas = [
-    linhaDaMoldura(pacote, q.moldura),
+    ...linhasDasMolduras(pacote, q),
     linha('Vidro', vidro ? vidro + duplo : ''),
     linha('Chapa', chapa ? chapa + (q.objeto_alto ? ', com pintura' : '') : ''),
     objeto
@@ -196,13 +219,24 @@ export function dadosDaOrdem(f, alvo) {
   };
 }
 
+export function fotosDaVenda(f, fotos) {
+  const ref_app = 'orc-' + f.ref_app;
+  const cliente = String(f.cliente || '').trim();
+  return (f.quadros || []).flatMap((q, i) => (fotos[q.chave] || []).map((foto) => ({
+    dados: { ref_app, cliente, foto_ref: foto.ref, quadro: i + 1 },
+    uri: foto.url
+  })));
+}
+
 export function descricaoDosQuadros(pacote, quadros) {
   return (quadros || []).map((q) => {
     const partes = [(Number(q.quantidade) > 1 ? q.quantidade + 'x ' : '') + rotuloQuadro(q)];
     const travas = travasDaTela(q);
     if (travas) partes.push(travas.quantidade ? 'chassi com ' + nomeDasTravas(travas.quantidade) : 'chassi sem trava');
     const moldura = q.moldura ? pacote.molduras.find((m) => m.codigo === q.moldura) : null;
-    if (moldura) partes.push('moldura ' + moldura.nome);
+    const fora = q.moldura_fora ? pacote.molduras.find((m) => m.codigo === q.moldura_fora) : null;
+    if (moldura) partes.push((fora ? 'moldura por dentro ' : 'moldura ') + moldura.nome);
+    if (moldura && fora) partes.push('moldura por fora ' + fora.nome);
     if (Number(String(q.paspatur || '').replace(',', '.')) > 0 && q.tipo !== 'objeto') partes.push('paspatur ' + q.paspatur + ' cm');
     const bordaDupla = q.vidro_duplo && Number(String(q.margem || '').replace(',', '.')) > 0 ? ', borda ' + q.margem + ' cm' : '';
     if (q.vidro) partes.push(nomeMaterial(pacote, q.vidro) + (q.vidro_duplo ? ' (2 vidros' + bordaDupla + ')' : ''));

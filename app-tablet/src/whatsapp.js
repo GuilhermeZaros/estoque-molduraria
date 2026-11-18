@@ -36,7 +36,9 @@ export function linhasDoQuadro(q, varios, ajustado) {
   if (q.tipo === 'tela') {
     linhas.push('Esticada no chassi' + (q.travas > 0 ? ', com ' + (q.travas > 1 ? q.travas + ' travas' : '1 trava') : ''));
   }
-  if (q.moldura) linhas.push((novo ? 'Moldura nova' : 'Moldura') + ': ' + q.moldura);
+  const lado = q.moldura_fora ? ' por dentro' : '';
+  if (q.moldura) linhas.push((novo ? 'Moldura nova' : 'Moldura') + lado + ': ' + q.moldura);
+  if (q.moldura_fora) linhas.push((novo ? 'Moldura nova' : 'Moldura') + ' por fora: ' + q.moldura_fora);
   if (q.vidro) linhas.push('Vidro' + novo + ': ' + q.vidro + (q.vidro_duplo ? ' (2 vidros)' : ''));
   if (q.fundo) linhas.push('Fundo' + novo + ': ' + q.fundo);
   if (q.espelho) linhas.push('Espelho' + novo + ': ' + q.espelho);

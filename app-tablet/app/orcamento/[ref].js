@@ -10,7 +10,7 @@ import {
 import { numeroWhatsApp, linkWhatsApp, textoOrcamento } from '../../src/whatsapp';
 import { papelOrcamento } from '../../src/impressao';
 import { formatarReais } from '../../src/formato';
-import { PRAZOS, prazoDe, descricaoDosQuadros } from '../../src/oficina';
+import { PRAZOS, prazoDe, descricaoDosQuadros, fotosDaVenda } from '../../src/oficina';
 import { formatarMetros } from '../../src/varas';
 import { Cartao } from '../../src/componentes/Cartao';
 import { Campo } from '../../src/componentes/Campo';
@@ -23,6 +23,7 @@ import { Interruptor } from '../../src/componentes/Interruptor';
 import { GrupoPilulas } from '../../src/componentes/Pilula';
 import { BarraSync } from '../../src/componentes/BarraSync';
 import { BotaoImprimir } from '../../src/componentes/Imprimir';
+import { BlocoFotos, useCameraDaOrdem } from '../../src/componentes/FotosOrdem';
 import { cores, tamanho } from '../../src/tema';
 
 function efeitoNaMoldura(a) {
@@ -54,6 +55,10 @@ export default function EditorOrcamento() {
   const [desistir, setDesistir] = useState(false);
   const [erro, setErro] = useState('');
   const [mensagem, setMensagem] = useState('');
+  const [fotos, setFotos] = useState({});
+  const camera = useCameraDaOrdem(f ? 'venda:' + f.ref_app : null, (chave, foto, uri) => (
+    setFotos((a) => ({ ...a, [chave]: [...(a[chave] || []), { ref: foto, url: uri }] }))
+  ));
   const rr = useMemo(() => (visivel && f ? calcularPedido(visivel, f) : null), [visivel, f]);
   const avisos = useMemo(() => (visivel && f && rr ? avisosDoPedido(visivel, f, rr) : new Map()), [visivel, f, rr]);
   const rolagem = useRef(null);
@@ -153,10 +158,16 @@ export default function EditorOrcamento() {
   };
   const fecharVenda = () => {
     const ordem = oficina ? { oficina: { prazo: prazoDe(prazo), descricao: descricaoDosQuadros(visivel, f.quadros) } } : {};
-    central.registrar('fecharVenda', { ...dados(), encomendar: true, ...ordem });
+    const venda = { ...dados(), encomendar: true, ...ordem };
+    const comFotos = oficina ? fotosDaVenda(f, fotos) : [];
     setConfirmar(false);
     setFechada(oficina ? 'oficina' : 'sem');
+    (async () => {
+      await central.registrar('fecharVenda', venda);
+      for (const p of comFotos) await central.registrar('fotoOrdem', p.dados, { foto_uri: p.uri });
+    })().catch(() => null);
   };
+  const apagarFoto = (chave, foto) => setFotos((a) => ({ ...a, [chave]: (a[chave] || []).filter((x) => x.ref !== foto.ref) }));
 
   const editor = (
     <EditorQuadro
@@ -167,6 +178,7 @@ export default function EditorOrcamento() {
       pacote={visivel}
       r={r}
       aviso={atual.moldura ? avisos.get(atual.moldura) : null}
+      avisoFora={atual.moldura_fora ? avisos.get(atual.moldura_fora) : null}
       aoMudar={(campos) => mudarQuadros((qs) => qs.map((q, j) => (j === i ? mudarQuadro(q, campos) : q)))}
       aoTrocarTipo={(tipo) => mudarQuadros((qs) => qs.map((q, j) => (j === i ? trocarTipo(q, tipo, visivel) : q)))}
       aoDuplicar={duplicar}
@@ -245,7 +257,29 @@ export default function EditorOrcamento() {
           />
           {oficina ? <GrupoPilulas opcoes={PRAZOS.map((p) => ({ valor: p.dias, titulo: p.titulo }))} valor={prazo} aoMudar={setPrazo} /> : null}
         </View>
-        <Botao grande icone="check-circle-outline" titulo="Confirmar venda" variante="ouro" onPress={fecharVenda} />
+        {oficina ? (
+          <View style={s.fotos}>
+            <Text style={s.fotosTitulo}>Fotos pra oficina</Text>
+            {f.quadros.map((q, j) => {
+              const lista = fotos[q.chave] || [];
+              return (
+                <View key={q.chave} style={s.fotoQuadro}>
+                  {f.quadros.length > 1 ? <Text style={s.fotoNome}>{'Quadro ' + (j + 1) + ': ' + rotuloQuadro(q)}</Text> : null}
+                  <BlocoFotos
+                    fotos={lista}
+                    nome={'quadro ' + (j + 1) + ', ' + rotuloQuadro(q)}
+                    aoTirar={() => camera.tirar(q.chave, lista.length)}
+                    aoApagar={(foto) => apagarFoto(q.chave, foto)}
+                    ocupado={camera.ocupado === q.chave}
+                    erro={camera.erro && camera.erro.quadro === q.chave ? camera.erro.texto : ''}
+                    textoApagar="A foto não vai pra oficina."
+                  />
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
+        <Botao grande icone="check-circle-outline" titulo="Confirmar venda" variante="ouro" onPress={fecharVenda} desativado={camera.ocupado != null} />
         <Botao titulo="Voltar" variante="contorno" onPress={() => setConfirmar(false)} />
       </Dialogo>
       <Dialogo visivel={tirando != null} titulo="Tirar este quadro?" aoFechar={() => setTirando(null)}>
@@ -344,5 +378,9 @@ const s = StyleSheet.create({
   dialogoTexto: { fontSize: tamanho.texto, color: cores.tinta },
   dialogoFalta: { color: cores.vermelho, fontWeight: '700' },
   desistir: { marginTop: 8 },
-  oficina: { gap: 10, paddingVertical: 4, borderTopWidth: 1, borderTopColor: cores.linha }
+  oficina: { gap: 10, paddingVertical: 4, borderTopWidth: 1, borderTopColor: cores.linha },
+  fotos: { gap: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: cores.linha },
+  fotosTitulo: { fontSize: tamanho.texto, fontWeight: '800', color: cores.marinho },
+  fotoQuadro: { gap: 8 },
+  fotoNome: { fontSize: tamanho.texto, fontWeight: '700', color: cores.tinta }
 });

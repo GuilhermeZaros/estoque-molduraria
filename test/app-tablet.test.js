@@ -299,7 +299,7 @@ test('appSync: abertos levam os quadros; orçamento antigo vira 1 quadro', () =>
   const antigo = abertos.find((o) => o.ref_app === 'antigo-0001');
   assert.deepEqual(antigo.quadros, [{
     tipo: 'quadro', tamanho: '', largura_cm: 30, altura_cm: 40, margem_cm: 0, quantidade: 2, paspatur_cm: 5,
-    moldura: 'M1', vidro: 'V1', chapa: '', espelho: '', vidro_duplo: false, objeto_alto: false,
+    moldura: 'M1', moldura_fora: '', vidro: 'V1', chapa: '', espelho: '', vidro_duplo: false, objeto_alto: false,
     valor_calculado: 300, consumo_m: 4, servicos: [], descricao: ''
   }]);
   const novo = abertos.find((o) => o.ref_app === 'ref-00000001');
@@ -1101,4 +1101,25 @@ test('fecharVenda: tela registra o chassi com as travas, sem baixa, e baixa a mo
   assert.equal(vendas[0].Codigo, '');
   assert.equal(Number((vendas[0].Valor + vendas[1].Valor).toFixed(2)), Number(((109.7 + 255.2) * 2).toFixed(2)));
   assert.equal(dados.Molduras[0].Estoque_atual_m, Number((27 - 9.652).toFixed(3)));
+});
+
+test('duas molduras: a de fora é cobrada por fora da de dentro, grava a coluna e baixa as duas', () => {
+  const { ctx, dados } = montar({ Molduras: [moldura(27), caixa(27)], Vidros: [vidro] });
+  const q = { tipo: 'quadro', largura_cm: 30, altura_cm: 40, paspatur_cm: 5, quantidade: 1, moldura: 'M1', moldura_fora: 'M2', vidro: 'V1' };
+  const c = js(ctx._calcularOrcamentoApp(q));
+  assert.deepEqual(c.itens.filter((i) => i.categoria === 'moldura').map((i) => [i.item, i.quantidade, i.valor]), [
+    ['Madeira lisa 3cm', 1.8, 104.4], ['Caixa preta 5cm', 2.04, 142.8]
+  ]);
+  assert.equal(c.consumo_moldura_m, ctx.consumoMolduraM(40, 50, 3));
+  assert.equal(c.consumo_fora_m, ctx.consumoMolduraM(46, 56, 5));
+  assert.throws(() => ctx._calcularOrcamentoApp({ ...q, moldura: '' }), /moldura de dentro antes/);
+  const r = js(ctx.appExecutar({ id_op: 'op-00000095', acao: 'fecharVenda', dados: pedidoVarios([q]) }));
+  assert.deepEqual(r.resultado.molduras.map((m) => [m.codigo, m.baixa_m]), [['M1', c.consumo_moldura_m], ['M2', c.consumo_fora_m]]);
+  assert.equal(dados.Orcamento_quadros[0].Moldura_fora, 'M2');
+  assert.equal(dados.Orcamento_quadros[0].Consumo_m, Number((c.consumo_moldura_m + c.consumo_fora_m).toFixed(3)));
+  const vendas = dados.Historico.filter((h) => h.Categoria === 'moldura');
+  assert.deepEqual(vendas.map((h) => [h.Codigo, h.Quantidade]), [['M1', c.consumo_moldura_m], ['M2', c.consumo_fora_m]]);
+  assert.deepEqual(dados.Molduras.map((m) => m.Estoque_atual_m), [
+    Number((27 - c.consumo_moldura_m).toFixed(3)), Number((27 - c.consumo_fora_m).toFixed(3))
+  ]);
 });

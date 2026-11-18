@@ -1,7 +1,7 @@
 import {
   prazoDe, lerData, prazoVencido, deOrdem, validarOrdem, dadosDaOrdem, descricaoDosQuadros, resumoOficina,
   chaveDaOrdem, alvoDaOrdem, mesesRecentes, textoPrazo, ordenarProducao, textoAviso, fotosDaOrdem, fotosDoQuadro,
-  ordemVazia, LIMITE_FOTOS, tituloDoQuadro, detalhesDoQuadro, dadosDaFoto, dadosDeTirarFoto, acrescimoDoQuadro
+  ordemVazia, LIMITE_FOTOS, tituloDoQuadro, detalhesDoQuadro, dadosDaFoto, dadosDeTirarFoto, acrescimoDoQuadro, fotosDaVenda
 } from '../oficina';
 import { nomeCasinha } from '../gerado/nucleo';
 
@@ -244,4 +244,33 @@ test('descrição da ordem: tela leva o chassi com as travas e a moldura', () =>
     { tipo: 'tela', largura: '150', altura: '70', quantidade: 2, moldura: 'D-104', servicos: [] },
     { tipo: 'tela', largura: '80', altura: '60', quantidade: 1, servicos: [] }
   ])).toBe('2x Tela 150 x 70, chassi com 2 travas, moldura Rústica natural; Tela 80 x 60, chassi sem trava');
+});
+
+test('duas molduras na oficina: por dentro e por fora, com a medida de corte de cada uma', () => {
+  const pacote = { ...pacoteOficina, molduras: [{ codigo: 'D-104', nome: 'Rústica natural', local: 'CR1-F3', perfil_cm: 2 }, { codigo: 'D-109', nome: 'Madeira escura', local: '', perfil_cm: 4 }] };
+  const q = quadroSalvo({ paspatur_cm: 5, moldura: 'D-104', moldura_fora: 'D-109', vidro: 'VID-001' });
+  expect(detalhesDoQuadro(pacote, q).slice(0, 2).map((d) => [d.rotulo, d.valor])).toEqual([
+    ['Moldura por dentro', 'Rústica natural (D-104)'], ['Moldura por fora', 'Madeira escura (D-109)']
+  ]);
+  expect(acrescimoDoQuadro(q, pacote)).toEqual({
+    cortar: 'Cortar a moldura de dentro, o vidro e o paspatur em 40 x 50 cm e a moldura de fora em 44 x 54 cm',
+    conta: 'Foto 30 x 40 cm + paspatur de 5 cm de cada lado; moldura de fora: 40 x 50 cm + 2 cm da moldura de dentro de cada lado'
+  });
+  expect(acrescimoDoQuadro(quadroSalvo({ moldura: 'D-104', moldura_fora: 'D-109' }), pacote)).toEqual({
+    cortar: 'Cortar a moldura de dentro em 30 x 40 cm e a moldura de fora em 34 x 44 cm',
+    conta: 'Moldura de fora: 30 x 40 cm + 2 cm da moldura de dentro de cada lado'
+  });
+  expect(descricaoDosQuadros(pacote, [{ tipo: 'quadro', largura: '30', altura: '40', quantidade: 1, moldura: 'D-104', moldura_fora: 'D-109', servicos: [] }]))
+    .toBe('Quadro 30 x 40, moldura por dentro Rústica natural, moldura por fora Madeira escura');
+});
+
+test('fotos tiradas ao fechar a venda vão pra ordem da venda, no quadro certo', () => {
+  const f = { ref_app: 'abc', cliente: ' Ana ', quadros: [{ chave: 'k1' }, { chave: 'k2' }, { chave: 'k3' }] };
+  const fotos = { k3: [{ ref: 'u1', url: 'file:///a.jpg' }, { ref: 'u2', url: 'file:///b.jpg' }], k1: [{ ref: 'u3', url: 'file:///c.jpg' }], sumiu: [{ ref: 'x', url: 'y' }] };
+  expect(fotosDaVenda(f, fotos)).toEqual([
+    { dados: { ref_app: 'orc-abc', cliente: 'Ana', foto_ref: 'u3', quadro: 1 }, uri: 'file:///c.jpg' },
+    { dados: { ref_app: 'orc-abc', cliente: 'Ana', foto_ref: 'u1', quadro: 3 }, uri: 'file:///a.jpg' },
+    { dados: { ref_app: 'orc-abc', cliente: 'Ana', foto_ref: 'u2', quadro: 3 }, uri: 'file:///b.jpg' }
+  ]);
+  expect(fotosDaVenda(f, {})).toEqual([]);
 });

@@ -80,6 +80,10 @@ function travasDoChassi(larguraCm, alturaCm) {
   };
 }
 
+function _numeroDaConta(n) {
+  return String(Number(Number(n).toFixed(2))).replace('.', ',');
+}
+
 function _metrosDaConta(m) {
   return Number(m).toFixed(2).replace('.', ',') + ' m';
 }
@@ -128,13 +132,19 @@ function calcularOrcamento(larguraCm, alturaCm, itens, opcoes) {
     var dobra = (opcoes.vidroDuplo && it.categoria === 'vidro') ? 2 : 1;
     var bruto, calculoTxt, quantidade, unidade, consumo;
 
+    var fora = it.categoria === 'moldura' && !!it.porFora;
     if (it.categoria === 'moldura') {
-      quantidade = perim;
+      var somaCm = fora ? 2 * (Number(it.foraCm) || 0) : 0;
+      var lm = Number(larguraCm) + somaCm;
+      var am = Number(alturaCm) + somaCm;
+      var perimMoldura = perimetroM(lm, am);
+      quantidade = perimMoldura;
       unidade = 'm';
-      bruto = perim * Number(it.preco);
-      calculoTxt = 'perímetro ' + perim.toFixed(2) + 'm x R$ ' + it.preco + '/m';
+      bruto = perimMoldura * Number(it.preco);
+      calculoTxt = (fora ? 'por fora, ' + _numeroDaConta(lm) + ' x ' + _numeroDaConta(am) + ' cm, ' : '') +
+        'perímetro ' + perimMoldura.toFixed(2) + 'm x R$ ' + it.preco + '/m';
       // baixa de estoque pelo consumo real na vara (cobrança fica no perímetro)
-      consumo = consumoMolduraM(larguraCm, alturaCm, it.perfilCm);
+      consumo = consumoMolduraM(lm, am, it.perfilCm);
     } else {
       quantidade = area * dobra;
       unidade = 'm²';
@@ -144,7 +154,7 @@ function calcularOrcamento(larguraCm, alturaCm, itens, opcoes) {
     }
 
     var valor = _arredondarPraCima(bruto);
-    linhas.push({
+    var linha = {
       categoria: it.categoria,
       item: it.nome,
       quantidade: Number(quantidade.toFixed(3)),
@@ -152,7 +162,9 @@ function calcularOrcamento(larguraCm, alturaCm, itens, opcoes) {
       calculo: calculoTxt,
       valor: Number(valor.toFixed(2)),
       consumo: Number(consumo.toFixed(3))
-    });
+    };
+    if (fora) linha.por_fora = true;
+    linhas.push(linha);
     total += valor;
   }
 

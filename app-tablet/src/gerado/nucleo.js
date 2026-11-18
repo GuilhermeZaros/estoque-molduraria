@@ -41,6 +41,10 @@ function travasDoChassi(larguraCm, alturaCm) {
   };
 }
 
+function _numeroDaConta(n) {
+  return String(Number(Number(n).toFixed(2))).replace('.', ',');
+}
+
 function _metrosDaConta(m) {
   return Number(m).toFixed(2).replace('.', ',') + ' m';
 }
@@ -84,12 +88,18 @@ function calcularOrcamento(larguraCm, alturaCm, itens, opcoes) {
     var dobra = (opcoes.vidroDuplo && it.categoria === 'vidro') ? 2 : 1;
     var bruto, calculoTxt, quantidade, unidade, consumo;
 
+    var fora = it.categoria === 'moldura' && !!it.porFora;
     if (it.categoria === 'moldura') {
-      quantidade = perim;
+      var somaCm = fora ? 2 * (Number(it.foraCm) || 0) : 0;
+      var lm = Number(larguraCm) + somaCm;
+      var am = Number(alturaCm) + somaCm;
+      var perimMoldura = perimetroM(lm, am);
+      quantidade = perimMoldura;
       unidade = 'm';
-      bruto = perim * Number(it.preco);
-      calculoTxt = 'perímetro ' + perim.toFixed(2) + 'm x R$ ' + it.preco + '/m';
-      consumo = consumoMolduraM(larguraCm, alturaCm, it.perfilCm);
+      bruto = perimMoldura * Number(it.preco);
+      calculoTxt = (fora ? 'por fora, ' + _numeroDaConta(lm) + ' x ' + _numeroDaConta(am) + ' cm, ' : '') +
+        'perímetro ' + perimMoldura.toFixed(2) + 'm x R$ ' + it.preco + '/m';
+      consumo = consumoMolduraM(lm, am, it.perfilCm);
     } else {
       quantidade = area * dobra;
       unidade = 'm²';
@@ -99,7 +109,7 @@ function calcularOrcamento(larguraCm, alturaCm, itens, opcoes) {
     }
 
     var valor = _arredondarPraCima(bruto);
-    linhas.push({
+    var linha = {
       categoria: it.categoria,
       item: it.nome,
       quantidade: Number(quantidade.toFixed(3)),
@@ -107,7 +117,9 @@ function calcularOrcamento(larguraCm, alturaCm, itens, opcoes) {
       calculo: calculoTxt,
       valor: Number(valor.toFixed(2)),
       consumo: Number(consumo.toFixed(3))
-    });
+    };
+    if (fora) linha.por_fora = true;
+    linhas.push(linha);
     total += valor;
   }
 
@@ -261,7 +273,9 @@ function _servicosDoQuadro(lista) {
 
 function _totaisOrcamentoApp(orc, quantidade, servicos) {
   var q = Math.max(1, Math.round(Number(quantidade) || 1));
-  var moldura = (orc.itens || []).filter(function (it) { return it.categoria === 'moldura'; })[0];
+  var molduras = (orc.itens || []).filter(function (it) { return it.categoria === 'moldura'; });
+  var moldura = molduras.filter(function (it) { return !it.por_fora; })[0];
+  var fora = molduras.filter(function (it) { return it.por_fora; })[0];
   var lista = _servicosDoQuadro(servicos);
   var somaServicos = lista.reduce(function (s, x) { return s + x.valor; }, 0);
   return {
@@ -269,6 +283,7 @@ function _totaisOrcamentoApp(orc, quantidade, servicos) {
     valor_unitario: orc.valor_total,
     valor_total: Number((orc.valor_total * q + somaServicos).toFixed(2)),
     consumo_moldura_m: moldura ? Number((moldura.consumo * q).toFixed(3)) : 0,
+    consumo_fora_m: fora ? Number((fora.consumo * q).toFixed(3)) : 0,
     itens: orc.itens,
     pintura_chapa: Number(orc.pintura_chapa) || 0,
     servicos: lista
@@ -306,6 +321,17 @@ function _bordaDoQuadro(q) {
   if (_ehObjeto(q) || _ehDisponivel(q.vidro_duplo)) return { cm: Math.max(0, Number(q.margem_cm) || 0), paspatur: false };
   var p = Math.max(0, Number(q.paspatur_cm) || 0);
   return { cm: p, paspatur: p > 0 };
+}
+
+function _usosDeMoldura(quadros, calcs) {
+  var usos = [];
+  (quadros || []).forEach(function (q, i) {
+    var c = calcs[i];
+    if (!c) return;
+    usos.push({ moldura: q.moldura, consumo: c.consumo_moldura_m });
+    if (q.moldura_fora) usos.push({ moldura: q.moldura_fora, consumo: c.consumo_fora_m });
+  });
+  return usos;
 }
 
 function _consumoPorMoldura(itens) {
@@ -352,6 +378,7 @@ export {
   PRECO_CHASSI_M,
   _arredondarPraCima as arredondarPraCima,
   travasDoChassi,
+  _numeroDaConta as numeroDaConta,
   _metrosDaConta as metrosDaConta,
   _linhaDoChassi as linhaDoChassi,
   calcularOrcamento,
@@ -373,6 +400,7 @@ export {
   _planejarBaixaMoldura as planejarBaixaMoldura,
   _quadrosDoPedido as quadrosDoPedido,
   _bordaDoQuadro as bordaDoQuadro,
+  _usosDeMoldura as usosDeMoldura,
   _consumoPorMoldura as consumoPorMoldura,
   _numeroCurto as numeroCurto,
   _resumoQuadros as resumoQuadros

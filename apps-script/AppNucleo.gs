@@ -72,7 +72,9 @@ function _servicosDoQuadro(lista) {
 
 function _totaisOrcamentoApp(orc, quantidade, servicos) {
   var q = Math.max(1, Math.round(Number(quantidade) || 1));
-  var moldura = (orc.itens || []).filter(function (it) { return it.categoria === 'moldura'; })[0];
+  var molduras = (orc.itens || []).filter(function (it) { return it.categoria === 'moldura'; });
+  var moldura = molduras.filter(function (it) { return !it.por_fora; })[0];
+  var fora = molduras.filter(function (it) { return it.por_fora; })[0];
   var lista = _servicosDoQuadro(servicos);
   var somaServicos = lista.reduce(function (s, x) { return s + x.valor; }, 0);
   return {
@@ -80,6 +82,7 @@ function _totaisOrcamentoApp(orc, quantidade, servicos) {
     valor_unitario: orc.valor_total,
     valor_total: Number((orc.valor_total * q + somaServicos).toFixed(2)),
     consumo_moldura_m: moldura ? Number((moldura.consumo * q).toFixed(3)) : 0,
+    consumo_fora_m: fora ? Number((fora.consumo * q).toFixed(3)) : 0,
     itens: orc.itens,
     pintura_chapa: Number(orc.pintura_chapa) || 0,
     servicos: lista
@@ -117,6 +120,17 @@ function _bordaDoQuadro(q) {
   if (_ehObjeto(q) || _ehDisponivel(q.vidro_duplo)) return { cm: Math.max(0, Number(q.margem_cm) || 0), paspatur: false };
   var p = Math.max(0, Number(q.paspatur_cm) || 0);
   return { cm: p, paspatur: p > 0 };
+}
+
+function _usosDeMoldura(quadros, calcs) {
+  var usos = [];
+  (quadros || []).forEach(function (q, i) {
+    var c = calcs[i];
+    if (!c) return;
+    usos.push({ moldura: q.moldura, consumo: c.consumo_moldura_m });
+    if (q.moldura_fora) usos.push({ moldura: q.moldura_fora, consumo: c.consumo_fora_m });
+  });
+  return usos;
 }
 
 function _consumoPorMoldura(itens) {
@@ -202,6 +216,7 @@ function _quadroParaApp(x) {
     quantidade: Number(x.Quantidade) || 1,
     paspatur_cm: Number(x.Paspatur_cm) || 0,
     moldura: String(x.Moldura || ''),
+    moldura_fora: String(x.Moldura_fora || ''),
     vidro: String(x.Vidro || ''),
     chapa: String(x.Chapa || ''),
     espelho: String(x.Espelho || ''),

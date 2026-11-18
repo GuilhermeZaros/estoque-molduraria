@@ -159,3 +159,8 @@ test('tela: título, chassi com as travas e a moldura; várias telas iguais', ()
   expect(duas).toContain('1) 2 telas de 80 x 60 cm\nEsticada no chassi\nValor: R$ 106,00');
   expect(duas).toContain('2) Tela de 110 x 70 cm\nEsticada no chassi, com 1 trava\n');
 });
+
+test('duas molduras: por dentro e por fora no texto', () => {
+  const texto = textoOrcamento({ cliente: 'Ana', ajustado: false, total: 100, quadros: [q({ moldura: 'Lisa preta', moldura_fora: 'Dourada', valor_total: 100 })] });
+  expect(texto).toContain('Moldura por dentro: Lisa preta\nMoldura por fora: Dourada');
+});

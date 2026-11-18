@@ -183,7 +183,7 @@ function _calcularOrcamentoApp(q, precoChassi) {
   var servicos = _servicosDoQuadro(q.servicos);
   if (_tipoDoQuadro(q) === 'tela') {
     var tela = orcamentoPorCodigos({
-      moldura: q.moldura, largura: q.largura_cm, altura: q.altura_cm,
+      moldura: q.moldura, molduraFora: q.moldura_fora, largura: q.largura_cm, altura: q.altura_cm,
       chassiPrecoM: Number(precoChassi) > 0 ? Number(precoChassi) : _precoChassiAtual()
     });
     return _totaisOrcamentoApp(tela, q.quantidade, servicos);
@@ -194,7 +194,7 @@ function _calcularOrcamentoApp(q, precoChassi) {
   }
   var ext = _medidaExterna(q.largura_cm, q.altura_cm, borda.cm);
   var orc = orcamentoPorCodigos({
-    moldura: q.moldura, vidro: q.vidro, chapa: q.chapa, espelho: q.espelho,
+    moldura: q.moldura, molduraFora: q.moldura_fora, vidro: q.vidro, chapa: q.chapa, espelho: q.espelho,
     largura: ext.largura, altura: ext.altura,
     objetoAlto: _ehDisponivel(q.objeto_alto),
     vidroDuplo: _ehDisponivel(q.vidro_duplo),
@@ -218,7 +218,7 @@ function _calcularPedidoApp(d) {
   var quantidade = 0;
   calcs.forEach(function (c) {
     total += c.valor_total;
-    consumo += c.consumo_moldura_m;
+    consumo += c.consumo_moldura_m + c.consumo_fora_m;
     quantidade += c.quantidade;
   });
   return {
@@ -247,9 +247,10 @@ function _linhaDoQuadro(id, ref, q, c, n) {
     Moldura: String(q.moldura || ''), Vidro: tela ? '' : String(q.vidro || ''),
     Chapa: duplo || tela ? '' : String(q.chapa || ''), Espelho: tela ? '' : String(q.espelho || ''),
     Vidro_duplo: duplo, Objeto_alto: !tela && _ehDisponivel(q.objeto_alto),
-    Valor_calculado: c.valor_total, Consumo_m: c.consumo_moldura_m,
+    Valor_calculado: c.valor_total, Consumo_m: Number((c.consumo_moldura_m + c.consumo_fora_m).toFixed(3)),
     Servicos: c.servicos.length ? JSON.stringify(c.servicos) : '',
-    Descricao: String(q.descricao || '').trim()
+    Descricao: String(q.descricao || '').trim(),
+    Moldura_fora: String(q.moldura_fora || '')
   };
 }
 
@@ -354,6 +355,7 @@ function _registrarVendaApp(o, d, molduras, quando) {
   p.quadros.forEach(function (q, i) {
     var c = p.calcs[i];
     var codigoMoldura = String(q.moldura == null ? '' : q.moldura).trim();
+    var codigoFora = String(q.moldura_fora == null ? '' : q.moldura_fora).trim();
     if (c.pintura_chapa > 0) {
       taxa += c.pintura_chapa * c.quantidade;
       if (!chapaPintura) chapaPintura = String(q.chapa || '');
@@ -363,11 +365,13 @@ function _registrarVendaApp(o, d, molduras, quando) {
       partes.push(Number((it.valor * c.quantidade).toFixed(2)));
       var l = { it: it, q: q, qtd: c.quantidade, obs: obs, moldura: it.categoria === 'moldura' };
       if (l.moldura) {
-        var usa = Math.min(restante[codigoMoldura] || 0, c.consumo_moldura_m);
-        restante[codigoMoldura] = Number(((restante[codigoMoldura] || 0) - usa).toFixed(3));
-        l.codigo = codigoMoldura;
+        var codigo = it.por_fora ? codigoFora : codigoMoldura;
+        var precisa = it.por_fora ? c.consumo_fora_m : c.consumo_moldura_m;
+        var usa = Math.min(restante[codigo] || 0, precisa);
+        restante[codigo] = Number(((restante[codigo] || 0) - usa).toFixed(3));
+        l.codigo = codigo;
         l.baixa = Number(usa.toFixed(3));
-        l.falta = Number((c.consumo_moldura_m - usa).toFixed(3));
+        l.falta = Number((precisa - usa).toFixed(3));
       }
       linhas.push(l);
     });
@@ -415,9 +419,7 @@ function _registrarVendaApp(o, d, molduras, quando) {
 function _appFecharVenda(d) {
   _orcamentoEditavel(d.ref_app);
   var p = _calcularPedidoApp(d);
-  var planos = _consumoPorMoldura(p.quadros.map(function (q, i) {
-    return { moldura: q.moldura, consumo: p.calcs[i].consumo_moldura_m };
-  })).map(function (c) {
+  var planos = _consumoPorMoldura(_usosDeMoldura(p.quadros, p.calcs)).map(function (c) {
     var mold = _molduraOuErro(c.codigo);
     return { codigo: c.codigo, mold: mold, plano: _planejarBaixaMoldura(mold.dados.Estoque_atual_m, c.metros) };
   });
@@ -560,6 +562,15 @@ function _pastaFotosOficina() {
   var raiz = DriveApp.getFolderById(FOTO_PASTA_ID);
   var achadas = raiz.getFoldersByName(PASTA_FOTOS_OFICINA);
   return achadas.hasNext() ? achadas.next() : raiz.createFolder(PASTA_FOTOS_OFICINA);
+}
+
+function autorizarFotos() {
+  var pasta = _pastaFotosOficina();
+  var teste = pasta.createFile(Utilities.newBlob('ok', 'text/plain', 'teste-autorizacao.txt'));
+  teste.setTrashed(true);
+  var msg = 'Fotos autorizadas. A pasta "' + pasta.getName() + '" está pronta pro app.';
+  try { SpreadsheetApp.getUi().alert(msg); } catch (e) {}
+  return msg;
 }
 
 function _nomeFotoOrdem(ref) {

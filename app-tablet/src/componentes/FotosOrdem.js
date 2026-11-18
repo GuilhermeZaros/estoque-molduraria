@@ -61,7 +61,7 @@ export function useCameraDaOrdem(ordem, aoFoto) {
   return { tirar, ocupado, erro };
 }
 
-export function BlocoFotos({ fotos, nome, aoTirar, aoApagar, ocupado = false, erro = '' }) {
+export function BlocoFotos({ fotos, nome, aoTirar, aoApagar, ocupado = false, erro = '', textoApagar = 'A foto sai da ordem e não dá pra desfazer.' }) {
   const [vendo, setVendo] = useState(null);
   const [apagando, setApagando] = useState(null);
   const confirmar = () => {
@@ -113,7 +113,7 @@ export function BlocoFotos({ fotos, nome, aoTirar, aoApagar, ocupado = false, er
       <VerFotos fotos={fotos} inicio={vendo} aoFechar={() => setVendo(null)} />
       <Dialogo visivel={!!apagando} titulo="Apagar esta foto?" aoFechar={() => setApagando(null)}>
         {apagando ? <Image source={{ uri: apagando.url }} style={s.previa} contentFit="cover" /> : null}
-        <Text style={s.dialogo}>A foto sai da ordem e não dá pra desfazer.</Text>
+        <Text style={s.dialogo}>{textoApagar}</Text>
         <Botao grande icone="trash-can-outline" titulo="Sim, apagar" variante="perigo" onPress={confirmar} />
         <Botao titulo="Voltar" variante="contorno" onPress={() => setApagando(null)} />
       </Dialogo>

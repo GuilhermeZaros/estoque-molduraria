@@ -66,6 +66,7 @@ function quadroSalvo(q) {
     quantidade: Number(q.quantidade) || 1,
     paspatur_cm: Number(q.paspatur_cm) || 0,
     moldura: q.moldura || '',
+    moldura_fora: q.moldura_fora || '',
     vidro: q.vidro || '',
     chapa: q.chapa || '',
     espelho: q.espelho || '',

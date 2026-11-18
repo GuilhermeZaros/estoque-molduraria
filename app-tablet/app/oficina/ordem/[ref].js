@@ -151,7 +151,7 @@ export default function OrdemAberta() {
           <BlocoQuadro
             key={i}
             titulo={titulo}
-            acrescimo={acrescimoDoQuadro(q)}
+            acrescimo={acrescimoDoQuadro(q, visivel)}
             descricao={q.descricao}
             detalhes={detalhesDoQuadro(visivel, q)}
             fotos={blocoDeFotos(i + 1, titulo, true)}

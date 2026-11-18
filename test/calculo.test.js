@@ -299,3 +299,17 @@ test('calcularOrcamento: chassi da tela pelo perímetro mais as travas, conta es
   assert.equal(duas.valor_total, 329.7);
   assert.equal(ctx.calcularOrcamento(80, 60, []).itens.length, 0);
 });
+
+test('calcularOrcamento: moldura por fora cobrada e baixada na medida de fora da moldura de dentro', () => {
+  const orc = ctx.calcularOrcamento(40, 50, [
+    { categoria: 'moldura', nome: 'Dentro', preco: 50, perfilCm: 2 },
+    { categoria: 'moldura', nome: 'Fora', preco: 60, perfilCm: 3, porFora: true, foraCm: 2 },
+    { categoria: 'vidro', nome: 'V', preco: 180 }
+  ]);
+  assert.deepEqual(Array.from(orc.itens, (i) => [i.item, i.quantidade, i.valor, !!i.por_fora]), [
+    ['Dentro', 1.8, 90, false], ['Fora', 1.96, 117.6, true], ['V', 0.2, 36, false]
+  ]);
+  assert.equal(orc.itens[1].calculo, 'por fora, 44 x 54 cm, perímetro 1.96m x R$ 60/m');
+  assert.equal(orc.itens[1].consumo, ctx.consumoMolduraM(44, 54, 3));
+  assert.equal(orc.valor_total, 243.6);
+});

@@ -1,7 +1,10 @@
 const TEMPORARIO = /ocupado|tente de novo|tempo|timed? ?out|limite|service|serviço|exception|internal/i;
 
+const SEM_PERMISSAO_DRIVE = 'O Google não deixou salvar a foto no Drive. O dono precisa autorizar de novo no Apps Script (rodar autorizarFotos). Depois tire a foto de novo.';
+
 function erroDoServidor(erro) {
   if (/não autorizado/i.test(erro)) return { tipo: 'temporario', erro: 'A senha do app não confere com a da planilha.' };
+  if (/(permiss[aã]o para chamar|permission to call) DriveApp|auth\/drive/i.test(erro)) return { tipo: 'recusado', erro: SEM_PERMISSAO_DRIVE };
   return { tipo: TEMPORARIO.test(erro) ? 'temporario' : 'recusado', erro };
 }
 

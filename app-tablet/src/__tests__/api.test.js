@@ -114,3 +114,11 @@ test('foto que sumiu do tablet é recusada sem chamar a planilha', async () => {
   expect(await api.enviar(op)).toEqual({ tipo: 'recusado', erro: 'A foto não está mais no tablet. Tire de novo.' });
   expect(buscar).not.toHaveBeenCalled();
 });
+
+test('Google sem permissão de Drive vira um aviso claro, sem travar a fila', async () => {
+  const erro = 'Você não tem permissão para chamar DriveApp.Folder.createFolder. Permissões necessárias: https://www.googleapis.com/auth/drive';
+  const api = criarApi({ url: 'https://exemplo/exec', token: 't', fetch: async () => resposta({ ok: false, erro }) });
+  const r = await api.enviar(OP);
+  expect(r.tipo).toBe('recusado');
+  expect(r.erro).toMatch(/^O Google não deixou salvar a foto no Drive\. .*autorizarFotos/);
+});

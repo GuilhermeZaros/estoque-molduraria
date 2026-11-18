@@ -10,6 +10,8 @@ function materiais(pacote, q, r) {
   if (chassi) partes.push(chassi.travas ? 'chassi com ' + (chassi.travas > 1 ? chassi.travas + ' travas' : '1 trava') : 'chassi sem trava');
   const moldura = q.moldura ? pacote.molduras.find((m) => m.codigo === q.moldura) : null;
   if (moldura) partes.push(moldura.nome);
+  const fora = q.moldura_fora ? pacote.molduras.find((m) => m.codigo === q.moldura_fora) : null;
+  if (fora) partes.push('por fora ' + fora.nome);
   if (r && r.ok && r.borda > 0) partes.push('paspatur ' + formatarNumero(r.borda) + ' cm');
   if (q.vidro) partes.push(nomeMaterial(pacote, q.vidro) + (q.vidro_duplo ? ' (2 vidros)' : ''));
   if (q.chapa && !q.vidro_duplo) partes.push(nomeMaterial(pacote, q.chapa));
@@ -17,6 +19,13 @@ function materiais(pacote, q, r) {
   const troca = (q.tipo === 'reforma' && partes.length ? 'troca: ' : '') + partes.join(' · ');
   const servicos = (r.calc.servicos || []).map((s) => s.descricao || 'serviço');
   return [troca, ...servicos].filter(Boolean).join(' · ');
+}
+
+const PESO_AVISO = { verde: 0, amarelo: 1, vermelho: 2 };
+
+function piorAviso(avisos, q) {
+  return [q.moldura, q.moldura_fora].filter(Boolean).map((c) => avisos.get(c)).filter(Boolean)
+    .sort((a, b) => PESO_AVISO[b.cor] - PESO_AVISO[a.cor])[0] || null;
 }
 
 function CartaoQuadro({ q, n, r, aviso, escolhido, pacote, onPress }) {
@@ -49,7 +58,7 @@ export function ListaQuadros({ quadros, rr, avisos, sel, pacote, aoEscolher, aoA
           q={q}
           n={i + 1}
           r={rr ? rr.quadros[i] : null}
-          aviso={q.moldura ? avisos.get(q.moldura) : null}
+          aviso={piorAviso(avisos, q)}
           escolhido={i === sel}
           pacote={pacote}
           onPress={() => aoEscolher(i)}

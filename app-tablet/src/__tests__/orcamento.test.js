@@ -294,17 +294,17 @@ test('dados pra planilha: um item por quadro, chapa some com 2 vidros, objeto le
   expect(d.quadros).toEqual([
     {
       tipo: 'quadro', largura_cm: 40, altura_cm: 50, margem_cm: 0, quantidade: 1, paspatur_cm: 0,
-      moldura: 'M1', vidro: 'VID-001', chapa: '', espelho: '', vidro_duplo: true, objeto_alto: false,
+      moldura: 'M1', moldura_fora: '', vidro: 'VID-001', chapa: '', espelho: '', vidro_duplo: true, objeto_alto: false,
       valor_calculado: rr.quadros[0].calc.valor_total, consumo_m: rr.quadros[0].calc.consumo_moldura_m, servicos: [], descricao: ''
     },
     {
       tipo: 'objeto', largura_cm: 52, altura_cm: 72, margem_cm: 4, quantidade: 1, paspatur_cm: 0,
-      moldura: 'M1', vidro: 'VID-001', chapa: 'CHA-001', espelho: '', vidro_duplo: false, objeto_alto: true,
+      moldura: 'M1', moldura_fora: '', vidro: 'VID-001', chapa: 'CHA-001', espelho: '', vidro_duplo: false, objeto_alto: true,
       valor_calculado: 243.6, consumo_m: rr.quadros[1].calc.consumo_moldura_m, servicos: [], descricao: ''
     },
     {
       tipo: 'reforma', largura_cm: 0, altura_cm: 0, margem_cm: 0, quantidade: 1, paspatur_cm: 0,
-      moldura: '', vidro: '', chapa: '', espelho: '', vidro_duplo: false, objeto_alto: false,
+      moldura: '', moldura_fora: '', vidro: '', chapa: '', espelho: '', vidro_duplo: false, objeto_alto: false,
       valor_calculado: 30, consumo_m: 0, servicos: [{ descricao: 'Limpar vidros', valor: 30 }], descricao: ''
     }
   ]);
@@ -430,4 +430,23 @@ test('tela salva volta como tela e segue pra API e pro texto com as travas', () 
     tipo: 'tela', largura_cm: 110, altura_cm: 70, moldura: 'M1', vidro: '', chapa: '', espelho: '', paspatur_cm: 0, margem_cm: 0
   });
   expect(dadosDoTexto(comChassi, f, rr).quadros[0]).toMatchObject({ tipo: 'tela', travas: 1, moldura: 'Moldura M1' });
+});
+
+test('duas molduras: a de fora é cobrada na medida de fora da de dentro, soma as duas no estoque e vai pra API', () => {
+  const p = { ...pacote, molduras: [...pacote.molduras, mold('M4', 10, { perfil_cm: 3, preco_m: 40 })] };
+  const f = pedido([quadro({ largura: '30', altura: '40', paspatur: '5', moldura: 'M1', moldura_fora: 'M4' }), quadro({ moldura: 'M4' })]);
+  const rr = calcularPedido(p, f);
+  const r = rr.quadros[0];
+  expect(r.ok).toBe(true);
+  expect(r.calc.itens.filter((it) => it.categoria === 'moldura').map((it) => [it.item, it.quantidade, it.valor, !!it.por_fora])).toEqual([
+    ['Moldura M1', 1.8, 54, false], ['Moldura M4', 1.96, 78.4, true]
+  ]);
+  expect(r.fora).toEqual({ largura: 44, altura: 54 });
+  expect(rr.molduras.map((m) => m.codigo)).toEqual(['M1', 'M4']);
+  expect(rr.molduras[1].metros).toBe(Number((r.calc.consumo_fora_m + rr.quadros[1].calc.consumo_moldura_m).toFixed(3)));
+  expect(avisosDoPedido(p, f, rr).get('M4').quadros).toEqual([1, 2]);
+  expect(dadosParaApi(f, rr).quadros[0]).toMatchObject({ moldura: 'M1', moldura_fora: 'M4' });
+  expect(dadosDoTexto(p, f, rr).quadros[0]).toMatchObject({ moldura: 'Moldura M1', moldura_fora: 'Moldura M4' });
+  expect(calcularQuadro(p, quadro({ moldura_fora: 'M4' })).erro).toBe('Escolha a moldura de dentro antes da moldura de fora.');
+  expect(deAberto({ ref_app: 'r', quadros: [{ tipo: 'quadro', largura_cm: 30, altura_cm: 40, moldura: 'M1', moldura_fora: 'M4' }] }).quadros[0].moldura_fora).toBe('M4');
 });

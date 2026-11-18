@@ -25,6 +25,46 @@ function juntar(numeros) {
   return numeros.length > 1 ? numeros.slice(0, -1).join(', ') + ' e ' + numeros[numeros.length - 1] : String(numeros[0]);
 }
 
+function EscolhaMoldura({ titulo, codigo, molduras, pacote, rotulo, aviso, nota, aoEscolher, aoTirar, children }) {
+  const [trocando, setTrocando] = useState(false);
+  const moldura = codigo ? pacote.molduras.find((m) => m.codigo === codigo) : null;
+  return (
+    <Cartao titulo={titulo}>
+      {moldura && !trocando ? (
+        <CartaoMoldura moldura={moldura} mostrarEstado={false}>
+          <Botao titulo="Trocar" variante="contorno" icone="swap-horizontal" onPress={() => setTrocando(true)} />
+          <Botao titulo="Tirar" variante="perigo" icone="close" onPress={aoTirar} />
+        </CartaoMoldura>
+      ) : (
+        <>
+          <BuscaMoldura
+            comFoto
+            molduras={molduras}
+            rotulo={rotulo}
+            limite={8}
+            detalhe={(m) => formatarReais(m.preco_m) + ' o metro · ' + (m.local ? nomeCasinha(m.local) : 'ainda sem casinha')}
+            aoEscolher={(m) => { aoEscolher(m.codigo); setTrocando(false); }}
+          />
+          {trocando ? <Botao titulo="Manter a moldura" variante="contorno" onPress={() => setTrocando(false)} /> : null}
+        </>
+      )}
+      {nota ? <Text style={s.nota}>{nota}</Text> : null}
+      {aviso ? <AvisoMoldura aviso={aviso} /> : null}
+      {aviso && aviso.quadros.length > 1 ? (
+        <Text style={s.nota}>Somando os quadros {juntar(aviso.quadros)}, que usam essa moldura.</Text>
+      ) : null}
+      {children}
+    </Cartao>
+  );
+}
+
+function notaDaFora(r, moldura) {
+  if (!moldura) return '';
+  if (!(Number(moldura.perfil_cm) > 0)) return 'A moldura de dentro está sem largura de perfil cadastrada: a de fora vai na mesma medida.';
+  if (!r || !r.ok || !r.fora) return 'Vai por fora da moldura de dentro (mais ' + formatarNumero(moldura.perfil_cm) + ' cm de cada lado).';
+  return 'Vai por fora da moldura de dentro: corta em ' + formatarNumero(r.fora.largura) + ' x ' + formatarNumero(r.fora.altura) + ' cm.';
+}
+
 function Servicos({ servicos, aoMudar }) {
   const mudar = (chave, mudanca) => aoMudar(servicos.map((x) => (x.chave === chave ? { ...x, ...mudanca } : x)));
   return (
@@ -62,12 +102,13 @@ function Servicos({ servicos, aoMudar }) {
   );
 }
 
-export function EditorQuadro({ q, n, total, pacote, r, aviso, aoMudar, aoTrocarTipo, aoDuplicar, aoTirar }) {
-  const [trocando, setTrocando] = useState(false);
+export function EditorQuadro({ q, n, total, pacote, r, aviso, avisoFora, aoMudar, aoTrocarTipo, aoDuplicar, aoTirar }) {
+  const [comFora, setComFora] = useState(false);
   const objeto = q.tipo === 'objeto';
   const reforma = q.tipo === 'reforma';
   const tela = q.tipo === 'tela';
   const travas = travasDaTela(q);
+  const duas = !!q.moldura_fora || comFora;
   const moldura = q.moldura ? pacote.molduras.find((m) => m.codigo === q.moldura) : null;
   const molduras = moldurasDoOrcamento(pacote);
   const novo = reforma ? ' NOVO' : '';
@@ -125,31 +166,35 @@ export function EditorQuadro({ q, n, total, pacote, r, aviso, aoMudar, aoTrocarT
         </Cartao>
       )}
 
-      <Cartao titulo={reforma ? 'MOLDURA NOVA' : 'MOLDURA'}>
-        {moldura && !trocando ? (
-          <CartaoMoldura moldura={moldura} mostrarEstado={false}>
-            <Botao titulo="Trocar" variante="contorno" icone="swap-horizontal" onPress={() => setTrocando(true)} />
-            <Botao titulo="Tirar" variante="perigo" icone="close" onPress={() => aoMudar({ moldura: '' })} />
-          </CartaoMoldura>
-        ) : (
-          <>
-            <BuscaMoldura
-              comFoto
-              molduras={molduras}
-              rotulo="Buscar moldura (código ou nome)"
-              limite={8}
-              detalhe={(m) => formatarReais(m.preco_m) + ' o metro · ' + (m.local ? nomeCasinha(m.local) : 'ainda sem casinha')}
-              aoEscolher={(m) => { aoMudar({ moldura: m.codigo }); setTrocando(false); }}
-            />
-            {trocando ? <Botao titulo="Manter a moldura" variante="contorno" onPress={() => setTrocando(false)} /> : null}
-          </>
-        )}
-        {tela && !moldura ? <Text style={s.nota}>Moldura é opcional. Sem moldura, a tela vai só no chassi.</Text> : null}
-        {aviso ? <AvisoMoldura aviso={aviso} /> : null}
-        {aviso && aviso.quadros.length > 1 ? (
-          <Text style={s.nota}>Somando os quadros {juntar(aviso.quadros)}, que usam essa moldura.</Text>
+      <EscolhaMoldura
+        titulo={(reforma ? 'MOLDURA NOVA' : 'MOLDURA') + (duas ? ' POR DENTRO' : '')}
+        codigo={q.moldura}
+        molduras={molduras}
+        pacote={pacote}
+        rotulo={duas ? 'Buscar moldura de dentro (código ou nome)' : 'Buscar moldura (código ou nome)'}
+        aviso={aviso}
+        nota={tela && !moldura ? 'Moldura é opcional. Sem moldura, a tela vai só no chassi.' : ''}
+        aoEscolher={(codigo) => aoMudar({ moldura: codigo })}
+        aoTirar={() => aoMudar(q.moldura_fora ? { moldura: q.moldura_fora, moldura_fora: '' } : { moldura: '' })}>
+        {moldura && !duas ? (
+          <Botao icone="plus" titulo="Moldura por fora" variante="contorno" rotulo="Adicionar moldura por fora" onPress={() => setComFora(true)} />
         ) : null}
-      </Cartao>
+      </EscolhaMoldura>
+
+      {moldura && duas ? (
+        <EscolhaMoldura
+          titulo={reforma ? 'MOLDURA NOVA POR FORA' : 'MOLDURA POR FORA'}
+          codigo={q.moldura_fora}
+          molduras={molduras}
+          pacote={pacote}
+          rotulo="Buscar moldura de fora (código ou nome)"
+          aviso={avisoFora}
+          nota={notaDaFora(r, moldura)}
+          aoEscolher={(codigo) => aoMudar({ moldura_fora: codigo })}
+          aoTirar={() => { aoMudar({ moldura_fora: '' }); setComFora(false); }}>
+          {!q.moldura_fora ? <Botao titulo="Sem moldura por fora" variante="contorno" onPress={() => setComFora(false)} /> : null}
+        </EscolhaMoldura>
+      ) : null}
 
       {!tela ? (
         <Cartao titulo={'VIDRO' + novo}>

@@ -128,7 +128,8 @@ function orcamentoPorCodigos(args) {
   if (!largura || !altura) throw new Error('Informe largura e altura em cm.');
 
   var itens = [];
-  var mapa = [['moldura', args.moldura], ['vidro', args.vidro],
+  if (args.molduraFora && !args.moldura) throw new Error('Escolha a moldura de dentro antes da moldura de fora.');
+  var mapa = [['moldura', args.moldura], ['moldura', args.molduraFora], ['vidro', args.vidro],
               ['chapa', args.chapa], ['espelho', args.espelho]];
   for (var i = 0; i < mapa.length; i++) {
     var cat = mapa[i][0], cod = mapa[i][1];
@@ -138,10 +139,15 @@ function orcamentoPorCodigos(args) {
     if (p.categoria !== cat) throw new Error('O código ' + cod + ' é de um ' + p.categoria + ', não ' + cat + '.');
     var d = p.dados;
     var preco = cat === 'moldura' ? Number(d.Valor_por_metro) : Number(d.Valor_por_m2);
-    itens.push({
+    var item = {
       categoria: cat, nome: d.Nome, preco: preco,
       perfilCm: cat === 'moldura' ? (Number(d.Largura_perfil_cm) || 0) : 0
-    });
+    };
+    if (i === 1) {
+      item.porFora = true;
+      item.foraCm = itens[0].perfilCm;
+    }
+    itens.push(item);
   }
   var chassi = Number(args.chassiPrecoM) > 0 ? Number(args.chassiPrecoM) : 0;
   if (itens.length === 0 && !chassi) throw new Error('Informe pelo menos um item (moldura, vidro, chapa ou espelho).');
