@@ -426,7 +426,7 @@ function _apagarLancamento(d) {
 }
 
 function _desdeFinanceiro() {
-  return Number(PropertiesService.getScriptProperties().getProperty('FINANCEIRO_DESDE')) || 0;
+  return Number(PropertiesService.getScriptProperties().getProperty('FINANCEIRO_DESDE')) || INICIO_FINANCEIRO;
 }
 
 function zerarFinanceiro() {

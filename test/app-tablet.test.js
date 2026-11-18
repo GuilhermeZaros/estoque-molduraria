@@ -1197,6 +1197,8 @@ test('zerar o financeiro apaga entradas, saídas e saldos e as vendas do sistema
   }));
   const { props } = servicosFalsos(ctx, '123456');
   ctx._escreverResumoMensal = () => 'ok';
+  assert.equal(js(ctx.appFinanceiro({ pin: '123456', periodo: 'tudo' })).relatorio.faturamento, 0);
+  ctx.INICIO_FINANCEIRO = 0;
   assert.equal(js(ctx.appFinanceiro({ pin: '123456', periodo: 'tudo' })).relatorio.faturamento, 140);
   const msg = ctx._zerarFinanceiro(new Date(2026, 10, 17, 12, 0));
   assert.match(msg, /2 lançamentos apagados/);
