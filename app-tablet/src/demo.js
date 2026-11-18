@@ -152,6 +152,8 @@ export function criarApiDemo() {
     if (op.acao === 'lancarGasto') return financeiro.lancarGasto(d);
     if (op.acao === 'lancarVenda') return financeiro.lancarVenda(d);
     if (op.acao === 'ajustarSaldos') return financeiro.ajustarSaldos(d, hoje);
+    if (op.acao === 'editarLancamento') return financeiro.editarLancamento(d);
+    if (op.acao === 'apagarLancamento') return financeiro.apagarLancamento(d);
     if (op.acao !== 'salvarOrcamento' && op.acao !== 'fecharVenda') return {};
     const aberto = pacote.orcamentos_abertos.find((o) => o.ref_app === d.ref_app);
     const id = aberto && aberto.id ? aberto.id : numero('ORC', proximoOrcamento++);
@@ -166,6 +168,7 @@ export function criarApiDemo() {
       };
     });
     const valor_final = Number(d.valor_final) > 0 ? Number(d.valor_final) : Number(d.valor_calculado) || 0;
+    if (d.pago) financeiro.entradaDaOficina({ valor: valor_final, cliente: d.cliente }, hoje);
     return { id, valor_final, molduras, ordem_id: d.oficina ? novaOrdem() : '' };
   }
   return {

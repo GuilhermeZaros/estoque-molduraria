@@ -101,7 +101,7 @@ export default function EditorOrdem() {
           aoMudar={(v) => mudar({ valor: v })}
           teclado="decimal-pad"
           placeholder="0,00"
-          dica="Quando o cliente buscar, esse valor entra como venda no financeiro."
+          dica={ordem && ordem.pago ? 'Já está pago: o valor entrou no financeiro quando fechou a venda.' : 'Quando o cliente buscar, esse valor entra como venda no financeiro.'}
         />
       </Cartao>
       {erro ? <Text style={s.erro} accessibilityLiveRegion="polite">{erro}</Text> : null}

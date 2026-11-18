@@ -52,6 +52,7 @@ export default function EditorOrcamento() {
   const [fechada, setFechada] = useState(false);
   const [oficina, setOficina] = useState(true);
   const [prazo, setPrazo] = useState(7);
+  const [pago, setPago] = useState(false);
   const [desistir, setDesistir] = useState(false);
   const [erro, setErro] = useState('');
   const [mensagem, setMensagem] = useState('');
@@ -158,10 +159,10 @@ export default function EditorOrcamento() {
   };
   const fecharVenda = () => {
     const ordem = oficina ? { oficina: { prazo: prazoDe(prazo), descricao: descricaoDosQuadros(visivel, f.quadros) } } : {};
-    const venda = { ...dados(), encomendar: true, ...ordem };
+    const venda = { ...dados(), encomendar: true, ...ordem, ...(pago ? { pago: true } : {}) };
     const comFotos = oficina ? fotosDaVenda(f, fotos) : [];
     setConfirmar(false);
-    setFechada(oficina ? 'oficina' : 'sem');
+    setFechada({ oficina, pago });
     (async () => {
       await central.registrar('fecharVenda', venda);
       for (const p of comFotos) await central.registrar('fotoOrdem', p.dados, { foto_uri: p.uri });
@@ -217,7 +218,7 @@ export default function EditorOrcamento() {
       </Cartao>
 
       <Cartao titulo="RESUMO">
-        <ResumoOrcamento rr={rr} aoFechar={() => { setOficina(true); setPrazo(7); setConfirmar(true); }} aoSalvar={salvar} aoWhatsApp={mandar}>
+        <ResumoOrcamento rr={rr} aoFechar={() => { setOficina(true); setPrazo(7); setPago(false); setConfirmar(true); }} aoSalvar={salvar} aoWhatsApp={mandar}>
           <BotaoImprimir
             desativado={!rr || !rr.ok}
             montar={papel}
@@ -256,6 +257,16 @@ export default function EditorOrcamento() {
             aoMudar={setOficina}
           />
           {oficina ? <GrupoPilulas opcoes={PRAZOS.map((p) => ({ valor: p.dias, titulo: p.titulo }))} valor={prazo} aoMudar={setPrazo} /> : null}
+        </View>
+        <View style={s.oficina}>
+          <Interruptor
+            titulo="Cliente deixou pago"
+            dica={pago
+              ? (rr && rr.ok ? formatarReais(rr.valor_final) + ' entra' : 'O valor entra') + ' no financeiro agora' + (oficina ? ' e a ordem fica marcada como paga.' : '.')
+              : oficina ? 'O valor entra no financeiro quando o cliente buscar.' : 'Nada vai pro financeiro.'}
+            valor={pago}
+            aoMudar={setPago}
+          />
         </View>
         {oficina ? (
           <View style={s.fotos}>
@@ -298,9 +309,10 @@ export default function EditorOrcamento() {
       </Dialogo>
       <Dialogo visivel={!!fechada} titulo="Venda fechada" aoFechar={() => router.back()}>
         <Text style={s.dialogoTexto}>
-          {fechada === 'oficina'
+          {(fechada && fechada.oficina
             ? 'A venda e a ordem da oficina vão pra planilha assim que o tablet falar com ela.'
-            : 'A venda vai pra planilha assim que o tablet falar com ela.'}
+            : 'A venda vai pra planilha assim que o tablet falar com ela.')
+            + (fechada && fechada.pago ? ' O valor pago entra no financeiro.' : '')}
         </Text>
         <Botao titulo="Ok" onPress={() => router.back()} />
       </Dialogo>

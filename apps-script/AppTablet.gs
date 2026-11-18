@@ -103,8 +103,13 @@ function appFinanceiro(p) {
       ano: ANO_HISTORICO, mes: String(p.mes || ''), categoria: String(p.categoria || ''), tipo: String(p.tipo || '')
     }),
     config: { categorias: CATEGORIAS_SAIDA, formas: FORMAS_PAGAMENTO },
-    relatorio: _resumirRelatorios(_lerAbaApp(ABAS.HISTORICO), _lerProdutosComCusto(), String(p.periodo || 'mes'), new Date())
+    relatorio: _resumirRelatorios(_historicoDesde(_lerAbaApp(ABAS.HISTORICO), _desdeFinanceiro()), _lerProdutosComCusto(), String(p.periodo || 'mes'), new Date())
   };
+}
+
+function _historicoDesde(linhas, desde) {
+  if (!desde) return linhas;
+  return linhas.filter(function (h) { return _ts(h.Data_hora) >= desde; });
 }
 
 function appOficinaHistorico(mes) {
@@ -162,6 +167,8 @@ function _executarAcaoApp(acao, d) {
     case 'lancarGasto': return _gravarGasto(d, 'tablet');
     case 'lancarVenda': return _gravarVenda(d, 'tablet');
     case 'ajustarSaldos': return _gravarSaldos(d);
+    case 'editarLancamento': return _editarLancamento(d);
+    case 'apagarLancamento': return _apagarLancamento(d);
   }
   throw new Error('Ação desconhecida: ' + acao);
 }
@@ -448,16 +455,21 @@ function _appFecharVenda(d) {
     Status: 'fechado', Data_fechamento: quando,
     Fechado_por: String(d.fechado_por || d.atendente || ''), Falta_m: falta
   });
+  var pago = _ehDisponivel(d.pago);
   var ordemId = d.oficina ? _criarOrdemNucleo({
     ref_app: String(d.oficina.ref_app || ('orc-' + d.ref_app)), cliente: String(d.cliente || '').trim() || o.id,
     telefone: d.telefone, descricao: d.oficina.descricao, prazo: d.oficina.prazo, valor: o.valor_final,
-    obs: 'Orçamento ' + o.id
+    obs: 'Orçamento ' + o.id, pago: pago
   }, 'app').id : '';
+  var entradaId = pago && Number(o.valor_final) > 0
+    ? _lancarEntrada(o.valor_final, String(d.cliente || '').trim() || o.id,
+      (ordemId ? 'Ordem ' + ordemId : 'Orçamento ' + o.id) + ', pago ao fechar a venda', 'venda')
+    : '';
   var uma = molduras.length === 1 ? molduras[0] : null;
   return {
     id: o.id, valor_final: o.valor_final, baixa_m: Number(baixa.toFixed(3)), falta_m: falta,
     novo_estoque_m: uma ? uma.novo_estoque_m : null, compra_id: uma ? uma.compra_id : '', molduras: molduras,
-    ordem_id: ordemId
+    ordem_id: ordemId, entrada_id: entradaId
   };
 }
 

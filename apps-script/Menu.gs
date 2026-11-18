@@ -5,8 +5,8 @@
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('💰 Financeiro')
-    .addItem('Atualizar dados dos CSV (importar histórico)', 'importarHistorico')
     .addItem('Recalcular dashboard (resumo mensal)', 'recalcularResumoMensal')
+    .addItem('Zerar o financeiro (apaga tudo)', 'zerarFinanceiro')
     .addSeparator()
     .addItem('Criar/conferir abas financeiras', 'garantirAbasFinanceiro')
     .addItem('Conferir/criar usuários', 'garantirAbaUsuarios')

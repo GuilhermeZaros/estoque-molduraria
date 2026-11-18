@@ -1,6 +1,7 @@
 import {
   dataDe, gastoVazio, validarGasto, dadosDoGasto, vendaVazia, validarVenda, dadosDaVenda, validarSaldos,
-  textoVariacao, tomDaVariacao, proporcao, opcoesDeMes, lancamentosPendentes, tetoBonito, rotuloEixo
+  textoVariacao, tomDaVariacao, proporcao, opcoesDeMes, lancamentosPendentes, tetoBonito, rotuloEixo,
+  gastoDoLancamento, vendaDoLancamento, lerLancamento
 } from '../financeiro';
 import { criarCofre } from '../senhaFinanceiro';
 
@@ -112,4 +113,17 @@ test('cofre ativo confere sem renovar o tempo', () => {
   agora = 10 * 60 * 1000 + 1;
   expect(cofre.ativo()).toBe(false);
   expect(cofre.ler()).toBe('');
+});
+
+test('lançamento do extrato vira o formulário de editar e conta como pendente', () => {
+  const gasto = { id: 'S-0003', tipo: 'saida', data: '05/11/2026', descricao: 'Luz', categoria: 'Contas', escopo: 'pessoal', valor: 45.9, pagamento: 'Pix', obs: '' };
+  expect(gastoDoLancamento(gasto)).toEqual({ data: '05/11/2026', descricao: 'Luz', valor: '45,9', categoria: 'Contas', pagamento: 'Pix', tipo: 'pessoal', obs: '' });
+  expect(gastoDoLancamento({ ...gasto, categoria: 'Antiga' }).categoria).toBe('Outros');
+  expect(vendaDoLancamento({ id: 'E-0002', data: '02/11/2026', valor: 120, cliente: 'Ana', forma: 'Dinheiro', obs: 'x' }))
+    .toEqual({ data: '02/11/2026', valor: '120', forma_pagamento: 'Dinheiro', cliente: 'Ana', obs: 'x' });
+  expect(lerLancamento(JSON.stringify(gasto))).toEqual(gasto);
+  expect(lerLancamento('{quebrado')).toBe(null);
+  expect(lerLancamento(JSON.stringify({ valor: 1 }))).toBe(null);
+  expect(lerLancamento(undefined)).toBe(null);
+  expect(lancamentosPendentes([{ acao: 'editarLancamento' }, { acao: 'apagarLancamento' }, { acao: 'fotoOrdem' }])).toBe(2);
 });

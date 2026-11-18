@@ -148,6 +148,7 @@ function criarOrdem(pacote, d, r, criadaEm) {
     descricao: d.descricao || '',
     prazo: d.prazo || '',
     valor: Number(d.valor) || 0,
+    pago: !!d.pago,
     status: 'em_producao',
     aviso: '',
     data_criacao: criadaEm || '',
@@ -200,6 +201,7 @@ function ordemDaVenda(pacote, d, r, criadaEm) {
     descricao: d.oficina.descricao || '',
     prazo: d.oficina.prazo || '',
     valor,
+    pago: !!d.pago,
     quadros: d.quadros || []
   }, r && r.ordem_id ? { id: r.ordem_id } : null, criadaEm);
 }

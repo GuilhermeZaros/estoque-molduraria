@@ -263,3 +263,13 @@ test('tirar foto da ordem pelo ref ou pelo link', () => {
   expect(aplicarOperacao(p, op('tirarFotoOrdem', { ref_app: 'os-1', foto_url: '', foto_ref: 'a' })).oficina[0].fotos)
     .toEqual([{ ref: '', url: 'https://d/1', quadro: 0 }]);
 });
+
+test('venda paga cria a ordem marcada como paga; sem pago fica sem marca', () => {
+  const d = {
+    ref_app: 'ref-0000-0010', cliente: 'Bia', valor_final: 200, quadros: [], pago: true,
+    oficina: { prazo: '10/11/2026', descricao: '20 x 30' }
+  };
+  expect(aplicarOperacao(comOficina, opEm('fecharVenda', d)).oficina[0].pago).toBe(true);
+  const { pago, ...naoPago } = d;
+  expect(aplicarOperacao(comOficina, opEm('fecharVenda', naoPago)).oficina[0].pago).toBe(false);
+});

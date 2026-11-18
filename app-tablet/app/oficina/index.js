@@ -14,7 +14,7 @@ import { MiniaturasOrdem } from '../../src/componentes/FotosOrdem';
 import { Dialogo } from '../../src/componentes/Dialogo';
 import { GrupoPilulas } from '../../src/componentes/Pilula';
 import { BarraSync } from '../../src/componentes/BarraSync';
-import { cores, tamanho } from '../../src/tema';
+import { AVISO, cores, tamanho } from '../../src/tema';
 
 const abrirOrdem = (o) => router.push('/oficina/ordem/' + encodeURIComponent(chaveDaOrdem(o)));
 
@@ -31,6 +31,7 @@ function CartaoOrdem({ o, acoes, mostrarStatus, aoAbrir }) {
         style={({ pressed }) => [s.abrir, pressed && s.apertado]}>
         <View style={s.topo}>
           <Text style={s.cliente} numberOfLines={1}>{cliente}</Text>
+          {o.pago ? <Text style={s.pago}>PAGO</Text> : null}
           {Number(o.valor) > 0 ? <Text style={s.valor}>{formatarReais(o.valor)}</Text> : null}
           <Icone nome="chevron-right" tamanho={30} cor={cores.marinho} />
         </View>
@@ -121,7 +122,7 @@ export default function Oficina() {
   };
   const confirmarBuscou = () => {
     central.registrar('marcarEntregue', alvoDaOrdem(buscou));
-    setAviso(Number(buscou.valor) > 0
+    setAviso(Number(buscou.valor) > 0 && !buscou.pago
       ? formatarReais(buscou.valor) + ' de ' + (buscou.cliente || 'cliente') + ' vai pro financeiro.'
       : (buscou.cliente || 'A ordem') + ' foi entregue.');
     setBuscou(null);
@@ -220,9 +221,11 @@ export default function Oficina() {
           <>
             {Number(buscou.valor) > 0 ? <Text style={s.dialogoValor}>{formatarReais(buscou.valor)}</Text> : null}
             <Text style={s.dialogo}>
-              {Number(buscou.valor) > 0
-                ? 'Esse valor entra como venda no financeiro e a ordem sai da lista.'
-                : 'A ordem não tem valor, então nada vai pro financeiro. Ela só sai da lista.'}
+              {buscou.pago
+                ? 'Já está pago: o valor entrou no financeiro quando fechou a venda. A ordem só sai da lista.'
+                : Number(buscou.valor) > 0
+                  ? 'Esse valor entra como venda no financeiro e a ordem sai da lista.'
+                  : 'A ordem não tem valor, então nada vai pro financeiro. Ela só sai da lista.'}
             </Text>
           </>
         ) : null}
@@ -249,6 +252,10 @@ const s = StyleSheet.create({
   topo: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   cliente: { flex: 1, fontSize: 22, fontWeight: '800', color: cores.marinho },
   valor: { fontSize: 22, fontWeight: '800', color: cores.tinta },
+  pago: {
+    fontSize: tamanho.pequeno, fontWeight: '800', letterSpacing: 1, color: AVISO.verde.texto, backgroundColor: AVISO.verde.fundo,
+    borderWidth: 1.5, borderColor: AVISO.verde.borda, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, overflow: 'hidden'
+  },
   numero: { fontSize: tamanho.pequeno, fontWeight: '700', color: cores.ouroTexto },
   semNumero: { color: cores.apagado, fontWeight: '600' },
   descricao: { fontSize: 18, color: cores.tinta },

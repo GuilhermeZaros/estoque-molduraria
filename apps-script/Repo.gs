@@ -89,6 +89,13 @@ function apagarLinhas(nomeAba, numerosLinha) {
   _abaMudou(nomeAba);
 }
 
+function limparLinhas(nomeAba) {
+  var aba = _aba(nomeAba);
+  var ultima = aba.getLastRow();
+  if (ultima > 1) aba.getRange(2, 1, ultima - 1, Math.max(1, aba.getLastColumn())).clearContent();
+  _abaMudou(nomeAba);
+}
+
 function garantirColunas(nome, cabecalho) {
   var ss = _planilha();
   var aba = ss.getSheetByName(nome);

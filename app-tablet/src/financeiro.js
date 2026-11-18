@@ -1,4 +1,4 @@
-import { lerValor } from './formato';
+import { lerValor, formatarNumero } from './formato';
 import { textoData, lerData } from './oficina';
 
 export const CATEGORIAS = ['Salários', 'Impostos', 'Contas', 'Matéria-Prima', 'Marketing', 'Financiamento', 'Frete', 'Outros'];
@@ -43,6 +43,27 @@ export function dadosDoGasto(f) {
     data: texto(f.data), descricao: texto(f.descricao), valor: lerValor(f.valor), categoria: f.categoria,
     pagamento: f.pagamento || '', tipo: f.tipo === 'pessoal' ? 'pessoal' : 'loja', obs: texto(f.obs)
   };
+}
+
+export function gastoDoLancamento(l) {
+  return {
+    data: l.data || '', descricao: l.descricao || '', valor: formatarNumero(l.valor),
+    categoria: CATEGORIAS.includes(l.categoria) ? l.categoria : 'Outros', pagamento: l.pagamento || '',
+    tipo: l.escopo === 'pessoal' ? 'pessoal' : 'loja', obs: l.obs || ''
+  };
+}
+
+export function vendaDoLancamento(l) {
+  return { data: l.data || '', valor: formatarNumero(l.valor), forma_pagamento: l.forma || '', cliente: l.cliente || '', obs: l.obs || '' };
+}
+
+export function lerLancamento(texto) {
+  try {
+    const l = texto ? JSON.parse(String(texto)) : null;
+    return l && l.id ? l : null;
+  } catch {
+    return null;
+  }
 }
 
 export function vendaVazia(hoje = new Date()) {
@@ -92,7 +113,8 @@ export function opcoesDeMes(meses) {
 }
 
 export function lancamentosPendentes(fila) {
-  return (fila || []).filter((o) => o.acao === 'lancarGasto' || o.acao === 'lancarVenda' || o.acao === 'ajustarSaldos').length;
+  const acoes = ['lancarGasto', 'lancarVenda', 'ajustarSaldos', 'editarLancamento', 'apagarLancamento'];
+  return (fila || []).filter((o) => acoes.includes(o.acao)).length;
 }
 
 export function tetoBonito(valor) {

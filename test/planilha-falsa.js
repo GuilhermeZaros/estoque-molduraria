@@ -34,6 +34,10 @@ export function planilhaFalsa(ctx, abas) {
     exigeAba(nome);
     [...linhas].sort((a, b) => b - a).forEach((n) => dados[nome].splice(n - 2, 1));
   };
+  ctx.limparLinhas = (nome) => {
+    exigeAba(nome);
+    dados[nome].splice(0);
+  };
   ctx.garantirColunas = (nome) => {
     if (!(nome in dados)) dados[nome] = [];
   };

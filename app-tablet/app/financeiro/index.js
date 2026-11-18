@@ -170,6 +170,10 @@ function Painel({ inicial, aoSair }) {
     cofre.ler();
     router.push(rota);
   };
+  const editarLancamento = (l) => {
+    cofre.ler();
+    router.push({ pathname: l.tipo === 'entrada' ? '/financeiro/venda' : '/financeiro/gasto', params: { editar: JSON.stringify(l) } });
+  };
   const abrirAjuste = () => {
     cofre.ler();
     setErroAjuste('');
@@ -270,8 +274,16 @@ function Painel({ inicial, aoSair }) {
       </Cartao>
 
       <Cartao titulo={'EXTRATO, ' + nomeDoPeriodo.toUpperCase()}>
+        {lancamentos.length ? <Text style={s.nota}>Toque num lançamento pra corrigir ou apagar.</Text> : null}
         {lancamentos.slice(0, quantos).map((l, i) => (
-          <View key={i} style={s.lancamento}>
+          <Pressable
+            key={l.id || i}
+            disabled={!l.id}
+            onPress={() => editarLancamento(l)}
+            accessibilityRole="button"
+            accessibilityLabel={(l.tipo === 'entrada' ? 'Venda' : 'Gasto') + ', ' + (l.descricao || l.categoria) + ', ' + formatarReais(l.valor) + ', ' + l.data}
+            accessibilityHint="Abre pra corrigir ou apagar"
+            style={({ pressed }) => [s.lancamento, pressed && s.lancApertado]}>
             <View style={s.lancTextos}>
               <Text style={s.lancDescricao} numberOfLines={2}>{l.descricao || l.categoria}</Text>
               <Text style={s.lancCategoria}>
@@ -283,7 +295,8 @@ function Painel({ inicial, aoSair }) {
             <Text style={[s.lancValor, l.tipo === 'entrada' && s.entrada]}>
               {(l.tipo === 'entrada' ? '+ ' : '- ') + formatarReais(l.valor)}
             </Text>
-          </View>
+            {l.id ? <Icone nome="pencil-outline" tamanho={24} cor={cores.apagado} /> : null}
+          </Pressable>
         ))}
         {!lancamentos.length ? <Text style={s.nota}>Nenhum lançamento nesse período.</Text> : null}
         {lancamentos.length > quantos ? (
@@ -404,7 +417,8 @@ const s = StyleSheet.create({
   filtroTipo: { gap: 8 },
   rotulo: { fontSize: tamanho.pequeno, fontWeight: '700', color: cores.apagado },
   subtitulo: { fontSize: 18, fontWeight: '800', color: cores.marinho, marginTop: 4 },
-  lancamento: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: cores.linha },
+  lancamento: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, minHeight: 56, borderBottomWidth: 1, borderBottomColor: cores.linha },
+  lancApertado: { backgroundColor: cores.marinhoClaro },
   lancTextos: { flex: 1, minWidth: 0, gap: 2 },
   lancDescricao: { fontSize: 18, fontWeight: '600', color: cores.tinta },
   lancCategoria: { fontSize: 15, color: cores.apagado },

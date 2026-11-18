@@ -188,7 +188,8 @@ function _abaterFaltas(metrosChegaram, faltas) {
 var ACOES_APP = ['salvarOrcamento', 'fecharVenda', 'descartarOrcamento', 'entradaMoldura', 'ajustarMoldura',
                  'contarCasinha', 'moverMoldura', 'cadastrarMoldura', 'zerarNaoEncontradas',
                  'criarOrdem', 'editarOrdem', 'marcarAcabamento', 'marcarPronto', 'marcarEntregue',
-                 'fotoOrdem', 'tirarFotoOrdem', 'lancarGasto', 'lancarVenda', 'ajustarSaldos'];
+                 'fotoOrdem', 'tirarFotoOrdem', 'lancarGasto', 'lancarVenda', 'ajustarSaldos',
+                 'editarLancamento', 'apagarLancamento'];
 
 function _molduraParaApp(x) {
   return {

@@ -176,7 +176,7 @@ test('fecharVenda: baixa até zerar, a falta vai pra Compras e o orçamento fech
   assert.deepEqual(r.resultado, {
     id: 'ORC-0001', valor_final: 271.2, baixa_m: 2.7, falta_m: 0.726, novo_estoque_m: 0, compra_id: 'CMP-0001',
     molduras: [{ codigo: 'M1', baixa_m: 2.7, falta_m: 0.726, novo_estoque_m: 0, compra_id: 'CMP-0001' }],
-    ordem_id: ''
+    ordem_id: '', entrada_id: ''
   });
   assert.equal(dados.Molduras[0].Estoque_atual_m, 0);
   assert.equal(dados.Compras.length, 1);
@@ -1122,4 +1122,106 @@ test('duas molduras: a de fora é cobrada por fora da de dentro, grava a coluna 
   assert.deepEqual(dados.Molduras.map((m) => m.Estoque_atual_m), [
     Number((27 - c.consumo_moldura_m).toFixed(3)), Number((27 - c.consumo_fora_m).toFixed(3))
   ]);
+});
+
+test('fecharVenda pago: a ordem nasce paga, a entrada entra na hora e a entrega não lança de novo', () => {
+  const { ctx, dados } = montar({ Molduras: [moldura(12.3)], Vidros: [vidro], Oficina: [], Entradas: [{ id: 'E-0003', valor: 10 }] });
+  const r = js(ctx.appExecutar({
+    id_op: 'op-00000300', acao: 'fecharVenda',
+    dados: pedidoOrc({ valor_final: 250, pago: true, oficina: { prazo: '2026-11-12', descricao: '90 x 60' } })
+  }));
+  assert.equal(r.resultado.ordem_id, 'OS-001');
+  assert.equal(r.resultado.entrada_id, 'E-0004');
+  assert.equal(dados.Oficina[0].Pago, true);
+  assert.equal(dados.Oficina[0].Lancado_financeiro, true);
+  assert.equal(dados.Entradas[1].valor, 250);
+  assert.equal(dados.Entradas[1].cliente, 'Maria');
+  assert.equal(dados.Entradas[1].origem, 'venda');
+  assert.equal(dados.Entradas[1].obs, 'Ordem OS-001, pago ao fechar a venda');
+  assert.equal(js(ctx.appSync()).oficina[0].pago, true);
+  const entrega = js(ctx.appExecutar({ id_op: 'op-00000301', acao: 'marcarEntregue', dados: { id: 'OS-001' } }));
+  assert.equal(entrega.resultado.lancado, false);
+  assert.equal(dados.Entradas.length, 2);
+});
+
+test('fecharVenda pago sem oficina lança a entrada; sem pago não lança nada', () => {
+  const { ctx, dados } = montar({ Molduras: [moldura(12.3)], Vidros: [vidro], Oficina: [], Entradas: [] });
+  const r = js(ctx.appExecutar({ id_op: 'op-00000302', acao: 'fecharVenda', dados: pedidoOrc({ valor_final: 180, pago: true }) }));
+  assert.equal(r.resultado.ordem_id, '');
+  assert.equal(r.resultado.entrada_id, 'E-0001');
+  assert.equal(dados.Entradas[0].obs, 'Orçamento ORC-0001, pago ao fechar a venda');
+  const { ctx: ctx2, dados: dados2 } = montar({ Molduras: [moldura(12.3)], Vidros: [vidro], Oficina: [], Entradas: [] });
+  const r2 = js(ctx2.appExecutar({ id_op: 'op-00000303', acao: 'fecharVenda', dados: pedidoOrc({ oficina: { prazo: '', descricao: 'x' } }) }));
+  assert.equal(r2.resultado.entrada_id, '');
+  assert.equal(dados2.Entradas.length, 0);
+  assert.equal(dados2.Oficina[0].Pago, undefined);
+  assert.equal(js(ctx2.appSync()).oficina[0].pago, false);
+});
+
+test('editarLancamento e apagarLancamento mexem no gasto ou na venda pelo número', () => {
+  const { ctx, dados } = montar(abasFin({
+    Saidas: [
+      { id: 'S-0001', data: new Date(2026, 10, 3), valor: 30, categoria: 'Contas', descricao: 'Luz', tipo: 'loja', origem: 'tablet' },
+      { id: 'S-0002', data: new Date(2026, 10, 4), valor: 99, categoria: 'Outros', descricao: 'Errado', tipo: 'loja', origem: 'tablet' }
+    ]
+  }));
+  servicosFalsos(ctx, '123456');
+  const lancs = js(ctx.appFinanceiro({ pin: '123456' })).resumo.lancamentos;
+  assert.deepEqual(lancs.map((l) => l.id), ['S-0002', 'S-0001', 'E-0001']);
+  assert.equal(lancs[2].cliente, 'Ana');
+  const g = js(ctx.appExecutar({
+    id_op: 'op-00000310', acao: 'editarLancamento',
+    dados: { lancamento: 'saida', id: 'S-0001', data: '05/11/2026', descricao: 'Conta de luz', valor: '45,90', categoria: 'contas', pagamento: 'Pix', tipo: 'pessoal', obs: '' }
+  }));
+  assert.deepEqual(g.resultado, { id: 'S-0001', valor: 45.9 });
+  assert.equal(dados.Saidas[0].descricao, 'Conta de luz');
+  assert.equal(dados.Saidas[0].tipo, 'pessoal');
+  assert.equal(dados.Saidas[0].origem, 'tablet');
+  assert.equal(dados.Saidas[0].data.getDate(), 5);
+  ctx.appExecutar({ id_op: 'op-00000311', acao: 'editarLancamento', dados: { lancamento: 'entrada', id: 'E-0001', data: '02/11/2026', valor: 120, forma_pagamento: 'Dinheiro', cliente: 'Ana Paula' } });
+  assert.equal(dados.Entradas[0].valor, 120);
+  assert.equal(dados.Entradas[0].cliente, 'Ana Paula');
+  const a = js(ctx.appExecutar({ id_op: 'op-00000312', acao: 'apagarLancamento', dados: { lancamento: 'saida', id: 'S-0002' } }));
+  assert.deepEqual(a.resultado, { id: 'S-0002' });
+  assert.deepEqual(dados.Saidas.map((s) => s.id), ['S-0001']);
+  assert.throws(() => ctx.appExecutar({ id_op: 'op-00000313', acao: 'apagarLancamento', dados: { lancamento: 'saida', id: 'S-0002' } }), /não está mais na planilha/);
+  assert.throws(() => ctx.appExecutar({ id_op: 'op-00000314', acao: 'editarLancamento', dados: { lancamento: 'entrada', id: 'E-0001', data: '02/11/2026', valor: 0 } }), /maior que zero/);
+});
+
+test('zerar o financeiro apaga entradas, saídas e saldos e as vendas do sistema contam só dali pra frente', () => {
+  const { ctx, dados } = montar(abasFin({
+    Historico: [
+      { Data_hora: new Date(2026, 10, 10, 9, 0), Tipo_movimentacao: 'venda', Categoria: 'moldura', Produto: 'Lisa', Codigo: 'M1', Quantidade: 2, Valor: 100, Cliente: 'Ana' },
+      { Data_hora: new Date(2026, 10, 17, 15, 0), Tipo_movimentacao: 'venda', Categoria: 'moldura', Produto: 'Lisa', Codigo: 'M1', Quantidade: 1, Valor: 40, Cliente: 'Bia' }
+    ]
+  }));
+  const { props } = servicosFalsos(ctx, '123456');
+  ctx._escreverResumoMensal = () => 'ok';
+  assert.equal(js(ctx.appFinanceiro({ pin: '123456', periodo: 'tudo' })).relatorio.faturamento, 140);
+  const msg = ctx._zerarFinanceiro(new Date(2026, 10, 17, 12, 0));
+  assert.match(msg, /2 lançamentos apagados/);
+  assert.equal(dados.Entradas.length, 0);
+  assert.equal(dados.Saidas.length, 0);
+  assert.equal(dados.Saldos.length, 0);
+  assert.ok(props.FINANCEIRO_DESDE);
+  const r = js(ctx.appFinanceiro({ pin: '123456', periodo: 'tudo' }));
+  assert.deepEqual(r.saldos, { conta_empresa: 0, tesouro_direto: 0, total: 0, atualizado_em: '' });
+  assert.equal(r.resumo.lancamentos.length, 0);
+  assert.equal(r.relatorio.faturamento, 40);
+});
+
+test('zerarFinanceiro só apaga quando a pessoa digita ZERAR', () => {
+  const { ctx, dados } = montar(abasFin());
+  servicosFalsos(ctx);
+  ctx._escreverResumoMensal = () => 'ok';
+  const errado = uiFalsa(['zerar não']);
+  ctx.SpreadsheetApp = { getUi: () => errado.ui };
+  ctx.zerarFinanceiro();
+  assert.match(errado.alertas[0], /Nada foi apagado/);
+  assert.equal(dados.Entradas.length, 1);
+  const certo = uiFalsa([' zerar ']);
+  ctx.SpreadsheetApp = { getUi: () => certo.ui };
+  ctx.zerarFinanceiro();
+  assert.match(certo.alertas[0], /Financeiro zerado/);
+  assert.equal(dados.Entradas.length, 0);
 });

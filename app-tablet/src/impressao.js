@@ -77,7 +77,7 @@ function modeloOrdem(pacote, o, fotos) {
       ['Cliente', limpo(o.cliente) || 'Cliente sem nome'],
       ['WhatsApp', telefoneDoPapel(o.telefone)],
       ['Criada em', dataDe(o.data_criacao)],
-      ['Valor', Number(o.valor) > 0 ? formatarReais(o.valor) : '']
+      ['Valor', Number(o.valor) > 0 ? formatarReais(o.valor) + (o.pago ? ' (pago)' : '') : o.pago ? 'Pago' : '']
     ].filter((c) => c[1]),
     prazo: prazo ? { data: textoData(prazo), dia: DIAS[prazo.getDay()] } : null,
     blocos

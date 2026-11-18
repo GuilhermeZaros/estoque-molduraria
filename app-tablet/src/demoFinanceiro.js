@@ -53,8 +53,14 @@ function resumir(entradas, todasSaidas, mes, tipo) {
     }
     : { tem: false };
   const lancamentos = [
-    ...noMes(entradas).map((e) => ({ _ms: ms(e.data), data: e.data, tipo: 'entrada', descricao: e.cliente || 'Venda', categoria: 'Venda', valor: e.valor })),
-    ...saidasDoMes.map((s) => ({ _ms: ms(s.data), data: s.data, tipo: 'saida', descricao: s.descricao, categoria: s.categoria, escopo: s.tipo, valor: s.valor }))
+    ...noMes(entradas).map((e) => ({
+      _ms: ms(e.data), id: e.id, data: e.data, tipo: 'entrada', descricao: e.cliente || 'Venda', categoria: 'Venda', valor: e.valor,
+      cliente: e.cliente || '', forma: e.forma_pagamento || '', obs: e.obs || ''
+    })),
+    ...saidasDoMes.map((s) => ({
+      _ms: ms(s.data), id: s.id, data: s.data, tipo: 'saida', descricao: s.descricao, categoria: s.categoria, escopo: s.tipo, valor: s.valor,
+      pagamento: s.pagamento || '', obs: s.obs || ''
+    }))
   ].sort((a, b) => b._ms - a._ms).map(({ _ms, ...l }) => l);
   return {
     mes_sel: mes,
@@ -131,7 +137,7 @@ export function criarFinanceiroDemo() {
   let tesouro = 23115.33;
   let atualizado = '01/11/2026 09:00';
   const fluxo = () => r2(entradas.reduce((t, e) => t + e.valor, 0) - saidas.reduce((t, s) => t + s.valor, 0));
-  const proximo = (prefixo, lista) => prefixo + '-' + String(lista.length + 1).padStart(4, '0');
+  const proximo = (prefixo, lista) => prefixo + '-' + String(lista.reduce((m, x) => Math.max(m, Number(String(x.id).slice(2)) || 0), 0) + 1).padStart(4, '0');
   const saldos = () => {
     const conta = r2(base + fluxo());
     return { conta_empresa: conta, tesouro_direto: r2(tesouro), total: r2(conta + tesouro), atualizado_em: atualizado };
@@ -167,8 +173,23 @@ export function criarFinanceiroDemo() {
       atualizado = agora;
       return { conta_empresa: r2(conta), tesouro_direto: r2(tesouro), total: r2(conta + tesouro) };
     },
+    editarLancamento(d) {
+      const lista = d.lancamento === 'entrada' ? entradas : saidas;
+      const i = lista.findIndex((x) => x.id === d.id);
+      if (i < 0) return {};
+      lista[i] = d.lancamento === 'entrada'
+        ? { ...lista[i], data: d.data, valor: Number(d.valor) || 0, cliente: d.cliente, forma_pagamento: d.forma_pagamento, obs: d.obs }
+        : { ...lista[i], data: d.data, valor: Number(d.valor) || 0, descricao: d.descricao, categoria: d.categoria, tipo: d.tipo === 'pessoal' ? 'pessoal' : 'loja', pagamento: d.pagamento, obs: d.obs };
+      return { id: d.id, valor: lista[i].valor };
+    },
+    apagarLancamento(d) {
+      const lista = d.lancamento === 'entrada' ? entradas : saidas;
+      const i = lista.findIndex((x) => x.id === d.id);
+      if (i >= 0) lista.splice(i, 1);
+      return { id: d.id };
+    },
     entradaDaOficina(ordem, data) {
-      if (!(Number(ordem.valor) > 0)) return false;
+      if (!(Number(ordem.valor) > 0) || ordem.pago) return false;
       entradas.push(entrada(proximo('E', entradas), data, Number(ordem.valor), ordem.cliente, ''));
       return true;
     }

@@ -105,6 +105,7 @@ export default function OrdemAberta() {
       <View style={[s.cabeca, o.status === 'acabamento' && s.cabecaAcabamento, atrasada && s.cabecaAtrasada, o.status === 'pronto' && s.cabecaPronta]}>
         <View style={s.topo}>
           <Text style={s.cliente} accessibilityRole="header">{cliente}</Text>
+          {o.pago ? <Text style={s.pago}>PAGO</Text> : null}
           {Number(o.valor) > 0 ? <Text style={s.preco}>{formatarReais(o.valor)}</Text> : null}
         </View>
         <Text style={[s.numero, !o.id && s.semNumero]}>
@@ -182,6 +183,10 @@ const s = StyleSheet.create({
   topo: { flexDirection: 'row', alignItems: 'baseline', gap: 12 },
   cliente: { flex: 1, fontSize: tamanho.titulo, fontWeight: '800', color: cores.marinho },
   preco: { fontSize: 24, fontWeight: '800', color: cores.tinta },
+  pago: {
+    fontSize: tamanho.pequeno, fontWeight: '800', letterSpacing: 1, color: AVISO.verde.texto, backgroundColor: AVISO.verde.fundo,
+    borderWidth: 1.5, borderColor: AVISO.verde.borda, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, overflow: 'hidden'
+  },
   numero: { fontSize: tamanho.pequeno, fontWeight: '700', color: cores.ouroTexto },
   semNumero: { color: cores.apagado, fontWeight: '600' },
   prazo: { fontSize: tamanho.pequeno, fontWeight: '700', color: cores.apagado },

@@ -269,15 +269,17 @@ function _resumirFinanceiro(entradas, saidas, opcoes) {
   var lancamentos = [];
   entradas.forEach(function (e) {
     if (mesSel && _chaveMes(e.data, ano) !== mesSel) return;
-    lancamentos.push({ _ms: _msDataFin(e.data), data: _fmtDataFin(e.data), tipo: 'entrada',
-      descricao: e.cliente || e.obs || 'Venda', categoria: 'Venda', valor: _arred2(_parseValorBR(e.valor)) });
+    lancamentos.push({ _ms: _msDataFin(e.data), id: String(e.id || ''), data: _fmtDataFin(e.data), tipo: 'entrada',
+      descricao: e.cliente || e.obs || 'Venda', categoria: 'Venda', valor: _arred2(_parseValorBR(e.valor)),
+      cliente: String(e.cliente || ''), forma: String(e.forma_pagamento || ''), obs: String(e.obs || ''), origem: String(e.origem || '') });
   });
   saidas.forEach(function (s) {
     if (!_saiNoTipo(s)) return;
     if (mesSel && _chaveMes(s.data, ano) !== mesSel) return;
-    lancamentos.push({ _ms: _msDataFin(s.data), data: _fmtDataFin(s.data), tipo: 'saida',
+    lancamentos.push({ _ms: _msDataFin(s.data), id: String(s.id || ''), data: _fmtDataFin(s.data), tipo: 'saida',
       descricao: s.descricao || '', categoria: s.categoria || 'Outros',
-      escopo: _tipoDe(s), valor: _arred2(_parseValorBR(s.valor)) });
+      escopo: _tipoDe(s), valor: _arred2(_parseValorBR(s.valor)),
+      pagamento: String(s.pagamento || ''), obs: String(s.obs || ''), origem: String(s.origem || '') });
   });
   lancamentos.sort(function (a, b) { return b._ms - a._ms; });
   lancamentos.forEach(function (l) { delete l._ms; });
@@ -374,6 +376,77 @@ function _gravarVenda(args, origem) {
     obs: args.obs || '', origem: origem
   });
   return { id: id, valor: valor };
+}
+
+function _acharLancamento(qual, id) {
+  var aba = qual === 'entrada' ? ABAS_FIN.ENTRADAS : qual === 'saida' ? ABAS_FIN.SAIDAS : '';
+  if (!aba) throw new Error('Lançamento sem tipo.');
+  var alvo = String(id == null ? '' : id).trim();
+  var linhas = alvo ? _abaFinOuVazia(aba) : [];
+  for (var i = 0; i < linhas.length; i++) {
+    if (String(linhas[i].id) === alvo) return { aba: aba, linha: linhas[i] };
+  }
+  throw new Error('Esse lançamento não está mais na planilha.');
+}
+
+function _editarLancamento(d) {
+  var achado = _acharLancamento(d.lancamento, d.id);
+  var valor = _parseValorBR(d.valor);
+  if (valor <= 0) throw new Error('Informe um valor maior que zero.');
+  var data = _parseDataBR(d.data, ANO_HISTORICO);
+  if (!data) throw new Error('Data inválida.');
+  var texto = function (v) { return String(v == null ? '' : v).trim(); };
+  var campos;
+  if (achado.aba === ABAS_FIN.SAIDAS) {
+    garantirColunas(ABAS_FIN.SAIDAS, CABECALHOS_FIN.Saidas);
+    if (!texto(d.descricao)) throw new Error('Diga o que foi o gasto.');
+    campos = {
+      data: data, descricao: texto(d.descricao), valor: valor, categoria: _resolverCategoria(d.categoria, CATEGORIAS_SAIDA).categoria,
+      pagamento: texto(d.pagamento), obs: texto(d.obs), tipo: _resolverTipo(d.tipo)
+    };
+  } else {
+    garantirColunas(ABAS_FIN.ENTRADAS, CABECALHOS_FIN.Entradas);
+    campos = { data: data, valor: valor, forma_pagamento: texto(d.forma_pagamento), cliente: texto(d.cliente), obs: texto(d.obs) };
+  }
+  atualizarCampos(achado.aba, achado.linha._linha, campos);
+  return { id: String(achado.linha.id), valor: valor };
+}
+
+function _apagarLancamento(d) {
+  var achado = _acharLancamento(d.lancamento, d.id);
+  apagarLinhas(achado.aba, [achado.linha._linha]);
+  return { id: String(achado.linha.id) };
+}
+
+function _desdeFinanceiro() {
+  return Number(PropertiesService.getScriptProperties().getProperty('FINANCEIRO_DESDE')) || 0;
+}
+
+function zerarFinanceiro() {
+  var ui = SpreadsheetApp.getUi();
+  var r = ui.prompt('Zerar o financeiro',
+    'Isso APAGA DE VEZ todas as entradas e saídas, zera os saldos e faz "Vendas pelo sistema" contar só a partir de agora. Não dá pra desfazer.\n\nPra confirmar, digite ZERAR:',
+    ui.ButtonSet.OK_CANCEL);
+  if (r.getSelectedButton() !== ui.Button.OK || r.getResponseText().trim().toUpperCase() !== 'ZERAR') {
+    ui.alert('Nada foi apagado.');
+    return;
+  }
+  ui.alert(comLock(function () { return _zerarFinanceiro(new Date()); }));
+}
+
+function _zerarFinanceiro(agora) {
+  var apagados = 0;
+  [ABAS_FIN.ENTRADAS, ABAS_FIN.SAIDAS, ABAS_FIN.SALDOS].forEach(function (aba) {
+    if (!abaExiste(aba)) return;
+    var quantos = lerAba(aba).length;
+    if (!quantos) return;
+    limparLinhas(aba);
+    if (aba !== ABAS_FIN.SALDOS) apagados += quantos;
+  });
+  PropertiesService.getScriptProperties().setProperty('FINANCEIRO_DESDE', String(agora.getTime()));
+  _escreverResumoMensal();
+  return 'Financeiro zerado: ' + apagados + (apagados === 1 ? ' lançamento apagado' : ' lançamentos apagados') +
+    ' e saldos em zero. Ajuste os saldos no app do tablet.';
 }
 
 function _fluxoCaixa() {

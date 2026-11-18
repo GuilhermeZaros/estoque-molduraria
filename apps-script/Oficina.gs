@@ -49,7 +49,7 @@ function _ordemParaApp(o, quadrosPorRef) {
     telefone: String(o.Telefone || ''), descricao: String(o.Descricao || ''), prazo: _prazoParaTexto(o.Prazo),
     valor: Number(o.Valor) || 0, status: String(o.Status || ''), aviso: String(o.Aviso || ''),
     data_criacao: _isoOuTexto(o.Data_criacao), data_pronto: _isoOuTexto(o.Data_pronto),
-    data_entrega: _isoOuTexto(o.Data_entrega), fotos: _fotosDaLinha(o.Fotos),
+    data_entrega: _isoOuTexto(o.Data_entrega), fotos: _fotosDaLinha(o.Fotos), pago: _ehVerdade(o.Pago),
     quadros: _quadrosDaOrdem(o, quadrosPorRef)
   };
 }
@@ -142,14 +142,22 @@ function _idsOficina() {
   return lerAba(ABAS_FIN.OFICINA).map(function (o) { return o.ID; });
 }
 
-function _lancarEntradaOficina(valor, cliente, idOS) {
+function _ehVerdade(v) {
+  return v === true || String(v).toUpperCase() === 'TRUE';
+}
+
+function _lancarEntrada(valor, cliente, obs, origem) {
   garantirColunas(ABAS_FIN.ENTRADAS, CABECALHOS_FIN.Entradas);
   var id = _proximoIdFin('E', _idsDaAba(ABAS_FIN.ENTRADAS));
   anexarLinha(ABAS_FIN.ENTRADAS, {
     id: id, timestamp: new Date(), data: new Date(), valor: valor,
-    forma_pagamento: '', cliente: cliente || '', obs: 'Ordem ' + idOS, origem: 'oficina'
+    forma_pagamento: '', cliente: cliente || '', obs: obs || '', origem: origem
   });
   return id;
+}
+
+function _lancarEntradaOficina(valor, cliente, idOS) {
+  return _lancarEntrada(valor, cliente, 'Ordem ' + idOS, 'oficina');
 }
 
 function _dadosDaOrdem(d) {
@@ -171,6 +179,10 @@ function _criarOrdemNucleo(d, quem) {
     Data_entrega: '', Lancado_financeiro: '', Criado_por: quem || '', Finalizado_por: '',
     Obs: String(d.obs || '').trim(), Ref_app: String(d.ref_app || '')
   };
+  if (d.pago === true) {
+    linha.Pago = true;
+    linha.Lancado_financeiro = true;
+  }
   Object.keys(campos).forEach(function (k) { linha[k] = campos[k]; });
   anexarLinha(ABAS_FIN.OFICINA, linha);
   return { id: id };
@@ -195,7 +207,7 @@ function _marcarProntoNucleo(o, quem) {
 
 function _marcarEntregueNucleo(o) {
   atualizarCampos(ABAS_FIN.OFICINA, o._linha, { Status: 'entregue', Data_entrega: new Date() });
-  var jaLancado = o.Lancado_financeiro === true || String(o.Lancado_financeiro).toUpperCase() === 'TRUE';
+  var jaLancado = _ehVerdade(o.Lancado_financeiro) || _ehVerdade(o.Pago);
   var valor = Number(o.Valor) || 0;
   if (jaLancado || !(valor > 0)) return { id: String(o.ID), lancado: false };
   _lancarEntradaOficina(valor, o.Cliente, o.ID);
