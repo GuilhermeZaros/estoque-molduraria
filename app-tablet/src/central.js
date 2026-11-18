@@ -1,5 +1,5 @@
 import { aplicarOperacao, aplicarPendentes } from './efeitos';
-import { esvaziarFila, novaOperacao, semFoto } from './fila';
+import { novaOperacao, semFoto, vaiEmLote, proximoLote } from './fila';
 
 export function criarCentral({ api, armazenamento, gerarId, agora = () => new Date().toISOString(), retentarEmMs = 30000 }) {
   let estado = {
@@ -58,21 +58,46 @@ export function criarCentral({ api, armazenamento, gerarId, agora = () => new Da
     mudar({ sync: { ...estado.sync, trabalhando: true } });
     let erro = null;
     let ultimoOk = estado.sync.ultimo_ok;
+    const guardarPacote = async (pacote) => {
+      pedirPacote = false;
+      ultimoOk = agora();
+      mudar({ pacote });
+      await armazenamento.gravar('pacote', pacote);
+    };
     try {
       for (;;) {
-        const envio = await esvaziarFila({
-          proxima: () => estado.fila[0],
-          enviar: (op) => api.enviar(op),
-          aoTerminar: concluir
-        });
-        if (envio.parou) { erro = envio.parou; break; }
-        if (!pedirPacote) break;
-        pedirPacote = false;
-        const p = await api.buscarPacote();
-        if (p.tipo !== 'ok') { erro = p.erro; pedirPacote = true; break; }
-        ultimoOk = agora();
-        mudar({ pacote: p.dados });
-        await armazenamento.gravar('pacote', p.dados);
+        const primeira = estado.fila[0];
+        if (vaiEmLote(primeira) && api.enviarLote) {
+          const lote = proximoLote(estado.fila);
+          const depois = estado.fila[lote.length];
+          const r = await api.enviarLote(lote, pedirPacote && !vaiEmLote(depois));
+          if (r.tipo !== 'ok') { erro = r.erro; break; }
+          if (!r.respostas.length) { erro = 'A planilha não respondeu as gravações.'; break; }
+          let parou = null;
+          for (let i = 0; i < r.respostas.length && i < lote.length; i++) {
+            if (r.respostas[i].tipo === 'temporario') { parou = r.respostas[i].erro; break; }
+            await concluir(lote[i], r.respostas[i]);
+          }
+          if (parou) { erro = parou; break; }
+          if (r.pacote) await guardarPacote(r.pacote);
+          continue;
+        }
+        if (vaiEmLote(primeira)) {
+          const resposta = await api.enviar(primeira);
+          if (resposta.tipo === 'temporario') { erro = resposta.erro; break; }
+          await concluir(primeira, resposta);
+          continue;
+        }
+        if (pedirPacote) {
+          const p = await api.buscarPacote();
+          if (p.tipo !== 'ok') { erro = p.erro; break; }
+          await guardarPacote(p.dados);
+          continue;
+        }
+        if (!primeira) break;
+        const resposta = await api.enviar(primeira);
+        if (resposta.tipo === 'temporario') { erro = resposta.erro; break; }
+        await concluir(primeira, resposta);
       }
     } catch (e) {
       erro = 'Erro no app: ' + (e && e.message ? e.message : e);

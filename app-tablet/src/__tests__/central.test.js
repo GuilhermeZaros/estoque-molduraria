@@ -203,3 +203,54 @@ test('rascunho da contagem fica guardado', async () => {
   await c.limparRascunho('CR1-E1');
   expect(c.ler().rascunhos).toEqual({});
 });
+
+function apiComLote() {
+  const api = apiFalsa();
+  api.lotes = [];
+  api.ordem = [];
+  api.enviarLote = async (ops, comPacote) => {
+    if (!api.online) return { tipo: 'temporario', erro: 'Sem conexão com a planilha.' };
+    api.lotes.push(ops.map((o) => o.acao));
+    api.ordem.push('lote');
+    return { tipo: 'ok', respostas: ops.map(() => ({ tipo: 'ok', resultado: {} })), pacote: comPacote ? api.pacote : null };
+  };
+  const buscar = api.buscarPacote;
+  api.buscarPacote = async () => { api.ordem.push('pacote'); return buscar(); };
+  const enviar = api.enviar;
+  api.enviar = async (op) => { api.ordem.push(op.acao); return enviar(op); };
+  return api;
+}
+
+test('com lote: manda as gravações juntas e o pacote vem na mesma chamada', async () => {
+  const api = apiComLote();
+  api.online = false;
+  const c = montar(api, armazenamentoFalso({ pacote: PACOTE }));
+  await c.iniciar();
+  await c.registrar('entradaMoldura', { codigo: '101', metros: 3 });
+  await c.registrar('ajustarMoldura', { codigo: '101', metros: 1 });
+  await c.esperar();
+  api.online = true;
+  api.pacote = comEstoque(6);
+  const buscasAntes = api.buscas;
+  await c.sincronizar();
+  expect(api.lotes).toEqual([['entradaMoldura', 'ajustarMoldura']]);
+  expect(api.buscas).toBe(buscasAntes);
+  expect(estoqueNaTela(c)).toBe(6);
+  expect(c.ler().fila).toEqual([]);
+  expect(c.ler().sync.erro).toBeNull();
+});
+
+test('com lote: as fotos só sobem depois do pacote novo', async () => {
+  const api = apiComLote();
+  api.online = false;
+  const c = montar(api, armazenamentoFalso({ pacote: PACOTE }));
+  await c.iniciar();
+  await c.registrar('fecharVenda', { ref_app: 'r1', cliente: 'Ana', quadros: [] });
+  await c.registrar('fotoOrdem', { ref_app: 'r1', cliente: 'Ana' }, { foto_uri: 'x' });
+  await c.esperar();
+  api.online = true;
+  api.ordem = [];
+  await c.sincronizar();
+  expect(api.ordem).toEqual(['lote', 'fotoOrdem']);
+  expect(c.ler().fila).toEqual([]);
+});

@@ -55,6 +55,25 @@ export function criarApi({ url, token, fetch: buscar = (...args) => globalThis.f
     buscarFinanceiro({ pin, mes, tipo, categoria, periodo } = {}) {
       return ler('appFinanceiro', { pin, mes, tipo, categoria, periodo });
     },
+    async enviarLote(ops, comPacote) {
+      const r = await chamar(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          token, pacote: !!comPacote,
+          lote: ops.map((op) => ({ id_op: op.id_op, acao: op.acao, dados: op.dados }))
+        })
+      });
+      if (r.tipo !== 'ok') return r;
+      const resultados = (r.dados && r.dados.resultados) || [];
+      return {
+        tipo: 'ok',
+        respostas: resultados.map((x) => (x.ok
+          ? { tipo: 'ok', resultado: x.resultado, repetida: x.repetida }
+          : erroDoServidor(String(x.erro || 'Erro sem mensagem.')))),
+        pacote: (r.dados && r.dados.pacote) || null
+      };
+    },
     async enviar(op) {
       let dados = op.dados;
       if (op.acao === 'fotoOrdem') {

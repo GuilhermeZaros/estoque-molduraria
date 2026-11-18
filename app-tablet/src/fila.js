@@ -12,6 +12,21 @@ const DESCRICOES = {
   zerarNaoEncontradas: (d) => 'zerar ' + (d.codigos || []).length + ' molduras não achadas'
 };
 
+export const LOTE_MAXIMO = 10;
+
+export function vaiEmLote(op) {
+  return !!op && op.acao !== 'fotoOrdem';
+}
+
+export function proximoLote(fila, maximo = LOTE_MAXIMO) {
+  const lote = [];
+  for (const op of fila) {
+    if (!vaiEmLote(op) || lote.length >= maximo) break;
+    lote.push(op);
+  }
+  return lote;
+}
+
 export function novaOperacao(acao, dados, { id, agora, extra } = {}) {
   return { id_op: id, acao, dados, extra: extra || null, criada_em: agora || new Date().toISOString() };
 }

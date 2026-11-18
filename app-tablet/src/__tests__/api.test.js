@@ -122,3 +122,31 @@ test('Google sem permissão de Drive vira um aviso claro, sem travar a fila', as
   expect(r.tipo).toBe('recusado');
   expect(r.erro).toMatch(/^O Google não deixou salvar a foto no Drive\. .*autorizarFotos/);
 });
+
+test('enviarLote manda várias gravações juntas e separa as respostas', async () => {
+  let corpo;
+  const api = criarApi({
+    url: 'https://exemplo/exec', token: 't',
+    fetch: async (u, o) => {
+      corpo = JSON.parse(o.body);
+      return resposta({ ok: true, dados: {
+        resultados: [
+          { id_op: 'a', ok: true, repetida: false, resultado: { id: 1 } },
+          { id_op: 'b', ok: false, erro: 'Sistema ocupado, tente de novo em instantes.' }
+        ],
+        pacote: { molduras: [] }
+      } });
+    }
+  });
+  const r = await api.enviarLote([
+    { id_op: 'a', acao: 'salvarOrcamento', dados: { x: 1 }, extra: null },
+    { id_op: 'b', acao: 'contarCasinha', dados: {} }
+  ], true);
+  expect(corpo).toEqual({ token: 't', pacote: true, lote: [
+    { id_op: 'a', acao: 'salvarOrcamento', dados: { x: 1 } },
+    { id_op: 'b', acao: 'contarCasinha', dados: {} }
+  ] });
+  expect(r.respostas[0]).toEqual({ tipo: 'ok', resultado: { id: 1 }, repetida: false });
+  expect(r.respostas[1].tipo).toBe('temporario');
+  expect(r.pacote).toEqual({ molduras: [] });
+});

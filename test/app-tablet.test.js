@@ -1256,3 +1256,30 @@ test('entrega da ordem e venda avulsa também descontam a taxa', () => {
   assert.equal(v.valor, 97.17);
   assert.equal(dados.Entradas[1].valor_bruto, 100);
 });
+
+test('lote: várias gravações numa chamada, para no primeiro erro e devolve o pacote no fim', () => {
+  const { ctx, dados } = montar({ Molduras: [moldura(12.3)], Vidros: [vidro], Oficina: [], Entradas: [] });
+  const r = js(ctx.appExecutarLote({
+    pacote: true,
+    lote: [
+      { id_op: 'op-00000500', acao: 'fecharVenda', dados: pedidoOrc({ valor_final: 100, pago: true, forma: 'Pix' }) },
+      { id_op: 'op-00000500', acao: 'fecharVenda', dados: pedidoOrc({ valor_final: 100, pago: true, forma: 'Pix' }) }
+    ]
+  }));
+  assert.deepEqual(r.resultados.map((x) => [x.id_op, x.ok, x.repetida]), [['op-00000500', true, false], ['op-00000500', true, true]]);
+  assert.equal(dados.Entradas.length, 1);
+  assert.ok(Array.isArray(r.pacote.molduras));
+  const parou = js(ctx.appExecutarLote({
+    pacote: true,
+    lote: [
+      { id_op: 'op-00000501', acao: 'apagarTudo', dados: {} },
+      { id_op: 'op-00000502', acao: 'fecharVenda', dados: pedidoOrc({ valor_final: 50, pago: true, forma: 'Pix' }) }
+    ]
+  }));
+  assert.equal(parou.resultados.length, 1);
+  assert.equal(parou.resultados[0].ok, false);
+  assert.match(parou.resultados[0].erro, /Ação desconhecida/);
+  assert.equal(parou.pacote, undefined);
+  assert.equal(dados.Entradas.length, 1);
+  assert.throws(() => ctx.appExecutarLote({ lote: new Array(21).fill({}) }), /grande demais/);
+});

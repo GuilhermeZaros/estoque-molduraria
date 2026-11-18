@@ -11,6 +11,7 @@ function doPost(e) {
   try {
     var corpo = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     if (!_tokenAppOk(corpo.token)) throw new Error('não autorizado');
+    if (Array.isArray(corpo.lote)) return _json({ ok: true, dados: appExecutarLote(corpo) });
     return _json({ ok: true, dados: appExecutar(corpo) });
   } catch (err) {
     return _json({ ok: false, erro: String(err && err.message ? err.message : err) });

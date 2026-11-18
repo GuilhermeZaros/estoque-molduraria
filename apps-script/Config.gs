@@ -47,7 +47,7 @@ var CABECALHOS = {
 
 // Ano dos lançamentos históricos importados dos CSV (datas vêm como DD/MM).
 var ANO_HISTORICO = 2026;
-var INICIO_FINANCEIRO = new Date(2026, 10, 18).getTime();
+var INICIO_FINANCEIRO = new Date(2026, 10, 18, 9, 55).getTime();
 
 // Abas do financeiro — propositalmente FORA de CABECALHOS (que o seedInicial limpa),
 // pra um seed do catálogo nunca apagar dados financeiros.

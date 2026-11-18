@@ -138,6 +138,25 @@ function appExecutar(corpo) {
   });
 }
 
+var LOTE_APP_MAXIMO = 20;
+
+function appExecutarLote(corpo) {
+  var lote = corpo.lote || [];
+  if (lote.length > LOTE_APP_MAXIMO) throw new Error('Lote grande demais.');
+  var resultados = [];
+  for (var i = 0; i < lote.length; i++) {
+    var idOp = String(lote[i] && lote[i].id_op != null ? lote[i].id_op : '');
+    try {
+      var r = appExecutar(lote[i]);
+      resultados.push({ id_op: idOp, ok: true, repetida: r.repetida, resultado: r.resultado });
+    } catch (err) {
+      resultados.push({ id_op: idOp, ok: false, erro: String(err && err.message ? err.message : err) });
+      return { resultados: resultados };
+    }
+  }
+  return corpo.pacote ? { resultados: resultados, pacote: appSync() } : { resultados: resultados };
+}
+
 function _operacaoFeita(idOp) {
   var ops = lerAba(ABAS_APP.OPERACOES);
   for (var i = ops.length - 1; i >= 0; i--) {

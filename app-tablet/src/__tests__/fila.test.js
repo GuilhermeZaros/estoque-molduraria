@@ -1,4 +1,4 @@
-import { novaOperacao, semFoto, esvaziarFila, descreverOperacao } from '../fila';
+import { novaOperacao, semFoto, esvaziarFila, descreverOperacao, proximoLote, vaiEmLote, LOTE_MAXIMO } from '../fila';
 
 test('novaOperacao guarda id, ação, dados, extra e hora', () => {
   expect(novaOperacao('ajustarMoldura', { codigo: '1', metros: 2 }, { id: 'abc12345', agora: '2026-10-30T10:00:00.000Z' }))
@@ -76,4 +76,12 @@ test('descreverOperacao conta as fotos da oficina pelo nome do cliente', () => {
   expect(descreverOperacao({ acao: 'fotoOrdem', dados: { cliente: 'Carla' } })).toBe('foto da ordem de Carla');
   expect(descreverOperacao({ acao: 'tirarFotoOrdem', dados: { cliente: 'Carla' } })).toBe('tirar foto da ordem de Carla');
   expect(descreverOperacao({ acao: 'fotoOrdem', dados: {} })).toBe('foto da ordem de cliente sem nome');
+});
+
+test('lote junta as gravações leves do começo da fila e para na foto', () => {
+  const fila = [{ acao: 'fecharVenda' }, { acao: 'salvarOrcamento' }, { acao: 'fotoOrdem' }, { acao: 'contarCasinha' }];
+  expect(proximoLote(fila).map((o) => o.acao)).toEqual(['fecharVenda', 'salvarOrcamento']);
+  expect(proximoLote([{ acao: 'fotoOrdem' }])).toEqual([]);
+  expect(proximoLote(new Array(15).fill({ acao: 'contarCasinha' }))).toHaveLength(LOTE_MAXIMO);
+  expect(vaiEmLote(undefined)).toBe(false);
 });
