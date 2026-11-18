@@ -49,12 +49,29 @@ function cadastro(pacote, d, r, extra) {
   if (pacote.molduras.some((m) => m.codigo === v.codigo)) return pacote;
   const nova = {
     codigo: v.codigo, nome: v.nome, marca: v.marca, estilo: v.estilo, cor: v.cor,
-    perfil_cm: v.perfil_cm, preco_m: v.preco_m, estoque_m: v.metros,
+    perfil_cm: v.perfil_cm, preco_m: v.preco_m, custo_m: v.custo_m, estoque_m: v.metros,
     foto_url: (r && r.foto_url) || (extra && extra.foto_uri) || '',
     local: v.casinha,
     disponivel: r && r.disponivel != null ? r.disponivel : v.disponivel
   };
   return { ...pacote, molduras: [...pacote.molduras, nova] };
+}
+
+function edicao(pacote, d, r, extra) {
+  let v;
+  try {
+    v = validarNovaMoldura({ ...d, metros: 0, casinha: '' });
+  } catch (e) {
+    return pacote;
+  }
+  return trocarMoldura(pacote, d.codigo, (m) => ({
+    nome: v.nome, marca: v.marca, estilo: v.estilo, cor: v.cor,
+    perfil_cm: v.perfil_cm, preco_m: v.preco_m, custo_m: v.custo_m,
+    foto_url: (r && r.foto_url) || (extra && extra.foto_uri) || m.foto_url || '',
+    disponivel: r && r.disponivel != null
+      ? r.disponivel
+      : (v.preco_m > 0 ? (Number(m.preco_m) > 0 ? m.disponivel !== false : true) : false)
+  }));
 }
 
 function quadroSalvo(q) {
@@ -255,6 +272,7 @@ export function aplicarOperacao(pacote, op, resultado) {
     case 'contarCasinha': return contagem(pacote, d);
     case 'moverMoldura': return trocarMoldura(pacote, d.codigo, () => ({ local: normalizarCasinha(d.casinha) }));
     case 'cadastrarMoldura': return cadastro(pacote, d, resultado, op.extra);
+    case 'editarMoldura': return edicao(pacote, d, resultado, op.extra);
     case 'salvarOrcamento': return salvarOrcamento(pacote, d, resultado, op.criada_em);
     case 'fecharVenda': return ordemDaVenda(fecharVenda(pacote, d, resultado, op.id_op), d, resultado, op.criada_em);
     case 'descartarOrcamento': return descartarOrcamento(pacote, d);

@@ -46,6 +46,13 @@ export default function TelaCasinha() {
           <Botao titulo="Chegou mercadoria" onPress={() => abrir('entrada', moldura)} />
           <Botao titulo="Corrigir" variante="contorno" onPress={() => abrir('corrigir', moldura)} />
           <Botao titulo="Mover" variante="contorno" onPress={() => abrir('mover', moldura)} />
+          <Botao
+            icone="pencil-outline"
+            titulo="Editar"
+            variante="contorno"
+            rotulo={'Editar a moldura ' + moldura.codigo}
+            onPress={() => router.push({ pathname: '/cadastro', params: { codigo: moldura.codigo } })}
+          />
         </CartaoMoldura>
       )) : <Text style={s.vazio}>Nenhuma moldura nesta casinha ainda.</Text>}
       {buscando ? (

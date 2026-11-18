@@ -201,7 +201,7 @@ function _abaterFaltas(metrosChegaram, faltas) {
 var ACOES_APP = ['salvarOrcamento', 'fecharVenda', 'descartarOrcamento', 'entradaMoldura', 'ajustarMoldura',
                  'contarCasinha', 'moverMoldura', 'cadastrarMoldura', 'zerarNaoEncontradas',
                  'criarOrdem', 'editarOrdem', 'marcarAcabamento', 'marcarPronto', 'marcarEntregue',
-                 'fotoOrdem', 'tirarFotoOrdem', 'ladoAMais', 'tirarLadoAMais', 'lancarGasto', 'lancarVenda', 'ajustarSaldos',
+                 'fotoOrdem', 'tirarFotoOrdem', 'ladoAMais', 'tirarLadoAMais', 'editarMoldura', 'lancarGasto', 'lancarVenda', 'ajustarSaldos',
                  'editarLancamento', 'apagarLancamento'];
 
 function _molduraParaApp(x) {
@@ -213,6 +213,7 @@ function _molduraParaApp(x) {
     cor: String(x.Cor || ''),
     perfil_cm: Number(x.Largura_perfil_cm) || 0,
     preco_m: Number(x.Valor_por_metro) || 0,
+    custo_m: Number(x.Custo_por_metro) || 0,
     estoque_m: Number(x.Estoque_atual_m) || 0,
     foto_url: String(x.Foto_URL || ''),
     local: _normalizarCasinha(x.Local),
@@ -368,10 +369,12 @@ function _validarNovaMoldura(d) {
   var nome = String(d.nome == null ? '' : d.nome).trim();
   var perfil = Number(String(d.perfil_cm == null ? '' : d.perfil_cm).replace(',', '.'));
   var preco = Number(String(d.preco_m == null ? '' : d.preco_m).replace(',', '.')) || 0;
+  var custo = Number(String(d.custo_m == null ? '' : d.custo_m).replace(',', '.'));
   if (!codigo) throw new Error('Informe o código da etiqueta.');
   if (!nome) throw new Error('Informe o nome da moldura.');
   if (!(perfil > 0)) throw new Error('Informe a largura do perfil em cm.');
   if (preco < 0) throw new Error('Preço inválido.');
+  if (!isFinite(custo) || custo < 0) throw new Error('Preço de custo inválido.');
   var casinha = _normalizarCasinha(d.casinha);
   if (casinha && !_casinhaValida(casinha)) throw new Error('Casinha inválida: ' + d.casinha);
   return {
@@ -382,6 +385,7 @@ function _validarNovaMoldura(d) {
     cor: String(d.cor || '').trim(),
     perfil_cm: perfil,
     preco_m: Number(preco.toFixed(2)),
+    custo_m: Number((custo || 0).toFixed(2)),
     metros: _metros(d.metros == null || d.metros === '' ? 0 : d.metros, true),
     casinha: casinha,
     disponivel: preco > 0

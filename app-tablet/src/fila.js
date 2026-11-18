@@ -4,6 +4,7 @@ const DESCRICOES = {
   contarCasinha: (d) => 'contagem de ' + d.casinha,
   moverMoldura: (d) => 'mudança de ' + d.codigo,
   cadastrarMoldura: (d) => 'cadastro de ' + d.codigo,
+  editarMoldura: (d) => 'edição de ' + d.codigo,
   salvarOrcamento: (d) => 'orçamento de ' + (d.cliente || 'cliente sem nome'),
   fecharVenda: (d) => 'venda de ' + (d.cliente || 'cliente sem nome'),
   descartarOrcamento: (d) => 'descartar orçamento de ' + (d.cliente || 'cliente sem nome'),

@@ -54,6 +54,36 @@ test('cadastro mostra a foto do tablet até o servidor devolver a do Drive', () 
   expect(achar(depois, '303').foto_url).toBe('https://drive.google.com/thumbnail?id=x');
 });
 
+test('editar moldura troca os dados e o custo, mas não mexe no estoque nem na casinha', () => {
+  const dados = { codigo: '101', nome: 'Clássica nova', marca: 'Artmold', estilo: 'Clássica', cor: 'Ouro', perfil_cm: '4,5', preco_m: '42,50', custo_m: '18' };
+  const p = aplicarOperacao(base, op('editarMoldura', dados));
+  expect(achar(p, '101')).toMatchObject({
+    nome: 'Clássica nova', marca: 'Artmold', perfil_cm: 4.5, preco_m: 42.5, custo_m: 18,
+    estoque_m: 2, local: 'CR1-E1', disponivel: true, foto_url: ''
+  });
+  expect(achar(p, '202')).toBe(base.molduras[1]);
+});
+
+test('editar moldura mostra a foto nova do tablet e depois a do Drive', () => {
+  const dados = { codigo: '101', nome: 'Moldura 101', perfil_cm: 2, preco_m: 30, custo_m: '' };
+  const antes = aplicarOperacao(base, op('editarMoldura', dados, { foto_uri: 'file:///nova.jpg' }));
+  expect(achar(antes, '101').foto_url).toBe('file:///nova.jpg');
+  const depois = aplicarOperacao(base, op('editarMoldura', dados), { codigo: '101', foto_url: 'https://drive.google.com/thumbnail?id=y', disponivel: true });
+  expect(achar(depois, '101').foto_url).toBe('https://drive.google.com/thumbnail?id=y');
+});
+
+test('editar moldura sem preço tira do catálogo e com preço novo volta', () => {
+  const semPreco = aplicarOperacao(base, op('editarMoldura', { codigo: '101', nome: 'Moldura 101', perfil_cm: 2, preco_m: '' }));
+  expect(achar(semPreco, '101')).toMatchObject({ preco_m: 0, disponivel: false });
+  const voltou = aplicarOperacao(semPreco, op('editarMoldura', { codigo: '101', nome: 'Moldura 101', perfil_cm: 2, preco_m: 35 }));
+  expect(achar(voltou, '101')).toMatchObject({ preco_m: 35, disponivel: true });
+});
+
+test('editar moldura com dado inválido não muda nada', () => {
+  expect(aplicarOperacao(base, op('editarMoldura', { codigo: '101', nome: '', perfil_cm: 2 }))).toBe(base);
+  expect(aplicarOperacao(base, op('editarMoldura', { codigo: '101', nome: 'X', perfil_cm: 2, custo_m: '-3' }))).toBe(base);
+});
+
 test('pendentes entram em ordem e não mexem no pacote guardado', () => {
   const p = aplicarPendentes(base, [
     op('ajustarMoldura', { codigo: '101', metros: 1 }),

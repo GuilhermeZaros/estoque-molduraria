@@ -185,6 +185,7 @@ function _executarAcaoApp(acao, d) {
     case 'tirarFotoOrdem': return _appTirarFotoOrdem(d);
     case 'ladoAMais': return _appLadoAMais(d);
     case 'tirarLadoAMais': return _appTirarLadoAMais(d);
+    case 'editarMoldura': return _appEditarMoldura(d);
     case 'lancarGasto': return _gravarGasto(d, 'tablet');
     case 'lancarVenda': return _gravarVenda(d, 'tablet');
     case 'ajustarSaldos': return _gravarSaldos(d);
@@ -664,7 +665,7 @@ function _appCadastrarMoldura(d) {
   var agora = new Date();
   anexarLinha(ABAS.MOLDURAS, {
     Codigo: m.codigo, Nome: m.nome, Marca: m.marca, Estilo: m.estilo, Cor: m.cor,
-    Largura_perfil_cm: m.perfil_cm, Valor_por_metro: m.preco_m || '', Foto_URL: foto,
+    Largura_perfil_cm: m.perfil_cm, Valor_por_metro: m.preco_m || '', Custo_por_metro: m.custo_m || '', Foto_URL: foto,
     Estoque_atual_m: m.metros, Disponivel: m.disponivel, Local: m.casinha,
     Contado_em: m.casinha ? agora : ''
   });
@@ -756,4 +757,27 @@ function _appTirarLadoAMais(d) {
     codigo: p.dados.Codigo
   });
   return { id: String(o.ID), devolvido_m: quebra.metros, novo_estoque_m: novo };
+}
+
+function _appEditarMoldura(d) {
+  var p = _molduraOuErro(d.codigo);
+  var codigo = String(p.dados.Codigo);
+  var m = _validarNovaMoldura({
+    codigo: codigo, nome: d.nome, marca: d.marca, estilo: d.estilo, cor: d.cor,
+    perfil_cm: d.perfil_cm, preco_m: d.preco_m, custo_m: d.custo_m, metros: 0, casinha: ''
+  });
+  var tinhaPreco = (Number(p.dados.Valor_por_metro) || 0) > 0;
+  var disponivel = m.preco_m > 0 ? (tinhaPreco ? _ehDisponivel(p.dados.Disponivel) : true) : false;
+  var campos = {
+    Nome: m.nome, Marca: m.marca, Estilo: m.estilo, Cor: m.cor, Largura_perfil_cm: m.perfil_cm,
+    Valor_por_metro: m.preco_m || '', Custo_por_metro: m.custo_m || '', Disponivel: disponivel
+  };
+  if (d.foto_base64) campos.Foto_URL = _salvarFotoMoldura(codigo, d.foto_base64, d.foto_tipo);
+  garantirColunas(ABAS.MOLDURAS, CABECALHOS.Molduras);
+  atualizarCampos(ABAS.MOLDURAS, p.dados._linha, campos);
+  registrarHistorico({
+    tipo: 'edicao', categoria: 'moldura', produto: m.nome, quantidade: '', unidade: '',
+    observacoes: 'editada pelo app' + (d.atendente ? ' (' + d.atendente + ')' : ''), codigo: codigo
+  });
+  return { codigo: codigo, foto_url: campos.Foto_URL || String(p.dados.Foto_URL || ''), disponivel: disponivel };
 }

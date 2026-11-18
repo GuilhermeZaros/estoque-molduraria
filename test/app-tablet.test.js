@@ -1354,3 +1354,37 @@ test('lado a mais com pouco estoque: baixa só o que tem e fica zero', () => {
   assert.equal(r.resultado.quebra.metros, 0.5);
   assert.equal(dados.Molduras[0].Estoque_atual_m, 0);
 });
+
+test('editarMoldura: muda tudo menos código e estoque; custo volta no appSync; sem preço sai do catálogo', () => {
+  const { ctx, dados } = montar({ Molduras: [moldura(27, { Disponivel: false })] });
+  const editar = (id_op, extra) => js(ctx.appExecutar({
+    id_op, acao: 'editarMoldura',
+    dados: { codigo: 'M1', nome: ' Madeira lisa 4cm ', marca: 'Artmold', estilo: 'Rústica', cor: 'Mel', perfil_cm: '4,5', preco_m: '61,9', custo_m: '22,5', ...extra }
+  }));
+  const r = editar('op-00000600');
+  const m = dados.Molduras[0];
+  assert.deepEqual(
+    [m.Codigo, m.Nome, m.Marca, m.Estilo, m.Cor, m.Largura_perfil_cm, m.Valor_por_metro, m.Custo_por_metro, m.Estoque_atual_m, m.Disponivel],
+    ['M1', 'Madeira lisa 4cm', 'Artmold', 'Rústica', 'Mel', 4.5, 61.9, 22.5, 27, false]
+  );
+  assert.equal(r.resultado.disponivel, false);
+  assert.equal(js(ctx.appSync()).molduras[0].custo_m, 22.5);
+  editar('op-00000601', { preco_m: '' });
+  assert.equal(dados.Molduras[0].Disponivel, false);
+  assert.equal(dados.Molduras[0].Valor_por_metro, '');
+  editar('op-00000602', { preco_m: '70' });
+  assert.equal(dados.Molduras[0].Disponivel, true);
+  assert.throws(() => editar('op-00000603', { nome: '' }), /nome/);
+  assert.throws(() => editar('op-00000604', { custo_m: '-3' }), /custo/);
+  assert.throws(() => editar('op-00000605', { codigo: 'NAO' }), /não encontrada/);
+  assert.equal(dados.Historico.filter((h) => h.Tipo_movimentacao === 'edicao').length, 3);
+});
+
+test('cadastrarMoldura grava o preço de custo', () => {
+  const { ctx, dados } = montar({ Molduras: [] });
+  ctx.appExecutar({
+    id_op: 'op-00000610', acao: 'cadastrarMoldura',
+    dados: { codigo: 'N1', nome: 'Nova', perfil_cm: 2, preco_m: 40, custo_m: '15,4', metros: 2.7, casinha: '' }
+  });
+  assert.equal(dados.Molduras[0].Custo_por_metro, 15.4);
+});
