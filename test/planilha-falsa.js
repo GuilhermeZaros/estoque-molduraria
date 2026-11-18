@@ -26,6 +26,7 @@ export function planilhaFalsa(ctx, abas) {
     confere(nome, obj);
     dados[nome].push({ ...obj });
   };
+  ctx.anexarLinhas = (nome, objs) => objs.forEach((o) => ctx.anexarLinha(nome, o));
   ctx.atualizarCampos = (nome, linha, campos) => {
     confere(nome, campos);
     Object.assign(dados[nome][linha - 2], campos);

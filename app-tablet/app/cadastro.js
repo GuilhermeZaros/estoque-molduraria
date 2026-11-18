@@ -8,7 +8,6 @@ import { nomeCasinha, normalizarCasinha, validarNovaMoldura } from '../src/gerad
 import { prepararFoto, primeiraFoto } from '../src/foto';
 import { totalMetros, numeroDoPerfil } from '../src/varas';
 import { camposDaMoldura } from '../src/edicao';
-import { procurarNoCatalogo, camposDoCatalogo, resumoDoCatalogo, chaveCodigo } from '../src/catalogoFornecedores';
 import { Botao } from '../src/componentes/Botao';
 import { Campo } from '../src/componentes/Campo';
 import { CampoMetros } from '../src/componentes/CampoMetros';
@@ -31,8 +30,6 @@ export default function Cadastro() {
   const [foto, setFoto] = useState(null);
   const [erro, setErro] = useState('');
   const [ocupado, setOcupado] = useState(false);
-  const [procura, setProcura] = useState('');
-  const [doCatalogo, setDoCatalogo] = useState(null);
   const mudar = (chave) => (texto) => setCampos((c) => ({ ...c, [chave]: texto }));
 
   const usarFoto = async (asset) => {
@@ -69,14 +66,6 @@ export default function Cadastro() {
     );
   }
   const fotoAtual = foto ? foto.uri : (original && original.foto_url) || '';
-  const jaCadastradas = new Set(visivel.molduras.map((p) => chaveCodigo(p.codigo)));
-  const achadas = editar ? [] : procurarNoCatalogo(procura);
-  const usarDoCatalogo = (m) => {
-    setCampos(camposDoCatalogo(m));
-    setDoCatalogo(m);
-    setProcura('');
-    setErro('');
-  };
 
   const tirarFoto = async () => {
     setErro('');
@@ -171,33 +160,7 @@ export default function Cadastro() {
           <Text style={s.dica}>O código não muda. A quantidade em estoque se acerta no botão Corrigir da casinha.</Text>
         </View>
       ) : (
-        <View style={s.procura}>
-          <Campo
-            rotulo="Procurar no relatório da loja"
-            valor={procura}
-            aoMudar={setProcura}
-            autoCapitalize="characters"
-            dica="Digite o código (ou cor, fornecedor) e toque na moldura pra preencher tudo de uma vez."
-          />
-          {achadas.map((m) => {
-            const ja = jaCadastradas.has(chaveCodigo(m.codigo));
-            return (
-              <Botao
-                key={m.codigo}
-                titulo={resumoDoCatalogo(m) + (ja ? ' (já cadastrada)' : '')}
-                variante="contorno"
-                desativado={ja}
-                onPress={() => usarDoCatalogo(m)}
-              />
-            );
-          })}
-          {procura.trim() && achadas.length === 0 ? <Text style={s.dica}>Não achei no relatório. Preencha à mão.</Text> : null}
-          {doCatalogo && doCatalogo.obs ? <Text style={s.dica}>Obs. do catálogo: {doCatalogo.obs}</Text> : null}
-          {doCatalogo && doCatalogo.altura_cm ? (
-            <Text style={s.dica}>Altura do perfil: {String(doCatalogo.altura_cm).replace('.', ',')} cm{doCatalogo.rebaixo_mm ? ' · rebaixo ' + doCatalogo.rebaixo_mm + ' mm' : ''}</Text>
-          ) : null}
-          <Campo rotulo="Código da etiqueta" valor={campos.codigo} aoMudar={mudar('codigo')} autoCapitalize="characters" />
-        </View>
+        <Campo rotulo="Código da etiqueta" valor={campos.codigo} aoMudar={mudar('codigo')} autoCapitalize="characters" />
       )}
       <Campo rotulo="Nome" valor={campos.nome} aoMudar={mudar('nome')} autoCapitalize="sentences" />
       <Text style={s.rotulo}>Fornecedor</Text>
@@ -245,7 +208,6 @@ const s = StyleSheet.create({
   rotulo: { fontSize: tamanho.texto, fontWeight: '700', color: cores.tinta },
   marcas: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   codigoTravado: { gap: 4 },
-  procura: { gap: 8 },
   codigoTexto: { fontSize: 24, fontWeight: '800', color: cores.marinho },
   erro: { fontSize: tamanho.texto, color: cores.vermelho, fontWeight: '700' }
 });

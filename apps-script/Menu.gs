@@ -16,6 +16,7 @@ function onOpen() {
     .addItem('Autorizar fotos da oficina (Drive)', 'autorizarFotos')
     .addSeparator()
     .addItem('Remover coluna Modelo das molduras (1x)', 'removerColunaModelo')
+    .addItem('Cadastrar as molduras do relatório (749)', 'cadastrarMoldurasDoRelatorio')
     .addItem('Importar custos das molduras (do relatório)', 'importarCustosMolduras')
     .addItem('Definir marca/fornecedor das molduras (+ coluna)', 'definirMarcaMolduras')
     .addItem('Importar fotos das molduras (Drive)', 'importarFotosMolduras')

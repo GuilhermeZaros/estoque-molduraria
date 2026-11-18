@@ -83,6 +83,18 @@ function anexarLinha(nomeAba, obj) {
   _abaMudou(nomeAba);
 }
 
+// Várias linhas de uma vez (bem mais rápido que appendRow uma por uma).
+function anexarLinhas(nomeAba, objs) {
+  if (!objs || !objs.length) return;
+  var aba = _aba(nomeAba);
+  var cab = aba.getRange(1, 1, 1, aba.getLastColumn()).getValues()[0];
+  var linhas = objs.map(function (obj) {
+    return cab.map(function (c) { return obj[c] !== undefined ? obj[c] : ''; });
+  });
+  aba.getRange(aba.getLastRow() + 1, 1, linhas.length, cab.length).setValues(linhas);
+  _abaMudou(nomeAba);
+}
+
 function apagarLinhas(nomeAba, numerosLinha) {
   var aba = _aba(nomeAba);
   numerosLinha.slice().sort(function (a, b) { return b - a; }).forEach(function (n) { aba.deleteRow(n); });
